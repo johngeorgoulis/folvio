@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Platform,
   Pressable,
@@ -27,7 +28,14 @@ export default function HoldingsScreen() {
   const topPad = Platform.OS === "web" ? 24 : insets.top;
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
-  const { holdings, isAtLimit, deleteHolding, totalPortfolioValue } = usePortfolio();
+  const {
+    holdings,
+    isAtLimit,
+    isRefreshingPrices,
+    deleteHolding,
+    refreshPrices,
+    totalPortfolioValue,
+  } = usePortfolio();
   const [showAdd, setShowAdd] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
 
@@ -67,12 +75,25 @@ export default function HoldingsScreen() {
               {holdings.length} of {FREE_TIER_LIMIT} (free tier)
             </Text>
           </View>
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: theme.tint }]}
-            onPress={handleAddPress}
-          >
-            <Feather name="plus" size={20} color="#0A0F1A" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[styles.refreshBtn, { borderColor: theme.border }]}
+              onPress={refreshPrices}
+              disabled={isRefreshingPrices}
+            >
+              {isRefreshingPrices ? (
+                <ActivityIndicator size="small" color={theme.tint} />
+              ) : (
+                <Feather name="refresh-cw" size={16} color={theme.tint} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.addBtn, { backgroundColor: theme.tint }]}
+              onPress={handleAddPress}
+            >
+              <Feather name="plus" size={20} color="#0A0F1A" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {holdings.length === 0 && (
@@ -111,25 +132,35 @@ export default function HoldingsScreen() {
                   <Text style={styles.tickerText}>{h.ticker.slice(0, 4)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.holdingTicker, { color: theme.text }]}>{h.ticker}</Text>
+                  <View style={styles.tickerRow}>
+                    <Text style={[styles.holdingTicker, { color: theme.text }]}>{h.ticker}</Text>
+                    {h.hasPrice && h.priceIsStale && (
+                      <Text style={styles.staleWarning}>⚠</Text>
+                    )}
+                    {!h.hasPrice && (
+                      <Text style={[styles.noPrice, { color: theme.textSecondary }]}>no price</Text>
+                    )}
+                  </View>
                   <Text style={[styles.holdingName, { color: theme.textSecondary }]} numberOfLines={1}>
                     {h.name || h.exchange}
                   </Text>
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
                   <Text style={[styles.holdingValue, { color: theme.text }]}>
-                    {formatEUR(marketValue)}
+                    {h.hasPrice ? formatEUR(marketValue) : "—"}
                   </Text>
-                  <View
-                    style={[
-                      styles.gainBadge,
-                      { backgroundColor: isPositive ? theme.positive + "20" : theme.negative + "20" },
-                    ]}
-                  >
-                    <Text style={[styles.gainText, { color: isPositive ? theme.positive : theme.negative }]}>
-                      {isPositive ? "+" : ""}{formatPct(gainPct, false)}
-                    </Text>
-                  </View>
+                  {h.hasPrice && (
+                    <View
+                      style={[
+                        styles.gainBadge,
+                        { backgroundColor: isPositive ? theme.positive + "20" : theme.negative + "20" },
+                      ]}
+                    >
+                      <Text style={[styles.gainText, { color: isPositive ? theme.positive : theme.negative }]}>
+                        {isPositive ? "+" : ""}{formatPct(gainPct, false)}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -146,7 +177,9 @@ export default function HoldingsScreen() {
                 </View>
                 <View style={styles.detailItem}>
                   <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Price</Text>
-                  <Text style={[styles.detailValue, { color: theme.text }]}>{formatEUR(h.currentPrice)}</Text>
+                  <Text style={[styles.detailValue, { color: h.priceIsStale ? "#FBBF24" : theme.text }]}>
+                    {h.hasPrice ? formatEUR(h.currentPrice) : "—"}
+                  </Text>
                 </View>
                 <View style={styles.detailItem}>
                   <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Weight</Text>
@@ -183,6 +216,15 @@ const styles = StyleSheet.create({
   },
   pageTitle: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.8 },
   pageSubtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  refreshBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
   addBtn: {
     width: 44,
     height: 44,
@@ -190,6 +232,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  tickerRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  staleWarning: { fontSize: 12, color: "#FBBF24" },
+  noPrice: { fontSize: 10, fontFamily: "Inter_400Regular" },
   emptyState: {
     borderRadius: 16,
     padding: 32,

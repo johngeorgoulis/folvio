@@ -92,3 +92,11 @@ export async function getAllPrices(): Promise<PriceCacheRow[]> {
   const database = await getDb();
   return database.getAllAsync<PriceCacheRow>("SELECT * FROM prices_cache");
 }
+
+export async function getPrice(ticker: string): Promise<PriceCacheRow | null> {
+  const database = await getDb();
+  return database.getFirstAsync<PriceCacheRow>(
+    "SELECT * FROM prices_cache WHERE ticker = ?",
+    [ticker]
+  );
+}

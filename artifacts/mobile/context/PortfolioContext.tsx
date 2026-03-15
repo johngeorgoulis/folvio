@@ -3,8 +3,10 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import {
   getAllHoldings,
   insertHolding,
@@ -15,24 +17,52 @@ import {
   type HoldingRow,
   type PriceCacheRow,
 } from "@/services/db";
+import { refreshAllPrices } from "@/services/priceService";
 
-export const EXCHANGES = ["XETRA", "LSE", "Euronext", "SIX", "Borsa Italiana", "Other"] as const;
+export const EXCHANGES = [
+  "XETRA",
+  "Euronext Paris",
+  "Euronext Amsterdam",
+  "LSE",
+  "Borsa Italiana",
+  "SIX Swiss",
+  "Other",
+] as const;
 export type Exchange = (typeof EXCHANGES)[number];
 
 export const FREE_TIER_LIMIT = 10;
 
 export interface Holding extends HoldingRow {
   currentPrice: number;
-  priceSource: string;
+  priceSource: "api" | "manual";
+  priceLastFetched: string;
+  priceIsStale: boolean;
+  hasPrice: boolean;
 }
 
 interface PortfolioContextType {
   holdings: Holding[];
   isLoading: boolean;
+  isRefreshingPrices: boolean;
   holdingCount: number;
   isAtLimit: boolean;
-  addHolding: (h: { ticker: string; isin: string; exchange: string; name: string; quantity: number; avg_cost_eur: number; purchase_date: string }, manualPrice: number) => Promise<void>;
-  updateHolding: (id: string, h: Partial<Omit<HoldingRow, "id" | "created_at">>, newPrice?: number) => Promise<void>;
+  addHolding: (
+    h: {
+      ticker: string;
+      isin: string;
+      exchange: string;
+      name: string;
+      quantity: number;
+      avg_cost_eur: number;
+      purchase_date: string;
+    },
+    manualPrice: number
+  ) => Promise<void>;
+  updateHolding: (
+    id: string,
+    h: Partial<Omit<HoldingRow, "id" | "created_at">>,
+    newPrice?: number
+  ) => Promise<void>;
   deleteHolding: (id: string) => Promise<void>;
   refreshPrices: () => Promise<void>;
   totalPortfolioValue: number;
@@ -43,18 +73,31 @@ interface PortfolioContextType {
 
 const PortfolioContext = createContext<PortfolioContextType | null>(null);
 
+const CACHE_TTL_MS = 15 * 60 * 1000;
+
 function generateId() {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
 }
 
-function mergeHoldingsWithPrices(rows: HoldingRow[], prices: PriceCacheRow[]): Holding[] {
+function mergeHoldingsWithPrices(
+  rows: HoldingRow[],
+  prices: PriceCacheRow[]
+): Holding[] {
   const priceMap = new Map(prices.map((p) => [p.ticker, p]));
   return rows.map((row) => {
     const cached = priceMap.get(row.ticker);
+    const age = cached
+      ? Date.now() - new Date(cached.last_fetched).getTime()
+      : Infinity;
+    const isStale =
+      cached?.source !== "manual" && age > CACHE_TTL_MS;
     return {
       ...row,
       currentPrice: cached?.price_eur ?? row.avg_cost_eur,
-      priceSource: cached?.source ?? "manual",
+      priceSource: (cached?.source as "api" | "manual") ?? "manual",
+      priceLastFetched: cached?.last_fetched ?? "",
+      priceIsStale: isStale,
+      hasPrice: !!cached,
     };
   });
 }
@@ -63,11 +106,17 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
   const [holdingRows, setHoldingRows] = useState<HoldingRow[]>([]);
   const [prices, setPrices] = useState<PriceCacheRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshingPrices, setIsRefreshingPrices] = useState(false);
+  const holdingRowsRef = useRef<HoldingRow[]>([]);
 
   const loadData = useCallback(async () => {
     try {
-      const [rows, priceRows] = await Promise.all([getAllHoldings(), getAllPrices()]);
+      const [rows, priceRows] = await Promise.all([
+        getAllHoldings(),
+        getAllPrices(),
+      ]);
       setHoldingRows(rows);
+      holdingRowsRef.current = rows;
       setPrices(priceRows);
     } catch (e) {
       console.error("Failed to load portfolio data", e);
@@ -76,25 +125,69 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const doRefreshPrices = useCallback(
+    async (rows: HoldingRow[]) => {
+      if (rows.length === 0) return;
+      setIsRefreshingPrices(true);
+      try {
+        await refreshAllPrices(rows);
+        const priceRows = await getAllPrices();
+        setPrices(priceRows);
+      } catch (e) {
+        console.error("Price refresh error", e);
+      } finally {
+        setIsRefreshingPrices(false);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadData().then(() => {
+      doRefreshPrices(holdingRowsRef.current);
+    });
+  }, [loadData, doRefreshPrices]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener(
+      "change",
+      (nextState: AppStateStatus) => {
+        if (nextState === "active") {
+          doRefreshPrices(holdingRowsRef.current);
+        }
+      }
+    );
+    return () => sub.remove();
+  }, [doRefreshPrices]);
 
   const addHolding = useCallback(
     async (
-      h: { ticker: string; isin: string; exchange: string; name: string; quantity: number; avg_cost_eur: number; purchase_date: string },
+      h: {
+        ticker: string;
+        isin: string;
+        exchange: string;
+        name: string;
+        quantity: number;
+        avg_cost_eur: number;
+        purchase_date: string;
+      },
       manualPrice: number
     ) => {
       const id = generateId();
       await insertHolding({ id, ...h });
       await upsertPrice(h.ticker, manualPrice, "manual");
       await loadData();
+      doRefreshPrices(holdingRowsRef.current);
     },
-    [loadData]
+    [loadData, doRefreshPrices]
   );
 
   const updateHolding = useCallback(
-    async (id: string, h: Partial<Omit<HoldingRow, "id" | "created_at">>, newPrice?: number) => {
+    async (
+      id: string,
+      h: Partial<Omit<HoldingRow, "id" | "created_at">>,
+      newPrice?: number
+    ) => {
       await dbUpdateHolding(id, h);
       if (newPrice !== undefined && h.ticker) {
         await upsertPrice(h.ticker, newPrice, "manual");
@@ -113,8 +206,8 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refreshPrices = useCallback(async () => {
-    await loadData();
-  }, [loadData]);
+    await doRefreshPrices(holdingRowsRef.current);
+  }, [doRefreshPrices]);
 
   const holdings = mergeHoldingsWithPrices(holdingRows, prices);
 
@@ -122,16 +215,13 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     (sum, h) => sum + h.quantity * h.currentPrice,
     0
   );
-
   const totalInvested = holdings.reduce(
     (sum, h) => sum + h.quantity * h.avg_cost_eur,
     0
   );
-
   const totalGain = totalPortfolioValue - totalInvested;
   const totalGainPct =
     totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
-
   const holdingCount = holdings.length;
   const isAtLimit = holdingCount >= FREE_TIER_LIMIT;
 
@@ -140,6 +230,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       value={{
         holdings,
         isLoading,
+        isRefreshingPrices,
         holdingCount,
         isAtLimit,
         addHolding,
@@ -159,6 +250,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
 export function usePortfolio(): PortfolioContextType {
   const ctx = useContext(PortfolioContext);
-  if (!ctx) throw new Error("usePortfolio must be used inside PortfolioProvider");
+  if (!ctx)
+    throw new Error("usePortfolio must be used inside PortfolioProvider");
   return ctx;
 }

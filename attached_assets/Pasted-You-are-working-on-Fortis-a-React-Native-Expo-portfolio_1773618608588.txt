@@ -1,0 +1,111 @@
+You are working on "Fortis", a React Native + Expo portfolio tracker for European ETF investors.
+This prompt covers the price fetching service (v1).
+
+---
+
+## CONTEXT
+- All prices must be in EUR
+- Tickers are UCITS ETFs listed on European exchanges (Xetra, Euronext, LSE)
+- Same ticker can trade on multiple exchanges with different prices (e.g. VWCE on Xetra vs VWCE.L on LSE)
+- User specifies exchange at holding entry — use that to construct the correct ticker symbol
+
+---
+
+## TICKER SYMBOL CONSTRUCTION
+Yahoo Finance uses suffix notation for European exchanges:
+
+| Exchange       | Suffix   | Example       |
+|----------------|----------|---------------|
+| Xetra (DE)     | .DE      | VWCE.DE       |
+| Euronext Paris | .PA      | VWCE.PA       |
+| Euronext Amsterdam | .AS  | VWCE.AS       |
+| LSE (GBX)      | .L       | VWCE.L        |
+| LSE (USD)      | .L       | CSPX.L        |
+| Borsa Italiana | .MI      | VWCE.MI       |
+| SIX Swiss      | .SW      | VWCE.SW       |
+
+Store the suffix mapping as a constant. User selects exchange from a dropdown — 
+app constructs the Yahoo Finance symbol automatically.
+
+---
+
+## PRICE FETCH SERVICE
+
+File: services/priceService.ts
+
+### Primary source: Yahoo Finance (unofficial)
+Use this endpoint (no API key required):
+https://query1.finance.yahoo.com/v8/finance/chart/{SYMBOL}?interval=1d&range=2d
+
+Parse response:
+- Current price: result[0].meta.regularMarketPrice
+- Currency: result[0].meta.currency
+- Previous close: result[0].meta.chartPreviousClose
+
+### Currency handling
+- If currency === "EUR" → use price directly
+- If currency === "GBp" (pence) → divide by 100, then convert GBP→EUR
+- If currency === "USD" → convert USD→EUR
+- For FX rates: fetch from https://api.frankfurter.app/latest?from=GBP&to=EUR
+  and https://api.frankfurter.app/latest?from=USD&to=EUR
+- Frankfurter is free, no API key needed
+
+### Caching
+- Cache price in SQLite prices_cache table
+- Cache is valid for 15 minutes (check last_fetched timestamp)
+- If cache is fresh → return cached price, skip network call
+- If fetch fails → return cached price regardless of age (stale-ok fallback)
+- If no cache exists and fetch fails → return null, show "Price unavailable" in UI
+
+### Batch fetching
+- On app foreground (AppState change to "active") → refresh all tickers in parallel
+- Use Promise.allSettled (never let one failure block others)
+- Max 5 concurrent requests to avoid rate limiting
+
+---
+
+## ERROR HANDLING
+
+Three states to handle in UI:
+
+| State              | Display                          |
+|--------------------|----------------------------------|
+| Price loaded       | Show price normally              |
+| Stale cache        | Show price with ⚠ and last fetch time |
+| No price at all    | Show "—" and manual entry button |
+
+Manual override:
+- User can always enter price manually from Holding Detail screen
+- Manual price stored with source = "manual" in prices_cache
+- Manual price never auto-overwritten by API — only refreshed on explicit user tap
+
+---
+
+## SAMPLE TICKERS TO TEST WITH
+VWCE.DE, TDIV.AS, VHYL.AS, ERNE.SW, CSBGE7.SW, IEGE.MI, EGLN.DE
+
+All should return EUR prices directly except ERNE.SW and CSBGE7.SW (CHF → EUR conversion needed).
+
+---
+
+## TASK
+Implement services/priceService.ts with:
+1. buildYahooSymbol(ticker, exchange) → string
+2. fetchLivePrice(ticker, exchange) → Promise<PriceResult | null>
+3. fetchFXRate(from, to) → Promise<number>
+4. normalizeToEUR(price, currency, fxRates) → number
+5. refreshAllPrices(holdings) → Promise<void>
+6. getCachedPrice(ticker) → PriceResult | null
+
+Types:
+interface PriceResult {
+  ticker: string
+  priceEUR: number
+  currency: string        // original currency before conversion
+  source: "api" | "manual"
+  lastFetched: string     // ISO 8601
+  isStale: boolean
+}
+
+After implementing, write a simple test function 
+testPriceFetch() that fetches VWCE.DE and logs the result.

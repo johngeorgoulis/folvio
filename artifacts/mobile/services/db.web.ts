@@ -73,3 +73,8 @@ export async function upsertPrice(ticker: string, price_eur: number, source: str
 export async function getAllPrices(): Promise<PriceCacheRow[]> {
   return readJSON<PriceCacheRow>(KEYS.prices);
 }
+
+export async function getPrice(ticker: string): Promise<PriceCacheRow | null> {
+  const rows = await readJSON<PriceCacheRow>(KEYS.prices);
+  return rows.find((r) => r.ticker === ticker) ?? null;
+}

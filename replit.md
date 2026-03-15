@@ -60,9 +60,33 @@ European UCITS ETF portfolio tracker built with Expo (managed workflow).
 - The PremiumModal currently shows a "Coming Soon" stub — wire up real purchases once RevenueCat is connected
 
 ### Data Layer
-- `services/database.ts` — SQLite helpers using `expo-sqlite`
-- `context/PortfolioContext.tsx` — React context wrapping DB calls, exposes holdings + computed values
+- `services/db.native.ts` — expo-sqlite helpers (native: iOS/Android)
+- `services/db.web.ts` — AsyncStorage fallback (web preview); Metro resolves via `.native.ts`/`.web.ts` extensions
+- `context/PortfolioContext.tsx` — React context; exposes holdings with computed price fields; wires AppState foreground refresh
 - Tables: `holdings`, `prices_cache`
+
+### Price Service (`services/priceService.ts`)
+- `buildYahooSymbol(ticker, exchange)` — constructs Yahoo Finance symbol (e.g. VWCE → VWCE.DE for XETRA)
+- `fetchLivePrice(ticker, exchange)` — fetches from Yahoo Finance v8 API, normalizes to EUR
+- `fetchFXRate(from, to)` — Frankfurter API (free, no key); in-memory 60s cache
+- `normalizeToEUR(price, currency, fxRates)` — handles EUR, GBp/GBX (÷100), GBP, USD, CHF
+- `refreshAllPrices(holdings)` — batch refresh with max 5 concurrent, skips manual prices and fresh cache
+- `getCachedPrice(ticker)` — reads from DB, returns `isStale: true` if cache > 15 min old
+- **Stale-ok fallback**: if fetch fails, keeps old cached price; if no cache and fails → null
+- **Manual protection**: prices with `source: "manual"` are never auto-overwritten
+- AppState `"active"` listener in PortfolioContext triggers refresh on foreground return
+
+### Exchanges
+`["XETRA", "Euronext Paris", "Euronext Amsterdam", "LSE", "Borsa Italiana", "SIX Swiss", "Other"]`  
+Suffix map: XETRA→.DE, Euronext Paris→.PA, Euronext Amsterdam→.AS, LSE→.L, Borsa Italiana→.MI, SIX Swiss→.SW
+
+### Price UI States
+| State | Display |
+|---|---|
+| Live (< 15 min) | Green dot · "Live · Xm ago" |
+| Stale (> 15 min) | ⚠ amber · "Stale · Xm ago" + Refresh button |
+| Manual | "Manual price" + "Fetch live" button |
+| No price | "—" + "Enter manually" button |
 
 ### Key Files
 - `app/_layout.tsx` — root layout, stack navigator, providers
