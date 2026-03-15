@@ -1,0 +1,107 @@
+You are building "Fortis", a mobile portfolio tracker app for European ETF investors.
+Built with React Native + Expo (managed workflow). Target: iOS and Android.
+
+---
+
+## IDENTITY
+- Positioning: "The portfolio tracker built for European ETF investors — not Americans."
+- v1 scope: local-only, no backend, no auth, SQLite via expo-sqlite
+- Monetization: Free tier (max 10 holdings), Premium via RevenueCat (unlimited + features)
+
+---
+
+## TECH STACK
+- React Native + Expo (managed workflow, SDK 51+)
+- expo-sqlite for local persistence
+- React Navigation (bottom tabs + stack)
+- react-native-paper OR NativeWind for UI
+- Recharts or Victory Native for charts
+- No Supabase in v1 (deferred to v2)
+
+---
+
+## 6 SCREENS
+
+1. **Dashboard** (Home tab)
+   - Total portfolio value in EUR
+   - Daily P&L (€ and %)
+   - Allocation donut chart (by ETF)
+   - Quick summary cards per holding
+
+2. **Holdings List** (tab)
+   - List of all ETFs with: ticker, current price, quantity, market value, gain/loss
+   - Color-coded performance (green/red)
+   - Tap to open detail
+
+3. **Holding Detail** (stack screen)
+   - Full breakdown: avg cost, current price, total invested, current value, return %
+   - Mini price chart (30d)
+   - Edit / Delete options
+
+4. **Add / Edit Holding** (modal or stack)
+   - Fields: Ticker (UCITS, e.g. VWCE), ISIN, Exchange (Xetra/LSE/Euronext), 
+     Quantity, Average Cost (EUR), Purchase Date
+   - Auto-fetch current price from Yahoo Finance (yfinance-compatible endpoint) or 
+     fallback to manual entry
+   - Free tier: block if holdings >= 10, show upsell modal
+
+5. **Performance** (tab)
+   - Time-weighted return chart (1W / 1M / 3M / 1Y / All)
+   - Benchmark comparison toggle (VWCE as default benchmark)
+   - Dividend income tracker (annual estimate based on yield %)
+
+6. **Settings** (tab)
+   - Base currency: EUR (default, v1 only)
+   - Display preferences (show/hide cost basis)
+   - Premium status & manage subscription
+   - Export to CSV
+   - About / version
+
+---
+
+## DATA MODEL (SQLite)
+
+holdings table:
+- id (integer primary key)
+- ticker (text) — e.g. "VWCE"
+- isin (text) — e.g. "IE00B3RBWM25"
+- exchange (text) — e.g. "XETRA"
+- quantity (real)
+- avg_cost_eur (real)
+- purchase_date (text, ISO 8601)
+- created_at (text)
+- updated_at (text)
+
+prices_cache table:
+- ticker (text primary key)
+- price_eur (real)
+- last_fetched (text, ISO 8601)
+- source (text) — "api" or "manual"
+
+---
+
+## FREE TIER LOGIC
+- Max 10 holdings in free tier
+- On attempt to add 11th: show modal "Upgrade to Fortis Premium"
+- Premium unlocks: unlimited holdings, CSV export, benchmark comparison
+
+---
+
+## STYLE GUIDELINES
+- Dark mode first
+- Accent color: deep blue (#1E3A5F) with gold highlights (#C9A84C)
+- Clean, minimal — no clutter
+- European number formatting: 1.234,56 € (dot for thousands, comma for decimals)
+- Figures always in EUR
+
+---
+
+## FIRST TASK
+Scaffold the full project structure:
+1. Initialize Expo project
+2. Set up React Navigation (bottom tabs: Dashboard, Holdings, Performance, Settings)
+3. Create expo-sqlite database service with the schema above
+4. Create placeholder screens for all 6 views
+5. Apply dark theme globally
+
+Do not add placeholder data. Use real structure from day one.
