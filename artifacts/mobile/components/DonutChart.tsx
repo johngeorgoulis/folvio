@@ -18,16 +18,16 @@ interface DonutChartProps {
 }
 
 const CHART_COLORS = [
-  "#00D084",
-  "#0A84FF",
-  "#FF9F0A",
-  "#FF453A",
-  "#BF5AF2",
-  "#32ADE6",
-  "#30D158",
-  "#FF6961",
-  "#FFD60A",
-  "#AC8E68",
+  "#C9A84C",
+  "#4A90D9",
+  "#34D399",
+  "#F87171",
+  "#A78BFA",
+  "#60A5FA",
+  "#FBBF24",
+  "#F472B6",
+  "#2DD4BF",
+  "#FB923C",
 ];
 
 export function DonutChart({

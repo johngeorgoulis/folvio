@@ -1,0 +1,270 @@
+import { Feather } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useColorScheme,
+} from "react-native";
+import Colors from "@/constants/colors";
+import { usePortfolio, EXCHANGES, type Holding } from "@/context/PortfolioContext";
+
+interface Props {
+  visible: boolean;
+  holding: Holding;
+  onClose: () => void;
+}
+
+export default function EditHoldingModal({ visible, holding, onClose }: Props) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const theme = isDark ? Colors.dark : Colors.light;
+
+  const { updateHolding } = usePortfolio();
+
+  const [ticker, setTicker] = useState(holding.ticker);
+  const [isin, setIsin] = useState(holding.isin);
+  const [name, setName] = useState(holding.name);
+  const [exchange, setExchange] = useState(holding.exchange);
+  const [quantity, setQuantity] = useState(holding.quantity.toString());
+  const [avgCost, setAvgCost] = useState(holding.avg_cost_eur.toString());
+  const [currentPrice, setCurrentPrice] = useState(holding.currentPrice.toString());
+  const [purchaseDate, setPurchaseDate] = useState(holding.purchase_date);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setTicker(holding.ticker);
+      setIsin(holding.isin);
+      setName(holding.name);
+      setExchange(holding.exchange);
+      setQuantity(holding.quantity.toString());
+      setAvgCost(holding.avg_cost_eur.toString());
+      setCurrentPrice(holding.currentPrice.toString());
+      setPurchaseDate(holding.purchase_date);
+      setError("");
+    }
+  }, [visible, holding]);
+
+  async function handleSave() {
+    setError("");
+    if (!ticker.trim()) return setError("Ticker is required.");
+    if (!quantity.trim() || isNaN(Number(quantity)) || Number(quantity) <= 0)
+      return setError("Enter a valid quantity.");
+    if (!avgCost.trim() || isNaN(Number(avgCost)) || Number(avgCost) <= 0)
+      return setError("Enter a valid average cost.");
+    if (!currentPrice.trim() || isNaN(Number(currentPrice)) || Number(currentPrice) <= 0)
+      return setError("Enter a valid current price.");
+
+    setSaving(true);
+    try {
+      await updateHolding(
+        holding.id,
+        {
+          ticker: ticker.trim().toUpperCase(),
+          isin: isin.trim(),
+          name: name.trim(),
+          exchange,
+          quantity: Number(quantity),
+          avg_cost_eur: Number(avgCost),
+          purchase_date: purchaseDate,
+        },
+        Number(currentPrice)
+      );
+      onClose();
+    } catch (e) {
+      setError("Failed to save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputStyle = [styles.input, { backgroundColor: theme.backgroundElevated, borderColor: theme.border, color: theme.text }];
+  const labelStyle = [styles.label, { color: theme.textSecondary }];
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+            <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
+              <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: theme.text }]}>Edit Holding</Text>
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={saving}
+              style={[styles.saveBtn, { backgroundColor: theme.tint }]}
+            >
+              <Text style={styles.saveBtnText}>{saving ? "Saving…" : "Save"}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
+            {error ? (
+              <View style={[styles.errorBox, { backgroundColor: theme.negative + "22", borderColor: theme.negative + "44" }]}>
+                <Feather name="alert-circle" size={14} color={theme.negative} />
+                <Text style={[styles.errorText, { color: theme.negative }]}>{error}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.row}>
+              <View style={[styles.field, { flex: 1 }]}>
+                <Text style={labelStyle}>TICKER</Text>
+                <TextInput
+                  style={inputStyle}
+                  value={ticker}
+                  onChangeText={(t) => setTicker(t.toUpperCase())}
+                  autoCapitalize="characters"
+                  placeholderTextColor={theme.textTertiary}
+                />
+              </View>
+              <View style={[styles.field, { flex: 1.4 }]}>
+                <Text style={labelStyle}>ISIN</Text>
+                <TextInput
+                  style={inputStyle}
+                  value={isin}
+                  onChangeText={setIsin}
+                  autoCapitalize="characters"
+                  placeholderTextColor={theme.textTertiary}
+                />
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={labelStyle}>NAME</Text>
+              <TextInput
+                style={inputStyle}
+                value={name}
+                onChangeText={setName}
+                placeholderTextColor={theme.textTertiary}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={labelStyle}>EXCHANGE</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.exchangeRow}>
+                {EXCHANGES.map((ex) => (
+                  <Pressable
+                    key={ex}
+                    style={[
+                      styles.exchangeChip,
+                      {
+                        backgroundColor: exchange === ex ? theme.deepBlue : theme.backgroundElevated,
+                        borderColor: exchange === ex ? theme.tint : theme.border,
+                      },
+                    ]}
+                    onPress={() => setExchange(ex)}
+                  >
+                    <Text style={[styles.exchangeChipText, { color: exchange === ex ? theme.tint : theme.textSecondary }]}>
+                      {ex}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.row}>
+              <View style={[styles.field, { flex: 1 }]}>
+                <Text style={labelStyle}>QUANTITY</Text>
+                <TextInput
+                  style={inputStyle}
+                  value={quantity}
+                  onChangeText={setQuantity}
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={theme.textTertiary}
+                />
+              </View>
+              <View style={[styles.field, { flex: 1 }]}>
+                <Text style={labelStyle}>AVG COST (€)</Text>
+                <TextInput
+                  style={inputStyle}
+                  value={avgCost}
+                  onChangeText={setAvgCost}
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={theme.textTertiary}
+                />
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={labelStyle}>CURRENT PRICE (€)</Text>
+              <TextInput
+                style={inputStyle}
+                value={currentPrice}
+                onChangeText={setCurrentPrice}
+                keyboardType="decimal-pad"
+                placeholderTextColor={theme.textTertiary}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={labelStyle}>PURCHASE DATE</Text>
+              <TextInput
+                style={inputStyle}
+                value={purchaseDate}
+                onChangeText={setPurchaseDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={theme.textTertiary}
+              />
+            </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  cancelBtn: { padding: 4 },
+  cancelText: { fontSize: 15, fontFamily: "Inter_400Regular" },
+  headerTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  saveBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
+  saveBtnText: { color: "#0A0F1A", fontSize: 14, fontFamily: "Inter_700Bold" },
+  form: { padding: 16, gap: 16, paddingBottom: 40 },
+  field: { gap: 6 },
+  row: { flexDirection: "row", gap: 12 },
+  label: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.6 },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
+  exchangeRow: { flexDirection: "row", gap: 8 },
+  exchangeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  exchangeChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  errorText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+});
