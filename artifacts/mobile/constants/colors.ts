@@ -1,0 +1,48 @@
+const primary = "#00D084";
+const primaryDim = "#00A86B";
+const accent = "#0A84FF";
+
+export default {
+  light: {
+    text: "#0A0A0A",
+    textSecondary: "#6B7280",
+    textTertiary: "#9CA3AF",
+    background: "#F8F9FA",
+    backgroundCard: "#FFFFFF",
+    backgroundElevated: "#FFFFFF",
+    border: "#E5E7EB",
+    borderLight: "#F3F4F6",
+    tint: primary,
+    tintDim: primaryDim,
+    accent: accent,
+    positive: "#00D084",
+    negative: "#FF3B30",
+    warning: "#FF9F0A",
+    tabIconDefault: "#9CA3AF",
+    tabIconSelected: primary,
+    chartLine: primary,
+    chartFill: "rgba(0, 208, 132, 0.12)",
+    shadow: "rgba(0,0,0,0.08)",
+  },
+  dark: {
+    text: "#F9FAFB",
+    textSecondary: "#9CA3AF",
+    textTertiary: "#6B7280",
+    background: "#0D0D0D",
+    backgroundCard: "#161616",
+    backgroundElevated: "#1E1E1E",
+    border: "#2A2A2A",
+    borderLight: "#1F1F1F",
+    tint: primary,
+    tintDim: primaryDim,
+    accent: accent,
+    positive: "#00D084",
+    negative: "#FF453A",
+    warning: "#FF9F0A",
+    tabIconDefault: "#4B5563",
+    tabIconSelected: primary,
+    chartLine: primary,
+    chartFill: "rgba(0, 208, 132, 0.08)",
+    shadow: "rgba(0,0,0,0.4)",
+  },
+};
