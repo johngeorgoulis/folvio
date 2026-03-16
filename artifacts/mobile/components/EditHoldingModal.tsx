@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -13,7 +14,8 @@ import {
 } from "react-native";
 import Colors from "@/constants/colors";
 import { usePortfolio, type Holding } from "@/context/PortfolioContext";
-import ExchangePicker from "@/components/ExchangePicker";
+import ExchangePicker, { getExchangeLabel } from "@/components/ExchangePicker";
+import { fetchLivePrice } from "@/services/priceService";
 
 interface Props {
   visible: boolean;
@@ -32,10 +34,16 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
   const [exchange, setExchange] = useState(holding.exchange);
   const [quantity, setQuantity] = useState(holding.quantity.toString());
   const [avgCost, setAvgCost] = useState(holding.avg_cost_eur.toString());
-  const [currentPrice, setCurrentPrice] = useState(holding.currentPrice.toString());
-  const [yieldPct, setYieldPct] = useState(holding.yield_pct != null ? holding.yield_pct.toString() : "");
+  const [currentPrice, setCurrentPrice] = useState(
+    holding.currentPrice > 0 ? holding.currentPrice.toString() : ""
+  );
+  const [yieldPct, setYieldPct] = useState(
+    holding.yield_pct != null ? holding.yield_pct.toString() : ""
+  );
   const [purchaseDate, setPurchaseDate] = useState(holding.purchase_date);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState<string | null>(null);
+  const [fetchNotice, setFetchNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -46,29 +54,64 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
       setExchange(holding.exchange);
       setQuantity(holding.quantity.toString());
       setAvgCost(holding.avg_cost_eur.toString());
-      setCurrentPrice(holding.currentPrice.toString());
+      setCurrentPrice(holding.currentPrice > 0 ? holding.currentPrice.toString() : "");
       setYieldPct(holding.yield_pct != null ? holding.yield_pct.toString() : "");
       setPurchaseDate(holding.purchase_date);
       setError("");
+      setWarning(null);
+      setFetchNotice(null);
     }
   }, [visible, holding]);
 
   async function handleSave() {
     setError("");
+    setWarning(null);
+    setFetchNotice(null);
+
     if (!ticker.trim()) return setError("Ticker is required.");
     if (!quantity.trim() || isNaN(Number(quantity)) || Number(quantity) <= 0)
       return setError("Enter a valid quantity.");
     if (!avgCost.trim() || isNaN(Number(avgCost)) || Number(avgCost) <= 0)
       return setError("Enter a valid average cost.");
-    if (!currentPrice.trim() || isNaN(Number(currentPrice)) || Number(currentPrice) <= 0)
-      return setError("Enter a valid current price.");
 
     const parsedYield = yieldPct.trim() ? parseFloat(yieldPct.replace(",", ".")) : null;
-    if (yieldPct.trim() && (parsedYield === null || isNaN(parsedYield) || parsedYield < 0 || parsedYield > 100)) {
+    if (
+      yieldPct.trim() &&
+      (parsedYield === null || isNaN(parsedYield) || parsedYield < 0 || parsedYield > 100)
+    ) {
       return setError("Enter a valid yield percentage (0–100), or leave blank.");
     }
 
+    if (currentPrice.trim()) {
+      const p = parseFloat(currentPrice.replace(",", "."));
+      if (isNaN(p) || p < 0) {
+        return setError("Enter a valid price, or clear the field to fetch automatically.");
+      }
+    }
+
     setSaving(true);
+
+    let resolvedPrice = 0;
+    let noticeMsg: string | null = null;
+    let warnMsg: string | null = null;
+
+    if (!currentPrice.trim()) {
+      try {
+        const result = await fetchLivePrice(ticker.trim().toUpperCase(), exchange);
+        if (result) {
+          resolvedPrice = result.priceEUR;
+          const exLabel = getExchangeLabel(exchange).split(" (")[0];
+          noticeMsg = `Fetched €${resolvedPrice.toFixed(2)} from ${exLabel}`;
+        } else {
+          warnMsg = "Price unavailable — update manually later.";
+        }
+      } catch {
+        warnMsg = "Price unavailable — update manually later.";
+      }
+    } else {
+      resolvedPrice = parseFloat(currentPrice.replace(",", "."));
+    }
+
     try {
       await updateHolding(
         holding.id,
@@ -82,16 +125,27 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
           purchase_date: purchaseDate,
           yield_pct: parsedYield,
         },
-        Number(currentPrice)
+        resolvedPrice
       );
-      onClose();
-    } catch (e) {
+
+      setSaving(false);
+
+      if (noticeMsg) {
+        setFetchNotice(noticeMsg);
+        setTimeout(() => onClose(), 1500);
+      } else if (warnMsg) {
+        setWarning(warnMsg);
+        setTimeout(() => onClose(), 2000);
+      } else {
+        onClose();
+      }
+    } catch {
       setError("Failed to save. Please try again.");
-    } finally {
       setSaving(false);
     }
   }
 
+  const priceIsEmpty = !currentPrice.trim();
   const inputStyle = [
     styles.input,
     { backgroundColor: theme.backgroundElevated, borderColor: theme.border, color: theme.text },
@@ -110,17 +164,34 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
             <TouchableOpacity
               onPress={handleSave}
               disabled={saving}
-              style={[styles.saveBtn, { backgroundColor: theme.tint }]}
+              style={[styles.saveBtn, { backgroundColor: saving ? theme.tint + "BB" : theme.tint }]}
             >
-              <Text style={styles.saveBtnText}>{saving ? "Saving…" : "Save"}</Text>
+              {saving && <ActivityIndicator size="small" color="#0A0F1A" style={{ marginRight: 4 }} />}
+              <Text style={styles.saveBtnText}>
+                {saving ? (priceIsEmpty ? "Fetching…" : "Saving…") : "Save"}
+              </Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
             {error ? (
-              <View style={[styles.errorBox, { backgroundColor: theme.negative + "22", borderColor: theme.negative + "44" }]}>
+              <View style={[styles.msgBox, { backgroundColor: theme.negative + "22", borderColor: theme.negative + "44" }]}>
                 <Feather name="alert-circle" size={14} color={theme.negative} />
-                <Text style={[styles.errorText, { color: theme.negative }]}>{error}</Text>
+                <Text style={[styles.msgText, { color: theme.negative }]}>{error}</Text>
+              </View>
+            ) : null}
+
+            {warning ? (
+              <View style={[styles.msgBox, { backgroundColor: "#F39C1222", borderColor: "#F39C1244" }]}>
+                <Feather name="alert-triangle" size={14} color="#F39C12" />
+                <Text style={[styles.msgText, { color: "#F39C12" }]}>{warning}</Text>
+              </View>
+            ) : null}
+
+            {fetchNotice ? (
+              <View style={[styles.msgBox, { backgroundColor: theme.positive + "22", borderColor: theme.positive + "44" }]}>
+                <Feather name="check-circle" size={14} color={theme.positive} />
+                <Text style={[styles.msgText, { color: theme.positive }]}>{fetchNotice}</Text>
               </View>
             ) : null}
 
@@ -191,9 +262,13 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
                 style={inputStyle}
                 value={currentPrice}
                 onChangeText={setCurrentPrice}
-                keyboardType="decimal-pad"
+                placeholder="Leave empty to fetch automatically"
                 placeholderTextColor={theme.textTertiary}
+                keyboardType="decimal-pad"
               />
+              <Text style={[styles.hint, { color: theme.textTertiary }]}>
+                Live price will be fetched from Yahoo Finance
+              </Text>
             </View>
 
             <View style={styles.row}>
@@ -242,7 +317,13 @@ const styles = StyleSheet.create({
   cancelBtn: { padding: 4 },
   cancelText: { fontSize: 15, fontFamily: "Inter_400Regular" },
   headerTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  saveBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
+  saveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
   saveBtnText: { color: "#0A0F1A", fontSize: 14, fontFamily: "Inter_700Bold" },
   form: { padding: 16, gap: 16, paddingBottom: 40 },
   field: { gap: 6 },
@@ -257,7 +338,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
   },
   hint: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
-  errorBox: {
+  msgBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -265,5 +346,5 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  errorText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  msgText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
 });
