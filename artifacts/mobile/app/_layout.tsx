@@ -54,6 +54,10 @@ export default function RootLayout() {
                       options={{ headerShown: false, animation: "slide_from_right" }}
                     />
                     <Stack.Screen
+                      name="ticker/[symbol]"
+                      options={{ headerShown: false, animation: "slide_from_right" }}
+                    />
+                    <Stack.Screen
                       name="rebalance"
                       options={{ headerShown: false, animation: "slide_from_right" }}
                     />

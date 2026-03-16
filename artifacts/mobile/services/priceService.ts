@@ -1,5 +1,22 @@
+import { Platform } from "react-native";
 import { upsertPrice, getPrice as dbGetPrice } from "@/services/db";
 import type { HoldingRow } from "@/services/db";
+
+function yahooChartUrl(symbol: string, interval: string, range: string): string {
+  if (Platform.OS === "web") {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+    return `https://${domain}/api/yahoo/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`;
+  }
+  return `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`;
+}
+
+function yahooSearchUrl(q: string): string {
+  if (Platform.OS === "web") {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+    return `https://${domain}/api/yahoo/search?q=${encodeURIComponent(q)}`;
+  }
+  return `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=15&newsCount=0`;
+}
 
 export const EXCHANGE_SUFFIXES: Record<string, string> = {
   "XETRA": ".DE",
@@ -83,15 +100,10 @@ export async function fetchLivePrice(
   exchange: string
 ): Promise<PriceResult | null> {
   const symbol = buildYahooSymbol(ticker, exchange);
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2d`;
+  const url = yahooChartUrl(symbol, "1d", "2d");
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-        Accept: "application/json",
-      },
-    });
+    const res = await fetch(url, { headers: YAHOO_HEADERS });
     if (!res.ok) throw new Error(`Yahoo Finance ${res.status} for ${symbol}`);
     const data = await res.json();
 
@@ -189,15 +201,10 @@ export async function fetchHistoricalPrices(
   range: string
 ): Promise<PricePoint[]> {
   const yahooRange = YAHOO_RANGES[range] ?? "1mo";
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=${yahooRange}`;
+  const url = yahooChartUrl(symbol, "1d", yahooRange);
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-        Accept: "application/json",
-      },
-    });
+    const res = await fetch(url, { headers: YAHOO_HEADERS });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
@@ -238,6 +245,210 @@ export async function fetchHistoricalPrices(
   } catch (err) {
     console.warn(`[priceService] fetchHistoricalPrices failed for ${symbol}:`, err);
     return [];
+  }
+}
+
+// ─── Search & Detail Types ────────────────────────────────────────────────────
+
+export interface SearchResult {
+  symbol: string;
+  shortName: string;
+  quoteType: string;
+  exchange: string;
+  exchDisp: string;
+  typeDisp: string;
+}
+
+export interface TickerMeta {
+  symbol: string;
+  shortName: string;
+  longName: string;
+  currency: string;
+  exchangeName: string;
+  quoteType: string;
+  regularMarketPrice: number;
+  previousClose: number;
+  regularMarketChange: number;
+  regularMarketChangePercent: number;
+  fiftyTwoWeekHigh: number;
+  fiftyTwoWeekLow: number;
+  regularMarketVolume: number;
+  averageDailyVolume3Month: number;
+  totalAssets?: number;
+  trailingAnnualDividendYield?: number;
+  marketCap?: number;
+  trailingPE?: number;
+}
+
+export interface ChartPoint {
+  timestamp: number;
+  priceEUR: number;
+}
+
+const CHART_INTERVALS: Record<string, { interval: string; range: string }> = {
+  "1D":  { interval: "5m",  range: "1d"  },
+  "1W":  { interval: "1h",  range: "5d"  },
+  "1M":  { interval: "1d",  range: "1mo" },
+  "3M":  { interval: "1d",  range: "3mo" },
+  "6M":  { interval: "1d",  range: "6mo" },
+  "1Y":  { interval: "1wk", range: "1y"  },
+  "All": { interval: "1mo", range: "5y"  },
+};
+
+const YAHOO_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+  Accept: "application/json",
+};
+
+export async function searchTickers(query: string): Promise<SearchResult[]> {
+  const url = yahooSearchUrl(query);
+  try {
+    const res = await fetch(url, { headers: YAHOO_HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return (data?.quotes ?? []).map((q: Record<string, string>) => ({
+      symbol: q.symbol ?? "",
+      shortName: q.shortname ?? q.longname ?? "",
+      quoteType: q.quoteType ?? "EQUITY",
+      exchange: q.exchange ?? "",
+      exchDisp: q.exchDisp ?? "",
+      typeDisp: q.typeDisp ?? "",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null> {
+  const url = yahooChartUrl(symbol, "1d", "1y");
+  try {
+    const res = await fetch(url, { headers: YAHOO_HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    if (!result) throw new Error("No result");
+
+    const meta = result.meta ?? {};
+    const currency: string = meta.currency ?? "EUR";
+
+    let fxRate = 1;
+    if (currency !== "EUR") {
+      const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+        try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+      }
+    }
+
+    const toEUR = (price: number | undefined): number => {
+      if (price == null || isNaN(price)) return 0;
+      if (currency === "GBp" || currency === "GBX") return (price / 100) * fxRate;
+      return price * fxRate;
+    };
+
+    const rawPrice: number = meta.regularMarketPrice ?? 0;
+    const rawPrev: number = meta.previousClose ?? meta.chartPreviousClose ?? rawPrice;
+    const priceEUR = toEUR(rawPrice);
+    const prevEUR = toEUR(rawPrev);
+    const change = priceEUR - prevEUR;
+    const changePct = prevEUR !== 0 ? (change / prevEUR) * 100 : 0;
+
+    return {
+      symbol: meta.symbol ?? symbol,
+      shortName: meta.shortName ?? symbol,
+      longName: meta.longName ?? meta.shortName ?? symbol,
+      currency,
+      exchangeName: meta.fullExchangeName ?? meta.exchangeName ?? "",
+      quoteType: meta.instrumentType ?? "EQUITY",
+      regularMarketPrice: priceEUR,
+      previousClose: prevEUR,
+      regularMarketChange: change,
+      regularMarketChangePercent: changePct,
+      fiftyTwoWeekHigh: toEUR(meta.fiftyTwoWeekHigh),
+      fiftyTwoWeekLow: toEUR(meta.fiftyTwoWeekLow),
+      regularMarketVolume: meta.regularMarketVolume ?? 0,
+      averageDailyVolume3Month: meta.averageDailyVolume3Month ?? 0,
+      totalAssets: undefined,
+      trailingAnnualDividendYield: undefined,
+      marketCap: undefined,
+      trailingPE: undefined,
+    };
+  } catch (err) {
+    console.warn(`[fetchTickerMeta] failed for ${symbol}:`, err);
+    return null;
+  }
+}
+
+export async function fetchChartHistory(symbol: string, range: string): Promise<ChartPoint[]> {
+  const cfg = CHART_INTERVALS[range] ?? { interval: "1d", range: "1mo" };
+  const url = yahooChartUrl(symbol, cfg.interval, cfg.range);
+  try {
+    const res = await fetch(url, { headers: YAHOO_HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    if (!result) return [];
+
+    const timestamps: number[] = result.timestamp ?? [];
+    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+    const currency: string = result.meta?.currency ?? "EUR";
+
+    let fxRate = 1;
+    if (currency !== "EUR") {
+      const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+        try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+      }
+    }
+
+    const points: ChartPoint[] = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      const price = closes[i];
+      if (price == null || isNaN(price)) continue;
+      const priceEUR =
+        currency === "GBp" || currency === "GBX"
+          ? (price / 100) * fxRate
+          : price * fxRate;
+      points.push({ timestamp: timestamps[i] * 1000, priceEUR });
+    }
+    return points;
+  } catch (err) {
+    console.warn(`[fetchChartHistory] failed for ${symbol}:`, err);
+    return [];
+  }
+}
+
+export async function fetchSymbolPrice(
+  fullSymbol: string
+): Promise<{ price: number; changePct: number } | null> {
+  const url = yahooChartUrl(fullSymbol, "1d", "2d");
+  try {
+    const res = await fetch(url, { headers: YAHOO_HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const meta = data?.chart?.result?.[0]?.meta;
+    if (!meta?.regularMarketPrice) throw new Error("No price");
+
+    const rawPrice: number = meta.regularMarketPrice;
+    const rawPrev: number = meta.previousClose ?? meta.chartPreviousClose ?? rawPrice;
+    const currency: string = meta.currency ?? "USD";
+
+    let fxRate = 1;
+    if (currency !== "EUR") {
+      const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+        try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+      }
+    }
+
+    const toEUR = (p: number) =>
+      currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
+
+    const price = toEUR(rawPrice);
+    const prev = toEUR(rawPrev);
+    const changePct = prev !== 0 ? ((price - prev) / prev) * 100 : 0;
+    return { price, changePct };
+  } catch {
+    return null;
   }
 }
 

@@ -1,0 +1,180 @@
+Add a new "Search" tab to Fortis — a 5th tab in the bottom navigation.
+
+## TAB
+Icon: magnifying glass
+Label: "Search"
+Position: between Holdings and Performance
+
+---
+
+## SCREEN 1 — Search Home
+
+Header: "Explore"
+Subtitle: "Search ETFs, funds & stocks"
+
+Search bar (prominent, top of screen):
+- Placeholder: "Search ticker or name..."
+- Dark input style, gold focus border
+- Minimum 2 characters to trigger search
+- Debounce: 300ms
+- Clear button (×) when text present
+
+Below search bar (when empty):
+Show two sections with horizontal scroll cards:
+
+"Popular ETFs" (static list, preloaded):
+VWCE, IWDA, VHYL, CSPX, SWDA, EUNL, TDIV, VAGF
+
+"Major Stocks" (static list, preloaded):
+AAPL, MSFT, NVDA, ASML, NOVO-B, SAP, NESN, MC
+
+Each card shows:
+- Ticker (bold)
+- Current price (fetched live)
+- Daily change % (green/red)
+
+---
+
+## SCREEN 2 — Search Results
+
+Triggered when user types 2+ characters.
+Call Yahoo Finance search API:
+https://query2.finance.yahoo.com/v1/finance/search?q={QUERY}&quotesCount=10&newsCount=0
+
+Each result row:
+- Left: Ticker (bold, white) + Type badge (ETF / Stock / Fund)
+- Center: Full name (secondary text, 1 line truncated)
+- Right: Exchange (muted text)
+
+Filter toggle bar below search input:
+[All] [ETFs] [Stocks] [Funds]
+
+Tap result → navigate to Detail screen.
+
+---
+
+## SCREEN 3 — Ticker Detail Screen
+
+### Header Section (dark blue card):
+Ticker (large, bold)
+Full name (secondary)
+Exchange badge + Currency badge
+
+Price (very large):  €146.78
+Daily change:        +0.62 (+0.43%) — green/red colored
+
+Live indicator: 🟢 Live · updated just now
+
+Refresh button (top right)
+
+---
+
+### Chart Section:
+
+Time range selector:
+[1D] [1W] [1M] [3M] [6M] [1Y] [All]
+
+Line chart:
+- Color: gold (#C9A84C) when positive vs open, red when negative
+- Show price on touch/drag (crosshair)
+- Smooth curve
+- Y-axis: EUR prices
+- X-axis: dates/times appropriate to range
+
+Data source: Yahoo Finance historical
+Endpoint: https://query1.finance.yahoo.com/v8/finance/chart/{SYMBOL}?interval={INTERVAL}&range={RANGE}
+
+Interval/Range mapping:
+1D  → interval=5m,  range=1d
+1W  → interval=1h,  range=5d
+1M  → interval=1d,  range=1mo
+3M  → interval=1d,  range=3mo
+6M  → interval=1d,  range=6mo
+1Y  → interval=1wk, range=1y
+All → interval=1mo, range=5y
+
+---
+
+### Key Stats Section (2-column grid cards):
+
+For ETFs:
+┌─────────────────┬─────────────────┐
+│ 52W High        │ 52W Low         │
+│ €151.20         │ €118.40         │
+├─────────────────┼─────────────────┤
+│ AUM             │ Div. Yield      │
+│ €18.2B          │ 1.40%           │
+├─────────────────┼─────────────────┤
+│ Avg Volume      │ Currency        │
+│ 124,320         │ EUR             │
+└─────────────────┴─────────────────┘
+
+For Stocks:
+┌─────────────────┬─────────────────┐
+│ 52W High        │ 52W Low         │
+├─────────────────┼─────────────────┤
+│ Market Cap      │ P/E Ratio       │
+├─────────────────┼─────────────────┤
+│ Div. Yield      │ Avg Volume      │
+└─────────────────┴─────────────────┘
+
+Show "—" for unavailable fields. Never crash on missing data.
+
+---
+
+### Performance Section:
+
+Price change cards for multiple periods:
+┌────────┬────────┬────────┬────────┐
+│  1W    │  1M    │  3M    │  1Y    │
+│ +1.2%  │ +3.4%  │ +8.1%  │+18.4%  │
+└────────┴────────┴────────┴────────┘
+Green if positive, red if negative.
+Fetch from historical data (compare current vs price N days ago).
+
+---
+
+### Action Button (bottom, fixed):
+
+If ticker NOT in portfolio:
+[+ Add to Portfolio]  (gold, full width)
+→ Navigate to Add Holding screen, pre-fill:
+  ticker, name, exchange (parsed from symbol suffix)
+
+If ticker IS in portfolio:
+[✓ In Portfolio — View Holding]  (outlined, gold)
+→ Navigate to Holding Detail screen
+
+---
+
+## DATA FETCHING
+
+For detail page, call:
+https://query1.finance.yahoo.com/v8/finance/chart/{SYMBOL}?interval=1d&range=1y
+
+Parse from result[0].meta:
+- regularMarketPrice
+- previousClose
+- fiftyTwoWeekHigh
+- fiftyTwoWeekLow
+- regularMarketVolume
+- averageDailyVolume3Month
+- currency
+- exchangeName
+
+Parse from result[0].summaryDetail (if available):
+- trailingAnnualDividendYield
+- totalAssets (AUM for ETFs)
+- trailingPE (for stocks)
+
+## ERROR HANDLING
+- If data unavailable: show "—" never crash
+- If chart data empty: show "Chart unavailable"
+- If price stale (market closed): show "Closed · Last €XX.XX"
+- Network error: show retry button
+
+## STYLE
+- All screens follow Fortis dark theme
+- Chart in gold/red color scheme
+- Stats cards: dark card background #1A2633
+- Consistent with existing screens

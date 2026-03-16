@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -19,20 +19,27 @@ import ExchangePicker, { getExchangeLabel } from "@/components/ExchangePicker";
 import TickerSearchInput, { type TickerSelection } from "@/components/TickerSearchInput";
 import { fetchLivePrice } from "@/services/priceService";
 
+export interface AddHoldingInitialValues {
+  ticker?: string;
+  name?: string;
+  exchange?: string;
+}
+
 interface Props {
   visible: boolean;
   onClose: () => void;
+  initialValues?: AddHoldingInitialValues;
 }
 
 const theme = Colors.dark;
 
-export default function AddHoldingModal({ visible, onClose }: Props) {
+export default function AddHoldingModal({ visible, onClose, initialValues }: Props) {
   const { addHolding } = usePortfolio();
 
-  const [ticker, setTicker] = useState("");
+  const [ticker, setTicker] = useState(initialValues?.ticker ?? "");
   const [isin, setIsin] = useState("");
-  const [name, setName] = useState("");
-  const [exchange, setExchange] = useState("XETRA");
+  const [name, setName] = useState(initialValues?.name ?? "");
+  const [exchange, setExchange] = useState(initialValues?.exchange ?? "XETRA");
   const [quantity, setQuantity] = useState("");
   const [avgCost, setAvgCost] = useState("");
   const [currentPrice, setCurrentPrice] = useState("");
@@ -42,6 +49,14 @@ export default function AddHoldingModal({ visible, onClose }: Props) {
   const [warning, setWarning] = useState<string | null>(null);
   const [fetchNotice, setFetchNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible && initialValues) {
+      if (initialValues.ticker) setTicker(initialValues.ticker.toUpperCase());
+      if (initialValues.name)   setName(initialValues.name);
+      if (initialValues.exchange) setExchange(initialValues.exchange);
+    }
+  }, [visible, initialValues]);
 
   function reset() {
     setTicker("");

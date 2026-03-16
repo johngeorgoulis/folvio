@@ -43,8 +43,10 @@ European UCITS ETF portfolio tracker built with Expo (managed workflow).
 
 ### Screens
 - **Dashboard** (`/`) — total portfolio value, allocation donut chart, stats
-- **Holdings** (`/holdings`) — list of all holdings, tap for detail, add new
+- **Holdings** (`/holdings`) — list of all holdings, tap for detail, add new; accepts `prefillTicker`/`prefillName`/`prefillExchange` URL params to auto-open AddHoldingModal
 - **Holding Detail** (`/holding/[id]`) — full breakdown, edit, delete
+- **Search** (`/search`) — 5th tab; search bar with debounce, Popular ETFs + Major Stocks horizontal scroll cards with live prices, type filter chips (All/ETF/Stock/Fund), tap to open Ticker Detail
+- **Ticker Detail** (`/ticker/[symbol]`) — deep blue hero header, range selector (1D/1W/1M/3M/6M/1Y/All), SVG PriceChart with touch crosshair, Key Stats, Performance cards, "Add to Portfolio" action bar
 - **Performance** (`/performance`) — return stats, 10-year projections, dividend estimates
 - **Settings** (`/settings`) — display prefs, premium status, about
 
@@ -115,9 +117,17 @@ Suffix map: XETRA→.DE, Euronext Paris→.PA, Euronext Amsterdam→.AS, LSE→.
 
 ### Key Files
 - `app/_layout.tsx` — root layout; wraps with PortfolioProvider + AllocationProvider
-- `app/(tabs)/_layout.tsx` — tab bar (Dashboard, Holdings, Performance, Settings)
+- `app/(tabs)/_layout.tsx` — tab bar (Dashboard, Holdings, Search, Performance, Settings)
+- `app/(tabs)/search.tsx` — Explore/Search tab
+- `app/ticker/[symbol].tsx` — Ticker Detail stack screen
+- `components/PriceChart.tsx` — SVG sparkline with touch crosshair
+- `services/priceService.ts` — Yahoo Finance + Frankfurter FX; exports `searchTickers`, `fetchChartHistory`, `fetchSymbolPrice`, `yahooChartUrl`, `yahooSearchUrl`
 - `constants/colors.ts` — full theme (light + dark)
 - `utils/format.ts` — EUR formatting (de-DE locale), date helpers
+
+### API Server (`artifacts/api-server`)
+- `src/routes/yahoo.ts` — CORS proxy for web preview: `/api/yahoo/chart/:symbol` and `/api/yahoo/search`; uses crumb+cookie session for Yahoo Finance auth
+- **Note**: Yahoo Finance rate-limits Replit server IPs so the proxy may return 502 in the web preview. On native iOS/Android the app calls Yahoo Finance directly (no CORS), which works correctly.
 
 ## TypeScript & Composite Projects
 

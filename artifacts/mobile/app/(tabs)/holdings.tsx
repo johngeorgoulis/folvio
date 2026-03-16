@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import { formatEUR, formatPct } from "@/utils/format";
-import AddHoldingModal from "@/components/AddHoldingModal";
+import AddHoldingModal, { type AddHoldingInitialValues } from "@/components/AddHoldingModal";
 import PremiumModal from "@/components/PremiumModal";
 
 export default function HoldingsScreen() {
@@ -35,6 +35,31 @@ export default function HoldingsScreen() {
   } = usePortfolio();
   const [showAdd, setShowAdd] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  const [prefillValues, setPrefillValues] = useState<AddHoldingInitialValues | undefined>();
+
+  const params = useLocalSearchParams<{
+    prefillTicker?: string;
+    prefillName?: string;
+    prefillExchange?: string;
+  }>();
+  const processedTickerRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (
+      params.prefillTicker &&
+      params.prefillTicker !== processedTickerRef.current
+    ) {
+      processedTickerRef.current = params.prefillTicker;
+      const iv: AddHoldingInitialValues = {
+        ticker: params.prefillTicker,
+        name: params.prefillName ?? "",
+        exchange: params.prefillExchange ?? "XETRA",
+      };
+      setPrefillValues(iv);
+      if (!isAtLimit) setShowAdd(true);
+      else setShowPremium(true);
+    }
+  }, [params.prefillTicker, params.prefillName, params.prefillExchange, isAtLimit]);
 
   function handleAddPress() {
     if (isAtLimit) {
@@ -196,7 +221,11 @@ export default function HoldingsScreen() {
         })}
       </ScrollView>
 
-      <AddHoldingModal visible={showAdd} onClose={() => setShowAdd(false)} />
+      <AddHoldingModal
+        visible={showAdd}
+        onClose={() => { setShowAdd(false); setPrefillValues(undefined); }}
+        initialValues={prefillValues}
+      />
       <PremiumModal visible={showPremium} onClose={() => setShowPremium(false)} />
     </View>
   );

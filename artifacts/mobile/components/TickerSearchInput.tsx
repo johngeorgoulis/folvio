@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   ScrollView as RNScrollView,
   StyleSheet,
   Text,
@@ -11,6 +12,14 @@ import {
 } from "react-native";
 import Colors from "@/constants/colors";
 import { EXCHANGE_OPTIONS } from "@/components/ExchangePicker";
+
+function searchUrl(q: string): string {
+  if (Platform.OS === "web") {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+    return `https://${domain}/api/yahoo/search?q=${encodeURIComponent(q)}`;
+  }
+  return `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0&listsCount=0`;
+}
 
 const theme = Colors.dark;
 
@@ -69,7 +78,7 @@ export default function TickerSearchInput({ value, onChange, onSelect, inputStyl
     setLoading(true);
     setNoResults(false);
     try {
-      const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0&listsCount=0`;
+      const url = searchUrl(q);
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 5000);
       let res: Response;
