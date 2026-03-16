@@ -23,8 +23,15 @@ import PremiumModal from "@/components/PremiumModal";
 import { fetchLivePrice, buildYahooSymbol } from "@/services/priceService";
 
 const APP_VERSION = "1.0.0";
-const BENCHMARKS = ["VWCE", "IWDA", "SWDA"] as const;
-type Benchmark = (typeof BENCHMARKS)[number];
+
+const BENCHMARKS = [
+  { label: "S&P 500",        symbol: "^GSPC" },
+  { label: "MSCI World",     symbol: "IWDA.AS" },
+  { label: "Euro Stoxx 50",  symbol: "^STOXX50E" },
+  { label: "FTSE All-World", symbol: "VWRL.AS" },
+  { label: "DAX",            symbol: "^GDAXI" },
+] as const;
+type BenchmarkSymbol = typeof BENCHMARKS[number]["symbol"];
 
 const ASYNC_KEYS = {
   showCostBasis: "fortis_show_cost_basis",
@@ -47,7 +54,7 @@ export default function SettingsScreen() {
   // ── Persisted settings ───────────────────────────────────────────────────
   const [showCostBasis, setShowCostBasis] = useState(true);
   const [showDividends, setShowDividends] = useState(true);
-  const [defaultBenchmark, setDefaultBenchmark] = useState<Benchmark>("VWCE");
+  const [defaultBenchmark, setDefaultBenchmark] = useState<BenchmarkSymbol>("^GSPC");
   const [isPremium, setIsPremium] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
@@ -74,7 +81,10 @@ export default function SettingsScreen() {
       ]);
       if (cb !== null) setShowCostBasis(cb === "true");
       if (sd !== null) setShowDividends(sd === "true");
-      if (bm !== null && BENCHMARKS.includes(bm as Benchmark)) setDefaultBenchmark(bm as Benchmark);
+      if (bm !== null) {
+        const validSymbols: string[] = BENCHMARKS.map((b) => b.symbol);
+        if (validSymbols.includes(bm)) setDefaultBenchmark(bm as BenchmarkSymbol);
+      }
       if (ip !== null) setIsPremium(ip === "true");
       setSettingsLoaded(true);
     })();
@@ -232,28 +242,30 @@ export default function SettingsScreen() {
         {/* Default Benchmark */}
         <View style={[styles.settingBlock, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
           <Text style={[styles.rowLabel, { color: theme.text }]}>Default Benchmark</Text>
-          <View style={styles.chipRow}>
-            {BENCHMARKS.map((bm) => (
-              <TouchableOpacity
-                key={bm}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: defaultBenchmark === bm ? theme.deepBlue : theme.backgroundElevated,
-                    borderColor: defaultBenchmark === bm ? theme.tint : theme.border,
-                  },
-                ]}
-                onPress={async () => {
-                  setDefaultBenchmark(bm);
-                  await AsyncStorage.setItem(ASYNC_KEYS.defaultBenchmark, bm);
-                }}
-              >
-                <Text style={[styles.chipText, { color: defaultBenchmark === bm ? theme.tint : theme.textSecondary }]}>
-                  {bm}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {BENCHMARKS.map((bm) => (
+                <TouchableOpacity
+                  key={bm.symbol}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: defaultBenchmark === bm.symbol ? theme.deepBlue : theme.backgroundElevated,
+                      borderColor: defaultBenchmark === bm.symbol ? theme.tint : theme.border,
+                    },
+                  ]}
+                  onPress={async () => {
+                    setDefaultBenchmark(bm.symbol);
+                    await AsyncStorage.setItem(ASYNC_KEYS.defaultBenchmark, bm.symbol);
+                  }}
+                >
+                  <Text style={[styles.chipText, { color: defaultBenchmark === bm.symbol ? theme.tint : theme.textSecondary }]}>
+                    {bm.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         </View>
 
         {/* Target Allocations editor */}

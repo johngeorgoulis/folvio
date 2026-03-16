@@ -1,0 +1,83 @@
+Fix the Benchmark Comparison feature in the Performance screen.
+
+## PROBLEM
+Current benchmarks (VWCE, IWDA, SWDA) are ETFs that users 
+likely hold in their portfolio. Comparing against your own 
+holdings is meaningless.
+
+## CORRECT BENCHMARKS
+Replace with proper market indices:
+
+const BENCHMARKS = [
+  { 
+    label: "S&P 500", 
+    symbol: "^GSPC",
+    description: "US large cap 500 companies"
+  },
+  { 
+    label: "MSCI World", 
+    symbol: "IWDA.AS",
+    description: "Developed markets ~1,500 companies"
+  },
+  { 
+    label: "MSCI World", 
+    symbol: "URTH",
+    description: "iShares MSCI World ETF (USD)"
+  },
+  { 
+    label: "Euro Stoxx 50", 
+    symbol: "^STOXX50E",
+    description: "50 largest Eurozone companies"
+  },
+  { 
+    label: "FTSE All-World",
+    symbol: "VWRL.AS",
+    description: "Global all-cap index"
+  },
+  { 
+    label: "DAX",
+    symbol: "^GDAXI",
+    description: "30 largest German companies"
+  },
+]
+
+Default benchmark: S&P 500 (^GSPC)
+
+## BENCHMARK COMPARISON LOGIC
+
+1. Fetch benchmark historical prices for selected range
+   (same Yahoo Finance endpoint as portfolio chart)
+
+2. Normalize both series to 100 at the start of the period:
+   normalizedValue = (currentPrice / startPrice) × 100
+
+3. Plot two lines on same chart:
+   - Portfolio line: gold (#C9A84C)
+   - Benchmark line: white/grey (#8A9BB0), dashed
+
+4. Show legend:
+   [● Your Portfolio]  [- - S&P 500]
+
+5. Show summary below chart:
+   Your Portfolio:  +XX.XX%
+   S&P 500:         +XX.XX%
+   Difference:      +X.XX% (outperforming / underperforming)
+
+## TIME RANGES
+Match existing portfolio chart ranges:
+1W | 1M | 3M | 1Y | All
+
+## PREMIUM GATE
+This remains a Premium feature.
+Free tier: show blurred chart + "Upgrade to Premium" overlay
+Premium tier: full access
+
+## SETTINGS UPDATE
+In Settings → Portfolio → Default Benchmark:
+Replace VWCE/IWDA/SWDA picker with:
+[S&P 500] [MSCI World] [Euro Stoxx 50] [FTSE All-World] [DAX]
+
+## IMPORTANT DISCLAIMER
+Add small text below the chart:
+"Benchmark data for informational purposes only. 
+Past performance does not guarantee future results."

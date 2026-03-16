@@ -48,7 +48,7 @@ European UCITS ETF portfolio tracker built with Expo (managed workflow).
 - **Search** (`/search`) — 5th tab; search bar with debounce, Popular ETFs + Major Stocks horizontal scroll cards with live prices, type filter chips (All/ETF/Stock/Fund), tap to open Ticker Detail
 - **Ticker Detail** (`/ticker/[symbol]`) — deep blue hero header, range selector (1D/1W/1M/3M/6M/1Y/All), SVG PriceChart with touch crosshair, Key Stats, Performance cards, "Add to Portfolio" action bar
 - **Performance** (`/performance`) — return stats, 10-year projections, dividend estimates
-- **Settings** (`/settings`) — display prefs, premium status, about
+- **Settings** (`/settings`) — display prefs, premium status, Default Benchmark picker (S&P 500 / MSCI World / Euro Stoxx 50 / FTSE All-World / DAX), about
 
 ### Free Tier Logic
 - Max **10 holdings** in free tier
