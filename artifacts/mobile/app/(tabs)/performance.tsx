@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   Platform,
@@ -13,7 +14,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
+import { useAllocation } from "@/context/AllocationContext";
 import { formatEUR, formatPct } from "@/utils/format";
+import { calculateAllocations, validateTargets } from "@/services/allocationService";
 
 const YIELD_RATES: Record<string, number> = {
   VWCE: 1.4,
@@ -45,7 +48,17 @@ export default function PerformanceScreen() {
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
   const { holdings, totalPortfolioValue, totalInvested, totalGain, totalGainPct } = usePortfolio();
+  const { targets, rebalanceThreshold } = useAllocation();
   const [selectedScenario, setSelectedScenario] = useState(1);
+
+  const allocationRows = useMemo(
+    () => calculateAllocations(holdings, targets, rebalanceThreshold),
+    [holdings, targets, rebalanceThreshold]
+  );
+  const validation = useMemo(() => validateTargets(targets), [targets]);
+  const needsRebalancing = allocationRows.filter(
+    (r) => r.status === "overweight" || r.status === "underweight"
+  ).length;
 
   const annualDividendEstimate = useMemo(() => {
     return holdings.reduce((sum, h) => {
@@ -81,6 +94,33 @@ export default function PerformanceScreen() {
       showsVerticalScrollIndicator={false}
     >
       <Text style={[styles.pageTitle, { color: theme.text }]}>Performance</Text>
+
+      <TouchableOpacity
+        style={[styles.rebalanceCard, { backgroundColor: theme.backgroundCard, borderColor: needsRebalancing > 0 ? "#FBBF24" : theme.border }]}
+        onPress={() => router.push("/rebalance" as never)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.rebalanceLeft}>
+          <View style={[styles.rebalanceIcon, { backgroundColor: needsRebalancing > 0 ? "#FBBF2422" : theme.backgroundElevated }]}>
+            <Feather name="sliders" size={20} color={needsRebalancing > 0 ? "#FBBF24" : theme.tint} />
+          </View>
+          <View>
+            <Text style={[styles.rebalanceTitle, { color: theme.text }]}>Rebalance Calculator</Text>
+            {validation.valid ? (
+              <Text style={[styles.rebalanceSub, { color: needsRebalancing > 0 ? "#FBBF24" : theme.positive }]}>
+                {needsRebalancing > 0
+                  ? `${needsRebalancing} holding${needsRebalancing > 1 ? "s" : ""} outside ±${rebalanceThreshold}% threshold`
+                  : "Portfolio is balanced"}
+              </Text>
+            ) : (
+              <Text style={[styles.rebalanceSub, { color: theme.textSecondary }]}>
+                Set target allocations in Settings
+              </Text>
+            )}
+          </View>
+        </View>
+        <Feather name="chevron-right" size={18} color={theme.textTertiary} />
+      </TouchableOpacity>
 
       <View style={[styles.overviewCard, { backgroundColor: theme.deepBlue }]}>
         <View style={styles.overviewGrid}>
@@ -206,6 +246,18 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 16, gap: 14 },
   pageTitle: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.8, marginBottom: 2 },
+  rebalanceCard: {
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  rebalanceLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  rebalanceIcon: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  rebalanceTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  rebalanceSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   overviewCard: {
     borderRadius: 20,
     padding: 24,

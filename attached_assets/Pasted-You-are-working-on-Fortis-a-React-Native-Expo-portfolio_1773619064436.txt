@@ -1,0 +1,184 @@
+You are working on "Fortis", a React Native + Expo portfolio tracker for European ETF investors.
+This prompt covers the rebalancing and allocation logic (v1).
+
+---
+
+## CONTEXT
+User has a 7-ETF portfolio with target allocations.
+The app must compare target vs actual allocation and suggest rebalancing actions.
+No auto-trading — suggestions only. User decides what to do.
+
+---
+
+## DATA MODEL ADDITIONS
+
+Add to SQLite schema:
+
+target_allocations table:
+- id (integer primary key)
+- ticker (text unique)
+- target_pct (real)          -- e.g. 30.0 for 30%
+- created_at (text)
+- updated_at (text)
+
+Constraints:
+- Sum of all target_pct must equal 100.0
+- Validate on save, show error if not
+
+---
+
+## SAMPLE DEFAULT PORTFOLIO
+Pre-load these targets on first app launch (can be edited by user):
+
+| Ticker  | Exchange     | Target % |
+|---------|--------------|----------|
+| VWCE    | XETRA        | 30       |
+| TDIV    | EURONEXT_AMS | 25       |
+| VHYL    | EURONEXT_AMS | 15       |
+| ERNE    | SIX          | 10       |
+| CSBGE7  | SIX          |  7       |
+| IEGE    | BORSA_IT     |  6       |
+| EGLN    | XETRA        |  7       |
+
+This is editable — user can add/remove/change targets in Settings.
+
+---
+
+## CORE CALCULATIONS
+
+File: services/allocationService.ts
+
+### 1. Current Allocation
+actualPct(holding) = (holding.quantity × holding.priceEUR) / totalPortfolioValue × 100
+
+### 2. Drift
+drift(holding) = actualPct - targetPct
+- Positive drift → overweight
+- Negative drift → underweight
+
+### 3. Rebalancing Threshold
+- Default threshold: ±5% absolute drift
+- User-configurable in Settings (options: ±3%, ±5%, ±10%)
+- Holdings outside threshold are flagged as "needs rebalancing"
+
+### 4. Rebalancing Suggestion (Cash Injection mode)
+Used when user is adding new capital (DCA scenario):
+
+For each holding:
+  targetValue = newTotalValue × (targetPct / 100)
+  currentValue = holding.quantity × holding.priceEUR
+  delta = targetValue - currentValue      -- positive = buy, negative = skip
+  unitsToBuy = delta / holding.priceEUR
+
+Rules:
+- Never suggest selling in DCA mode (only buy or skip)
+- If delta < 0 → skip (already overweight, don't add)
+- Round unitsToBuy to 2 decimal places (fractional shares supported on T212)
+
+### 5. Rebalancing Suggestion (Full Rebalance mode)
+Used when user wants to rebalance existing portfolio:
+
+For each holding:
+  targetValue = totalPortfolioValue × (targetPct / 100)
+  currentValue = holding.quantity × holding.priceEUR
+  delta = targetValue - currentValue
+  units = delta / holding.priceEUR        -- positive = buy, negative = sell
+
+Show both buy and sell suggestions.
+Add warning: "Selling may trigger capital gains tax. Consult a tax advisor."
+
+---
+
+## REBALANCING SCREEN
+
+Add as a tab or sub-screen under Performance.
+
+### Layout:
+
+Section 1 — Allocation Overview
+- Donut chart: actual allocation (colored by ETF)
+- Below chart: table with columns:
+  Ticker | Target % | Actual % | Drift | Status
+- Status badge:
+  - "OK" (green) if |drift| < threshold
+  - "Overweight" (amber) if drift > threshold  
+  - "Underweight" (amber) if drift < -threshold
+
+Section 2 — Rebalancing Calculator
+- Input: "I want to invest €___" (DCA mode, default)
+- Toggle: "DCA mode" vs "Full rebalance"
+- Button: "Calculate"
+
+Section 3 — Suggestions
+- List of actions:
+  BUY 0.45 × VWCE.DE ≈ €234.50
+  BUY 1.20 × TDIV.AS ≈ €187.30
+  SKIP EGLN (overweight)
+- In Full Rebalance mode, SELL actions shown in red with tax warning
+
+Section 4 — Summary
+- Total capital to deploy: €X
+- Number of transactions: N
+- Estimated post-rebalance drift: all within ±X%
+
+---
+
+## EDGE CASES TO HANDLE
+
+1. Missing price → exclude holding from calculation, show warning
+   "CSBGE7 excluded — price unavailable. Update manually."
+
+2. Target allocations don't sum to 100 → block calculation, show error
+
+3. New holding with no target → show as "Untracked" in allocation table
+   Prompt user: "Add a target allocation for [TICKER]?"
+
+4. Zero portfolio value (empty portfolio) → skip all calculations,
+   show onboarding message instead
+
+5. Single holding portfolio → show allocation as 100%, 
+   rebalancing not applicable
+
+---
+
+## TYPES
+
+interface AllocationRow {
+  ticker: string
+  targetPct: number
+  actualPct: number
+  drift: number           -- actualPct - targetPct
+  currentValueEUR: number
+  status: "ok" | "overweight" | "underweight" | "untracked" | "no_price"
+}
+
+interface RebalanceSuggestion {
+  ticker: string
+  exchange: string
+  action: "buy" | "sell" | "skip"
+  units: number
+  estimatedValueEUR: number
+  reason?: string         -- e.g. "overweight, skip in DCA mode"
+}
+
+interface RebalanceResult {
+  mode: "dca" | "full"
+  cashInput: number
+  suggestions: RebalanceSuggestion[]
+  totalToDeploy: number
+  transactionCount: number
+  warnings: string[]
+}
+
+---
+
+## TASK
+Implement services/allocationService.ts with:
+1. calculateAllocations(holdings, prices, targets) → AllocationRow[]
+2. calculateDCARebalance(holdings, prices, targets, cashAmount) → RebalanceResult
+3. calculateFullRebalance(holdings, prices, targets) → RebalanceResult
+4. validateTargets(targets) → { valid: boolean, error?: string }
+5. getPortfolioTotalEUR(holdings, prices) → number
+
+Then build the Rebalancing screen using these functions.
+Pre-load the default 7-ETF portfolio targets on first launch.

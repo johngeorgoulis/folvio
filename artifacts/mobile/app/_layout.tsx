@@ -15,6 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PortfolioProvider } from "@/context/PortfolioContext";
+import { AllocationProvider } from "@/context/AllocationContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -43,13 +44,19 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <PortfolioProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  <Stack.Screen
-                    name="holding/[id]"
-                    options={{ headerShown: false, animation: "slide_from_right" }}
-                  />
-                </Stack>
+                <AllocationProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    <Stack.Screen
+                      name="holding/[id]"
+                      options={{ headerShown: false, animation: "slide_from_right" }}
+                    />
+                    <Stack.Screen
+                      name="rebalance"
+                      options={{ headerShown: false, animation: "slide_from_right" }}
+                    />
+                  </Stack>
+                </AllocationProvider>
               </PortfolioProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

@@ -20,6 +20,14 @@ export type PriceCacheRow = {
   source: string;
 };
 
+export type TargetAllocationRow = {
+  id: number;
+  ticker: string;
+  target_pct: number;
+  created_at: string;
+  updated_at: string;
+};
+
 let db: SQLite.SQLiteDatabase | null = null;
 
 async function getDb(): Promise<SQLite.SQLiteDatabase> {
@@ -44,6 +52,13 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
       price_eur REAL NOT NULL,
       last_fetched TEXT NOT NULL,
       source TEXT NOT NULL DEFAULT 'manual'
+    );
+    CREATE TABLE IF NOT EXISTS target_allocations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticker TEXT UNIQUE NOT NULL,
+      target_pct REAL NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     );
   `);
   return db;
@@ -99,4 +114,35 @@ export async function getPrice(ticker: string): Promise<PriceCacheRow | null> {
     "SELECT * FROM prices_cache WHERE ticker = ?",
     [ticker]
   );
+}
+
+export async function getAllTargets(): Promise<TargetAllocationRow[]> {
+  const database = await getDb();
+  return database.getAllAsync<TargetAllocationRow>(
+    "SELECT * FROM target_allocations ORDER BY ticker ASC"
+  );
+}
+
+export async function upsertTarget(ticker: string, target_pct: number): Promise<void> {
+  const now = new Date().toISOString();
+  const database = await getDb();
+  await database.runAsync(
+    `INSERT INTO target_allocations (ticker, target_pct, created_at, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(ticker) DO UPDATE SET target_pct = excluded.target_pct, updated_at = excluded.updated_at`,
+    [ticker, target_pct, now, now]
+  );
+}
+
+export async function deleteTarget(ticker: string): Promise<void> {
+  const database = await getDb();
+  await database.runAsync("DELETE FROM target_allocations WHERE ticker = ?", [ticker]);
+}
+
+export async function hasAnyTargets(): Promise<boolean> {
+  const database = await getDb();
+  const row = await database.getFirstAsync<{ count: number }>(
+    "SELECT COUNT(*) as count FROM target_allocations"
+  );
+  return (row?.count ?? 0) > 0;
 }

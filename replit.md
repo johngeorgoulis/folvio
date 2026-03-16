@@ -88,8 +88,33 @@ Suffix map: XETRA→.DE, Euronext Paris→.PA, Euronext Amsterdam→.AS, LSE→.
 | Manual | "Manual price" + "Fetch live" button |
 | No price | "—" + "Enter manually" button |
 
+### Rebalancing & Allocation (`services/allocationService.ts`, `context/AllocationContext.tsx`)
+- `target_allocations` table in SQLite (native) / AsyncStorage (web)
+- Default 7-ETF portfolio seeded on first launch: VWCE 30%, TDIV 25%, VHYL 15%, ERNE 10%, CSBGE7 7%, IEGE 6%, EGLN 7%
+- `validateTargets()` — checks sum = 100%, shows error if not
+- `calculateAllocations()` — computes actual%, drift, status (ok/overweight/underweight/untracked/no_price) per threshold
+- `calculateDCARebalance()` — DCA mode: buy only (no sells), distribute new capital to underweight ETFs
+- `calculateFullRebalance()` — Full mode: buy + sell suggestions, tax warning
+- Rebalance threshold configurable: ±3%, ±5%, ±10% (stored in AsyncStorage)
+- `AllocationContext` — provides targets, threshold; seeds defaults; exposes upsert/remove functions
+
+### Rebalancing Screen (`app/rebalance.tsx`)
+- Accessible from Performance tab (tapping the Rebalance Calculator card)
+- Section 1: Allocation Overview — stacked color bar + table (Ticker, Target%, Actual%, Drift, Status badge)
+- Section 2: Calculator — DCA mode (cash input) or Full Rebalance toggle
+- Section 3: Suggestions — BUY (green) / SELL (red) / SKIP (gray) with unit counts and EUR estimates
+- Section 4: Summary — capital to deploy, transaction count, mode
+- Edge cases: empty portfolio, invalid targets, no price, DCA never suggests sells
+
+### Target Allocation Editor (Settings tab)
+- Drift threshold picker (±3/5/10%)
+- Add new ticker + percentage inline
+- Edit existing target (tap pencil → inline TextInput → confirm)
+- Remove target (trash → confirm alert)
+- Live sum validation: "Sum: X% ✓" (green) or error (red)
+
 ### Key Files
-- `app/_layout.tsx` — root layout, stack navigator, providers
+- `app/_layout.tsx` — root layout; wraps with PortfolioProvider + AllocationProvider
 - `app/(tabs)/_layout.tsx` — tab bar (Dashboard, Holdings, Performance, Settings)
 - `constants/colors.ts` — full theme (light + dark)
 - `utils/format.ts` — EUR formatting (de-DE locale), date helpers
