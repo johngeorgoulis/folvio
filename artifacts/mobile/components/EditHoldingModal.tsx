@@ -15,6 +15,7 @@ import {
 import Colors from "@/constants/colors";
 import { usePortfolio, type Holding } from "@/context/PortfolioContext";
 import ExchangePicker, { getExchangeLabel } from "@/components/ExchangePicker";
+import TickerSearchInput, { type TickerSelection } from "@/components/TickerSearchInput";
 import { fetchLivePrice } from "@/services/priceService";
 
 interface Props {
@@ -62,6 +63,12 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
       setFetchNotice(null);
     }
   }, [visible, holding]);
+
+  function handleTickerSelect({ ticker: t, name: n, exchange: ex }: TickerSelection) {
+    setTicker(t);
+    setName(n);
+    setExchange(ex);
+  }
 
   async function handleSave() {
     setError("");
@@ -127,9 +134,7 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
         },
         resolvedPrice
       );
-
       setSaving(false);
-
       if (noticeMsg) {
         setFetchNotice(noticeMsg);
         setTimeout(() => onClose(), 1500);
@@ -156,6 +161,8 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <View style={[styles.container, { backgroundColor: theme.background }]}>
+
+          {/* ── Header ───────────────────────────────────────────────── */}
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
             <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
               <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Cancel</Text>
@@ -173,21 +180,32 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
+          {/* ── Ticker — outside ScrollView so dropdown overlays correctly ── */}
+          <View style={styles.tickerOuter}>
+            <Text style={labelStyle}>TICKER</Text>
+            <TickerSearchInput
+              value={ticker}
+              onChange={setTicker}
+              onSelect={handleTickerSelect}
+            />
+          </View>
+
+          {/* ── Rest of form ─────────────────────────────────────────── */}
+          <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+            {/* Banners */}
             {error ? (
               <View style={[styles.msgBox, { backgroundColor: theme.negative + "22", borderColor: theme.negative + "44" }]}>
                 <Feather name="alert-circle" size={14} color={theme.negative} />
                 <Text style={[styles.msgText, { color: theme.negative }]}>{error}</Text>
               </View>
             ) : null}
-
             {warning ? (
               <View style={[styles.msgBox, { backgroundColor: "#F39C1222", borderColor: "#F39C1244" }]}>
                 <Feather name="alert-triangle" size={14} color="#F39C12" />
                 <Text style={[styles.msgText, { color: "#F39C12" }]}>{warning}</Text>
               </View>
             ) : null}
-
             {fetchNotice ? (
               <View style={[styles.msgBox, { backgroundColor: theme.positive + "22", borderColor: theme.positive + "44" }]}>
                 <Feather name="check-circle" size={14} color={theme.positive} />
@@ -195,29 +213,19 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
               </View>
             ) : null}
 
-            <View style={styles.row}>
-              <View style={[styles.field, { flex: 1 }]}>
-                <Text style={labelStyle}>TICKER</Text>
-                <TextInput
-                  style={inputStyle}
-                  value={ticker}
-                  onChangeText={(t) => setTicker(t.toUpperCase())}
-                  autoCapitalize="characters"
-                  placeholderTextColor={theme.textTertiary}
-                />
-              </View>
-              <View style={[styles.field, { flex: 1.4 }]}>
-                <Text style={labelStyle}>ISIN</Text>
-                <TextInput
-                  style={inputStyle}
-                  value={isin}
-                  onChangeText={setIsin}
-                  autoCapitalize="characters"
-                  placeholderTextColor={theme.textTertiary}
-                />
-              </View>
+            {/* ISIN */}
+            <View style={styles.field}>
+              <Text style={labelStyle}>ISIN</Text>
+              <TextInput
+                style={inputStyle}
+                value={isin}
+                onChangeText={setIsin}
+                autoCapitalize="characters"
+                placeholderTextColor={theme.textTertiary}
+              />
             </View>
 
+            {/* Name */}
             <View style={styles.field}>
               <Text style={labelStyle}>NAME</Text>
               <TextInput
@@ -228,11 +236,13 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
               />
             </View>
 
+            {/* Exchange */}
             <View style={styles.field}>
               <Text style={labelStyle}>EXCHANGE</Text>
               <ExchangePicker value={exchange} onChange={setExchange} ticker={ticker} />
             </View>
 
+            {/* Qty + AvgCost */}
             <View style={styles.row}>
               <View style={[styles.field, { flex: 1 }]}>
                 <Text style={labelStyle}>QUANTITY</Text>
@@ -256,6 +266,7 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
               </View>
             </View>
 
+            {/* Price */}
             <View style={styles.field}>
               <Text style={labelStyle}>CURRENT PRICE (€)</Text>
               <TextInput
@@ -271,6 +282,7 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
               </Text>
             </View>
 
+            {/* Yield + Date */}
             <View style={styles.row}>
               <View style={[styles.field, { flex: 1 }]}>
                 <Text style={labelStyle}>TRAILING YIELD %</Text>
@@ -325,7 +337,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   saveBtnText: { color: "#0A0F1A", fontSize: 14, fontFamily: "Inter_700Bold" },
-  form: { padding: 16, gap: 16, paddingBottom: 40 },
+  tickerOuter: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 2,
+    zIndex: 50,
+  },
+  form: { paddingHorizontal: 16, paddingTop: 14, gap: 14, paddingBottom: 48 },
   field: { gap: 6 },
   row: { flexDirection: "row", gap: 12 },
   label: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.6 },
