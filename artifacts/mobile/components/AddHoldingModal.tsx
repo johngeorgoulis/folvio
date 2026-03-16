@@ -36,6 +36,7 @@ export default function AddHoldingModal({ visible, onClose }: Props) {
   const [quantity, setQuantity] = useState("");
   const [avgCost, setAvgCost] = useState("");
   const [currentPrice, setCurrentPrice] = useState("");
+  const [yieldPct, setYieldPct] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(todayISO());
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -48,6 +49,7 @@ export default function AddHoldingModal({ visible, onClose }: Props) {
     setQuantity("");
     setAvgCost("");
     setCurrentPrice("");
+    setYieldPct("");
     setPurchaseDate(todayISO());
     setError("");
     setSaving(false);
@@ -63,6 +65,13 @@ export default function AddHoldingModal({ visible, onClose }: Props) {
     if (!currentPrice.trim() || isNaN(Number(currentPrice)) || Number(currentPrice) <= 0)
       return setError("Enter a valid current price in EUR.");
 
+    const parsedYield = yieldPct.trim()
+      ? parseFloat(yieldPct.replace(",", "."))
+      : null;
+    if (yieldPct.trim() && (parsedYield === null || isNaN(parsedYield) || parsedYield < 0 || parsedYield > 100)) {
+      return setError("Enter a valid yield percentage (0–100), or leave blank.");
+    }
+
     setSaving(true);
     try {
       await addHolding(
@@ -74,6 +83,7 @@ export default function AddHoldingModal({ visible, onClose }: Props) {
           quantity: Number(quantity),
           avg_cost_eur: Number(avgCost),
           purchase_date: purchaseDate,
+          yield_pct: parsedYield,
         },
         Number(currentPrice)
       );
@@ -212,20 +222,36 @@ export default function AddHoldingModal({ visible, onClose }: Props) {
                 keyboardType="decimal-pad"
               />
               <Text style={[styles.hint, { color: theme.textTertiary }]}>
-                Enter price manually — automatic price fetching coming soon.
+                Enter price manually — live price will be fetched automatically.
               </Text>
             </View>
 
-            <View style={styles.field}>
-              <Text style={labelStyle}>PURCHASE DATE *</Text>
-              <TextInput
-                style={inputStyle}
-                value={purchaseDate}
-                onChangeText={setPurchaseDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={theme.textTertiary}
-              />
+            <View style={styles.row}>
+              <View style={[styles.field, { flex: 1 }]}>
+                <Text style={labelStyle}>TRAILING YIELD %</Text>
+                <TextInput
+                  style={inputStyle}
+                  value={yieldPct}
+                  onChangeText={setYieldPct}
+                  placeholder="e.g. 1.4"
+                  placeholderTextColor={theme.textTertiary}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <View style={[styles.field, { flex: 1 }]}>
+                <Text style={labelStyle}>PURCHASE DATE *</Text>
+                <TextInput
+                  style={inputStyle}
+                  value={purchaseDate}
+                  onChangeText={setPurchaseDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={theme.textTertiary}
+                />
+              </View>
             </View>
+            <Text style={[styles.hint, { color: theme.textTertiary, marginTop: -10 }]}>
+              Trailing yield used for dividend income estimates. Optional.
+            </Text>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>

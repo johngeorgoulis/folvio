@@ -25,6 +25,11 @@ export interface PriceResult {
   isStale: boolean;
 }
 
+export interface PricePoint {
+  date: string;
+  priceEUR: number;
+}
+
 export function buildYahooSymbol(ticker: string, exchange: string): string {
   const suffix = EXCHANGE_SUFFIXES[exchange] ?? "";
   return `${ticker}${suffix}`;
@@ -165,6 +170,71 @@ export async function refreshAllPrices(
     await Promise.allSettled(
       batch.map((h) => fetchAndCacheOne(h.ticker, h.exchange))
     );
+  }
+}
+
+const YAHOO_RANGES: Record<string, string> = {
+  "1W": "5d",
+  "1M": "1mo",
+  "3M": "3mo",
+  "1Y": "1y",
+  "All": "5y",
+};
+
+export async function fetchHistoricalPrices(
+  symbol: string,
+  range: string
+): Promise<PricePoint[]> {
+  const yahooRange = YAHOO_RANGES[range] ?? "1mo";
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=${yahooRange}`;
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const result = data?.chart?.result?.[0];
+    if (!result) throw new Error("No result");
+
+    const timestamps: number[] = result.timestamp ?? [];
+    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+    const currency: string = result.meta?.currency ?? "EUR";
+
+    let fxRate = 1;
+    if (currency !== "EUR") {
+      const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+        try {
+          fxRate = await fetchFXRate(fxFrom, "EUR");
+        } catch {
+          // Use 1 as fallback
+        }
+      }
+    }
+
+    const points: PricePoint[] = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      const price = closes[i];
+      if (price == null || isNaN(price)) continue;
+
+      const date = new Date(timestamps[i] * 1000).toISOString().split("T")[0];
+      const priceEUR =
+        currency === "GBp" || currency === "GBX"
+          ? (price / 100) * fxRate
+          : price * fxRate;
+
+      points.push({ date, priceEUR });
+    }
+
+    return points;
+  } catch (err) {
+    console.warn(`[priceService] fetchHistoricalPrices failed for ${symbol}:`, err);
+    return [];
   }
 }
 

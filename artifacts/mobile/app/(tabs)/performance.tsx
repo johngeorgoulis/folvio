@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Platform,
   ScrollView,
   StyleSheet,
@@ -17,26 +18,201 @@ import { usePortfolio } from "@/context/PortfolioContext";
 import { useAllocation } from "@/context/AllocationContext";
 import { formatEUR, formatPct } from "@/utils/format";
 import { calculateAllocations, validateTargets } from "@/services/allocationService";
+import { getSnapshots, type PortfolioSnapshot } from "@/services/snapshotService";
 
-const YIELD_RATES: Record<string, number> = {
-  VWCE: 1.4,
-  VWRL: 2.1,
-  IWDA: 1.3,
-  CSPX: 1.3,
-  EUNL: 1.8,
-  VEUR: 3.0,
-  MEUD: 2.5,
-};
+const RANGES = ["1W", "1M", "3M", "1Y", "All"] as const;
+type Range = (typeof RANGES)[number];
 
-function getEstimatedYield(ticker: string): number {
-  return YIELD_RATES[ticker.toUpperCase()] ?? 1.5;
+// ─── Custom Line Chart ────────────────────────────────────────────────────────
+
+const CHART_H = 160;
+const PAD = { top: 10, bottom: 28, left: 56, right: 8 };
+
+interface ChartPoint { x: number; y: number }
+
+function PortfolioChart({
+  snapshots,
+  width,
+}: {
+  snapshots: PortfolioSnapshot[];
+  width: number;
+}) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const theme = isDark ? Colors.dark : Colors.light;
+
+  const data = snapshots.map((s) => s.totalValueEUR);
+  if (data.length < 2) return null;
+
+  const innerW = width - PAD.left - PAD.right;
+  const innerH = CHART_H - PAD.top - PAD.bottom;
+
+  const minV = Math.min(...data);
+  const maxV = Math.max(...data);
+  const rangeV = maxV - minV || 1;
+
+  const isPositive = data[data.length - 1] >= data[0];
+  const lineColor = isPositive ? "#34D399" : "#F87171";
+
+  const points: ChartPoint[] = data.map((v, i) => ({
+    x: PAD.left + (i / (data.length - 1)) * innerW,
+    y: PAD.top + (1 - (v - minV) / rangeV) * innerH,
+  }));
+
+  // Build line segments using View rotation trick
+  const segments = points.slice(0, -1).map((p1, i) => {
+    const p2 = points[i + 1];
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    const cx = (p1.x + p2.x) / 2;
+    const cy = (p1.y + p2.y) / 2;
+    return { cx, cy, length, angle };
+  });
+
+  // Y-axis reference values
+  const yLabels = [
+    { y: PAD.top, v: maxV },
+    { y: PAD.top + innerH / 2, v: (maxV + minV) / 2 },
+    { y: PAD.top + innerH, v: minV },
+  ];
+
+  // X-axis date labels (first, last; middle if 3+ months)
+  const xLabels: { x: number; label: string }[] = [
+    { x: PAD.left, label: fmtDate(snapshots[0].snapshotDate) },
+    { x: PAD.left + innerW, label: fmtDate(snapshots[snapshots.length - 1].snapshotDate) },
+  ];
+  if (snapshots.length >= 3) {
+    const mid = Math.floor(snapshots.length / 2);
+    xLabels.splice(1, 0, { x: PAD.left + innerW / 2, label: fmtDate(snapshots[mid].snapshotDate) });
+  }
+
+  return (
+    <View style={{ width, height: CHART_H, position: "relative" }}>
+      {/* Y-axis grid lines */}
+      {yLabels.map((lbl, i) => (
+        <View
+          key={i}
+          style={[
+            styles.gridLine,
+            {
+              top: lbl.y,
+              left: PAD.left,
+              right: PAD.right,
+              borderColor: theme.border,
+            },
+          ]}
+        />
+      ))}
+
+      {/* Y-axis labels */}
+      {yLabels.map((lbl, i) => (
+        <Text
+          key={i}
+          style={[styles.chartYLabel, { top: lbl.y - 8, color: theme.textTertiary }]}
+        >
+          {fmtK(lbl.v)}
+        </Text>
+      ))}
+
+      {/* Line segments */}
+      {segments.map((seg, i) => (
+        <View
+          key={i}
+          style={{
+            position: "absolute",
+            left: seg.cx - seg.length / 2,
+            top: seg.cy - 1.5,
+            width: seg.length,
+            height: 3,
+            backgroundColor: lineColor,
+            borderRadius: 2,
+            transform: [{ rotate: `${seg.angle}deg` }],
+          }}
+        />
+      ))}
+
+      {/* Start dot */}
+      <View
+        style={[
+          styles.chartDot,
+          { left: points[0].x - 4, top: points[0].y - 4, backgroundColor: lineColor },
+        ]}
+      />
+      {/* End dot */}
+      <View
+        style={[
+          styles.chartDot,
+          {
+            left: points[points.length - 1].x - 4,
+            top: points[points.length - 1].y - 4,
+            backgroundColor: lineColor,
+          },
+        ]}
+      />
+
+      {/* X-axis labels */}
+      {xLabels.map((lbl, i) => (
+        <Text
+          key={i}
+          style={[
+            styles.chartXLabel,
+            {
+              color: theme.textTertiary,
+              left: i === 0 ? PAD.left : undefined,
+              right: i === xLabels.length - 1 ? PAD.right : undefined,
+              bottom: 0,
+              ...(i > 0 && i < xLabels.length - 1
+                ? { left: lbl.x - 20, width: 40, textAlign: "center" }
+                : {}),
+            },
+          ]}
+        >
+          {lbl.label}
+        </Text>
+      ))}
+    </View>
+  );
 }
 
-const SCENARIOS = [
-  { label: "Conservative", rate: 5, color: "#64748B" },
-  { label: "Base", rate: 7, color: "#C9A84C" },
-  { label: "Optimistic", rate: 10, color: "#34D399" },
-];
+function fmtDate(iso: string): string {
+  const [, mm, dd] = iso.split("-");
+  return `${dd}/${mm}`;
+}
+
+function fmtK(v: number): string {
+  if (v >= 1000) return `${(v / 1000).toFixed(0)}k`;
+  return `${v.toFixed(0)}`;
+}
+
+// ─── Benchmark Placeholder ────────────────────────────────────────────────────
+
+function BenchmarkSection({ theme }: { theme: typeof Colors.dark }) {
+  return (
+    <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border, overflow: "hidden" }]}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>Benchmark Comparison</Text>
+      <View style={styles.benchmarkBlur}>
+        {/* Fake chart lines */}
+        <View style={[styles.fakeLine, { backgroundColor: "#34D39966", top: 40, width: "85%" }]} />
+        <View style={[styles.fakeLine, { backgroundColor: "#C9A84C66", top: 60, width: "75%" }]} />
+        <View style={[styles.fakeLine, { backgroundColor: "#34D39944", top: 80, width: "90%" }]} />
+        <View style={[styles.fakeLine, { backgroundColor: "#C9A84C44", top: 100, width: "70%" }]} />
+      </View>
+      <View style={styles.premiumOverlay}>
+        <View style={[styles.premiumBadge, { backgroundColor: theme.tint + "22", borderColor: theme.tint + "44" }]}>
+          <Feather name="lock" size={16} color={theme.tint} />
+          <Text style={[styles.premiumText, { color: theme.tint }]}>Premium Feature</Text>
+        </View>
+        <Text style={[styles.premiumSub, { color: theme.textSecondary }]}>
+          Upgrade to compare your portfolio against{"\n"}VWCE, IWDA, and SWDA benchmarks
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function PerformanceScreen() {
   const colorScheme = useColorScheme();
@@ -49,8 +225,25 @@ export default function PerformanceScreen() {
 
   const { holdings, totalPortfolioValue, totalInvested, totalGain, totalGainPct } = usePortfolio();
   const { targets, rebalanceThreshold } = useAllocation();
-  const [selectedScenario, setSelectedScenario] = useState(1);
 
+  const [selectedRange, setSelectedRange] = useState<Range>("1M");
+  const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
+  const [loadingChart, setLoadingChart] = useState(true);
+
+  // Load snapshots when range changes
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingChart(true);
+    getSnapshots(selectedRange).then((data) => {
+      if (!cancelled) {
+        setSnapshots(data);
+        setLoadingChart(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [selectedRange]);
+
+  // Rebalance status
   const allocationRows = useMemo(
     () => calculateAllocations(holdings, targets, rebalanceThreshold),
     [holdings, targets, rebalanceThreshold]
@@ -60,32 +253,39 @@ export default function PerformanceScreen() {
     (r) => r.status === "overweight" || r.status === "underweight"
   ).length;
 
-  const annualDividendEstimate = useMemo(() => {
-    return holdings.reduce((sum, h) => {
-      const yieldPct = getEstimatedYield(h.ticker);
-      return sum + h.quantity * h.currentPrice * (yieldPct / 100);
+  // Return metrics
+  const metrics = useMemo(() => {
+    // Time in market
+    const dates = holdings.map((h) => h.purchase_date).filter(Boolean).sort();
+    let timeInMarketMonths = 0;
+    if (dates.length > 0) {
+      const oldest = new Date(dates[0]).getTime();
+      const now = Date.now();
+      timeInMarketMonths = Math.floor((now - oldest) / (1000 * 60 * 60 * 24 * 30.44));
+    }
+
+    // Best / Worst ETF
+    let bestETF: { ticker: string; returnPct: number } | null = null;
+    let worstETF: { ticker: string; returnPct: number } | null = null;
+    for (const h of holdings) {
+      if (!h.hasPrice || h.avg_cost_eur <= 0) continue;
+      const ret = ((h.currentPrice - h.avg_cost_eur) / h.avg_cost_eur) * 100;
+      if (!bestETF || ret > bestETF.returnPct) bestETF = { ticker: h.ticker, returnPct: ret };
+      if (!worstETF || ret < worstETF.returnPct) worstETF = { ticker: h.ticker, returnPct: ret };
+    }
+
+    // Annual dividend estimate from user-entered yield_pct
+    const estimatedAnnualDividend = holdings.reduce((sum, h) => {
+      const y = h.yield_pct ?? 0;
+      if (!y || !h.hasPrice) return sum;
+      return sum + h.quantity * h.currentPrice * (y / 100);
     }, 0);
+
+    return { timeInMarketMonths, bestETF, worstETF, estimatedAnnualDividend };
   }, [holdings]);
 
-  const holdingRows = useMemo(() => {
-    return holdings
-      .map((h) => {
-        const mv = h.quantity * h.currentPrice;
-        const invested = h.quantity * h.avg_cost_eur;
-        const gain = mv - invested;
-        const gainPct = invested > 0 ? (gain / invested) * 100 : 0;
-        const weight = totalPortfolioValue > 0 ? (mv / totalPortfolioValue) * 100 : 0;
-        const yieldPct = getEstimatedYield(h.ticker);
-        const annualIncome = mv * (yieldPct / 100);
-        return { ...h, mv, gain, gainPct, weight, yieldPct, annualIncome };
-      })
-      .sort((a, b) => b.mv - a.mv);
-  }, [holdings, totalPortfolioValue]);
-
-  const projectedValue = useMemo(() => {
-    const rate = SCENARIOS[selectedScenario].rate / 100;
-    return totalPortfolioValue * Math.pow(1 + rate, 10);
-  }, [totalPortfolioValue, selectedScenario]);
+  const chartWidth = width - 32;
+  const hasEnoughData = snapshots.length >= 7;
 
   return (
     <ScrollView
@@ -95,8 +295,12 @@ export default function PerformanceScreen() {
     >
       <Text style={[styles.pageTitle, { color: theme.text }]}>Performance</Text>
 
+      {/* Rebalance entry card */}
       <TouchableOpacity
-        style={[styles.rebalanceCard, { backgroundColor: theme.backgroundCard, borderColor: needsRebalancing > 0 ? "#FBBF24" : theme.border }]}
+        style={[
+          styles.rebalanceCard,
+          { backgroundColor: theme.backgroundCard, borderColor: needsRebalancing > 0 ? "#FBBF24" : theme.border },
+        ]}
         onPress={() => router.push("/rebalance" as never)}
         activeOpacity={0.8}
       >
@@ -122,122 +326,131 @@ export default function PerformanceScreen() {
         <Feather name="chevron-right" size={18} color={theme.textTertiary} />
       </TouchableOpacity>
 
-      <View style={[styles.overviewCard, { backgroundColor: theme.deepBlue }]}>
-        <View style={styles.overviewGrid}>
-          <View style={styles.overviewItem}>
-            <Text style={styles.overviewLabel}>Total Return</Text>
-            <Text style={[styles.overviewValue, { color: totalGain >= 0 ? "#6EE7B7" : "#FCA5A5" }]}>
-              {totalGain >= 0 ? "+" : ""}{formatEUR(totalGain, true)}
-            </Text>
-            <Text style={[styles.overviewPct, { color: totalGain >= 0 ? "#6EE7B7" : "#FCA5A5" }]}>
-              {formatPct(totalGainPct)}
-            </Text>
-          </View>
-          <View style={[styles.dividerV, { backgroundColor: "rgba(255,255,255,0.12)" }]} />
-          <View style={styles.overviewItem}>
-            <Text style={styles.overviewLabel}>Annual Div. Est.</Text>
-            <Text style={[styles.overviewValue, { color: "#C9A84C" }]}>
-              {formatEUR(annualDividendEstimate, true)}
-            </Text>
-            <Text style={styles.overviewPctMuted}>based on avg yields</Text>
-          </View>
-        </View>
-      </View>
-
+      {/* ── Section 1: Portfolio Value Chart ──────────────────────────────── */}
       <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>10-Year Projection</Text>
-        <View style={styles.scenarioRow}>
-          {SCENARIOS.map((s, i) => (
-            <TouchableOpacity
-              key={s.label}
-              style={[
-                styles.scenarioBtn,
-                {
-                  backgroundColor: selectedScenario === i ? s.color + "22" : theme.backgroundElevated,
-                  borderColor: selectedScenario === i ? s.color : theme.border,
-                },
-              ]}
-              onPress={() => setSelectedScenario(i)}
-            >
-              <Text style={[styles.scenarioBtnText, { color: selectedScenario === i ? s.color : theme.textSecondary }]}>
-                {s.label}
-              </Text>
-              <Text style={[styles.scenarioRate, { color: selectedScenario === i ? s.color : theme.textTertiary }]}>
-                {s.rate}% p.a.
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.chartHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>Portfolio Value</Text>
+          <View style={styles.rangeRow}>
+            {RANGES.map((r) => (
+              <TouchableOpacity
+                key={r}
+                style={[
+                  styles.rangeBtn,
+                  {
+                    backgroundColor: selectedRange === r ? theme.tint + "22" : "transparent",
+                    borderColor: selectedRange === r ? theme.tint : "transparent",
+                  },
+                ]}
+                onPress={() => setSelectedRange(r)}
+              >
+                <Text style={[styles.rangeBtnText, { color: selectedRange === r ? theme.tint : theme.textTertiary }]}>
+                  {r}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-        <View style={[styles.projectionBox, { backgroundColor: theme.backgroundElevated, borderColor: theme.border }]}>
-          <Text style={[styles.projectionLabel, { color: theme.textSecondary }]}>Projected value in 10 years</Text>
-          <Text style={[styles.projectionValue, { color: SCENARIOS[selectedScenario].color }]}>
-            {formatEUR(projectedValue)}
+
+        {loadingChart ? (
+          <View style={styles.chartPlaceholder}>
+            <ActivityIndicator size="small" color={theme.tint} />
+          </View>
+        ) : !hasEnoughData ? (
+          <View style={styles.chartPlaceholder}>
+            <Feather name="trending-up" size={28} color={theme.textTertiary} />
+            <Text style={[styles.chartEmptyTitle, { color: theme.text }]}>Keep tracking</Text>
+            <Text style={[styles.chartEmptySub, { color: theme.textSecondary }]}>
+              Open the app daily to build your portfolio history. Chart appears after 7 days of data.
+            </Text>
+          </View>
+        ) : (
+          <PortfolioChart snapshots={snapshots} width={chartWidth} />
+        )}
+      </View>
+
+      {/* ── Section 2: Return Metrics 2×2 grid ───────────────────────────── */}
+      <View style={styles.metricsGrid}>
+        <View style={[styles.metricCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Total Return</Text>
+          <Text style={[styles.metricValue, { color: totalGain >= 0 ? theme.positive : theme.negative }]}>
+            {totalGain >= 0 ? "+" : ""}{formatEUR(totalGain, true)}
           </Text>
-          <Text style={[styles.projectionNote, { color: theme.textTertiary }]}>
-            Starting from {formatEUR(totalPortfolioValue)} today
+          <Text style={[styles.metricSub, { color: totalGain >= 0 ? theme.positive : theme.negative }]}>
+            {totalGain >= 0 ? "+" : ""}{formatPct(totalGainPct)}
           </Text>
+        </View>
+
+        <View style={[styles.metricCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Time in Market</Text>
+          <Text style={[styles.metricValue, { color: theme.text }]}>
+            {metrics.timeInMarketMonths}
+          </Text>
+          <Text style={[styles.metricSub, { color: theme.textSecondary }]}>months</Text>
+        </View>
+
+        <View style={[styles.metricCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Best ETF</Text>
+          {metrics.bestETF ? (
+            <>
+              <Text style={[styles.metricValue, { color: theme.positive }]}>
+                {metrics.bestETF.ticker}
+              </Text>
+              <Text style={[styles.metricSub, { color: theme.positive }]}>
+                +{metrics.bestETF.returnPct.toFixed(2)}%
+              </Text>
+            </>
+          ) : (
+            <Text style={[styles.metricValue, { color: theme.textTertiary }]}>—</Text>
+          )}
+        </View>
+
+        <View style={[styles.metricCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Worst ETF</Text>
+          {metrics.worstETF && metrics.worstETF.ticker !== metrics.bestETF?.ticker ? (
+            <>
+              <Text style={[styles.metricValue, { color: theme.negative }]}>
+                {metrics.worstETF.ticker}
+              </Text>
+              <Text style={[styles.metricSub, { color: theme.negative }]}>
+                {metrics.worstETF.returnPct.toFixed(2)}%
+              </Text>
+            </>
+          ) : metrics.worstETF ? (
+            <>
+              <Text style={[styles.metricValue, { color: theme.negative }]}>
+                {metrics.worstETF.ticker}
+              </Text>
+              <Text style={[styles.metricSub, { color: theme.negative }]}>
+                {metrics.worstETF.returnPct.toFixed(2)}%
+              </Text>
+            </>
+          ) : (
+            <Text style={[styles.metricValue, { color: theme.textTertiary }]}>—</Text>
+          )}
         </View>
       </View>
 
-      {holdingRows.length > 0 && (
-        <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Holdings Performance</Text>
-          {holdingRows.map((h, i) => (
-            <View key={h.id}>
-              {i > 0 && <View style={[styles.rowDivider, { backgroundColor: theme.border }]} />}
-              <View style={styles.holdingRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.holdingTicker, { color: theme.text }]}>{h.ticker}</Text>
-                  <Text style={[styles.holdingWeight, { color: theme.textSecondary }]}>
-                    {h.weight.toFixed(1)}% of portfolio
-                  </Text>
-                </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text style={[styles.holdingReturn, { color: h.gain >= 0 ? theme.positive : theme.negative }]}>
-                    {h.gain >= 0 ? "+" : ""}{formatPct(h.gainPct, false)}
-                  </Text>
-                  <Text style={[styles.holdingGainAbs, { color: h.gain >= 0 ? theme.positive : theme.negative }]}>
-                    {h.gain >= 0 ? "+" : ""}{formatEUR(h.gain, true)}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
+      {/* ── Section 3: Benchmark Comparison (Premium) ─────────────────────── */}
+      <BenchmarkSection theme={theme} />
 
-      {holdingRows.length > 0 && (
-        <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Dividend Estimates</Text>
-          <Text style={[styles.divNote, { color: theme.textSecondary }]}>
-            Based on known UCITS ETF yield averages. For illustration only.
+      {/* ── Section 4: Dividend Estimate ─────────────────────────────────── */}
+      <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Dividend Estimate</Text>
+        <View style={[styles.dividendBox, { backgroundColor: theme.backgroundElevated }]}>
+          <Text style={[styles.dividendLabel, { color: theme.textSecondary }]}>Estimated annual income</Text>
+          <Text style={[styles.dividendValue, { color: "#C9A84C" }]}>
+            {formatEUR(metrics.estimatedAnnualDividend)}/yr
           </Text>
-          {holdingRows.map((h, i) => (
-            <View key={h.id}>
-              {i > 0 && <View style={[styles.rowDivider, { backgroundColor: theme.border }]} />}
-              <View style={styles.holdingRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.holdingTicker, { color: theme.text }]}>{h.ticker}</Text>
-                  <Text style={[styles.holdingWeight, { color: theme.textSecondary }]}>
-                    ~{h.yieldPct.toFixed(1)}% est. yield
-                  </Text>
-                </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text style={[styles.holdingReturn, { color: "#C9A84C" }]}>
-                    {formatEUR(h.annualIncome, true)}/yr
-                  </Text>
-                </View>
-              </View>
-            </View>
-          ))}
-          <View style={[styles.totalRow, { borderColor: theme.border }]}>
-            <Text style={[styles.totalLabel, { color: theme.text }]}>Total Annual</Text>
-            <Text style={[styles.totalValue, { color: "#C9A84C" }]}>
-              {formatEUR(annualDividendEstimate)}/yr
-            </Text>
-          </View>
         </View>
-      )}
+        {metrics.estimatedAnnualDividend === 0 && (
+          <Text style={[styles.dividendHint, { color: theme.textTertiary }]}>
+            Add a trailing yield % to your holdings in the Holdings tab to see your estimated income.
+          </Text>
+        )}
+        <Text style={[styles.dividendDisclaimer, { color: theme.textTertiary }]}>
+          Based on trailing yield. Not guaranteed.
+        </Text>
+      </View>
     </ScrollView>
   );
 }
@@ -246,6 +459,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 16, gap: 14 },
   pageTitle: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.8, marginBottom: 2 },
+
+  // Rebalance card
   rebalanceCard: {
     borderRadius: 16,
     padding: 14,
@@ -258,55 +473,116 @@ const styles = StyleSheet.create({
   rebalanceIcon: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   rebalanceTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   rebalanceSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  overviewCard: {
-    borderRadius: 20,
-    padding: 24,
-  },
-  overviewGrid: { flexDirection: "row", alignItems: "center" },
-  overviewItem: { flex: 1, alignItems: "center", gap: 4 },
-  overviewLabel: { color: "rgba(255,255,255,0.55)", fontSize: 11, fontFamily: "Inter_500Medium", letterSpacing: 0.5 },
-  overviewValue: { fontSize: 22, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
-  overviewPct: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  overviewPctMuted: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.4)" },
-  dividerV: { width: 1, height: 48, marginHorizontal: 12 },
+
+  // Chart card
   card: { borderRadius: 16, padding: 18, borderWidth: 1 },
   sectionTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 14 },
-  scenarioRow: { flexDirection: "row", gap: 8, marginBottom: 14 },
-  scenarioBtn: {
-    flex: 1,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingVertical: 10,
+  chartHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    justifyContent: "space-between",
+    marginBottom: 16,
   },
-  scenarioBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  scenarioRate: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  projectionBox: {
-    borderRadius: 12,
+  rangeRow: { flexDirection: "row", gap: 2 },
+  rangeBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
     borderWidth: 1,
-    padding: 16,
+  },
+  rangeBtnText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  chartPlaceholder: {
+    height: CHART_H,
     alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 24,
+  },
+  chartEmptyTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginTop: 4 },
+  chartEmptySub: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 18 },
+
+  // Chart internals
+  gridLine: { position: "absolute", height: 1, borderTopWidth: StyleSheet.hairlineWidth },
+  chartYLabel: {
+    position: "absolute",
+    left: 0,
+    width: PAD.left - 6,
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    textAlign: "right",
+  },
+  chartXLabel: {
+    position: "absolute",
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+  },
+  chartDot: {
+    position: "absolute",
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+
+  // Metrics 2x2 grid
+  metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  metricCard: {
+    flex: 1,
+    minWidth: "45%",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
     gap: 4,
   },
-  projectionLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  projectionValue: { fontSize: 32, fontFamily: "Inter_700Bold", letterSpacing: -1 },
-  projectionNote: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  holdingRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
-  holdingTicker: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  holdingWeight: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  holdingReturn: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  holdingGainAbs: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 2 },
-  rowDivider: { height: 1 },
-  divNote: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 12, marginTop: -6, lineHeight: 17 },
-  totalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTopWidth: 1,
-    paddingTop: 12,
-    marginTop: 4,
+  metricLabel: { fontSize: 11, fontFamily: "Inter_500Medium", letterSpacing: 0.3 },
+  metricValue: { fontSize: 20, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
+  metricSub: { fontSize: 12, fontFamily: "Inter_500Medium" },
+
+  // Benchmark section
+  benchmarkBlur: { height: 130, position: "relative", marginBottom: 0 },
+  fakeLine: {
+    position: "absolute",
+    height: 2,
+    borderRadius: 1,
+    left: 0,
   },
-  totalLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  totalValue: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  premiumOverlay: {
+    position: "absolute",
+    top: 30,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  premiumBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  premiumText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  premiumSub: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 18 },
+
+  // Dividend
+  dividendBox: {
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
+  dividendLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  dividendValue: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.8 },
+  dividendHint: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  dividendDisclaimer: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center", fontStyle: "italic" },
 });

@@ -14,10 +14,12 @@ import {
   deleteHolding as dbDeleteHolding,
   upsertPrice,
   getAllPrices,
+  clearPriceCache,
   type HoldingRow,
   type PriceCacheRow,
 } from "@/services/db";
 import { refreshAllPrices } from "@/services/priceService";
+import { takeSnapshot } from "@/services/snapshotService";
 
 export const EXCHANGES = [
   "XETRA",
@@ -55,6 +57,7 @@ interface PortfolioContextType {
       quantity: number;
       avg_cost_eur: number;
       purchase_date: string;
+      yield_pct?: number | null;
     },
     manualPrice: number
   ) => Promise<void>;
@@ -65,6 +68,7 @@ interface PortfolioContextType {
   ) => Promise<void>;
   deleteHolding: (id: string) => Promise<void>;
   refreshPrices: () => Promise<void>;
+  clearPrices: () => Promise<void>;
   totalPortfolioValue: number;
   totalInvested: number;
   totalGain: number;
@@ -89,8 +93,7 @@ function mergeHoldingsWithPrices(
     const age = cached
       ? Date.now() - new Date(cached.last_fetched).getTime()
       : Infinity;
-    const isStale =
-      cached?.source !== "manual" && age > CACHE_TTL_MS;
+    const isStale = cached?.source !== "manual" && age > CACHE_TTL_MS;
     return {
       ...row,
       currentPrice: cached?.price_eur ?? row.avg_cost_eur,
@@ -125,22 +128,33 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const doRefreshPrices = useCallback(
-    async (rows: HoldingRow[]) => {
-      if (rows.length === 0) return;
-      setIsRefreshingPrices(true);
-      try {
-        await refreshAllPrices(rows);
-        const priceRows = await getAllPrices();
-        setPrices(priceRows);
-      } catch (e) {
-        console.error("Price refresh error", e);
-      } finally {
-        setIsRefreshingPrices(false);
+  const doRefreshPrices = useCallback(async (rows: HoldingRow[]) => {
+    if (rows.length === 0) return;
+    setIsRefreshingPrices(true);
+    try {
+      await refreshAllPrices(rows);
+      const priceRows = await getAllPrices();
+      setPrices(priceRows);
+
+      // Take daily snapshot after a successful price refresh
+      const merged = mergeHoldingsWithPrices(rows, priceRows);
+      const totalValue = merged.reduce(
+        (sum, h) => (h.hasPrice ? sum + h.quantity * h.currentPrice : sum),
+        0
+      );
+      const totalInvested = merged.reduce(
+        (sum, h) => sum + h.quantity * h.avg_cost_eur,
+        0
+      );
+      if (totalValue > 0) {
+        await takeSnapshot(totalValue, totalInvested);
       }
-    },
-    []
-  );
+    } catch (e) {
+      console.error("Price refresh error", e);
+    } finally {
+      setIsRefreshingPrices(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadData().then(() => {
@@ -170,11 +184,12 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         quantity: number;
         avg_cost_eur: number;
         purchase_date: string;
+        yield_pct?: number | null;
       },
       manualPrice: number
     ) => {
       const id = generateId();
-      await insertHolding({ id, ...h });
+      await insertHolding({ id, ...h, yield_pct: h.yield_pct ?? null });
       await upsertPrice(h.ticker, manualPrice, "manual");
       await loadData();
       doRefreshPrices(holdingRowsRef.current);
@@ -209,6 +224,11 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     await doRefreshPrices(holdingRowsRef.current);
   }, [doRefreshPrices]);
 
+  const clearPrices = useCallback(async () => {
+    await clearPriceCache();
+    await loadData();
+  }, [loadData]);
+
   const holdings = mergeHoldingsWithPrices(holdingRows, prices);
 
   const totalPortfolioValue = holdings.reduce(
@@ -237,6 +257,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         updateHolding,
         deleteHolding,
         refreshPrices,
+        clearPrices,
         totalPortfolioValue,
         totalInvested,
         totalGain,

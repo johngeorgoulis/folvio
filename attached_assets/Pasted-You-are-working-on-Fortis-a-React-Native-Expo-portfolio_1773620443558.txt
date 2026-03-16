@@ -1,0 +1,225 @@
+You are working on "Fortis", a React Native + Expo portfolio tracker 
+for European ETF investors.
+This prompt covers the Performance screen and Settings screen (v1 final).
+
+---
+
+## PERFORMANCE SCREEN
+
+File: screens/PerformanceScreen.tsx
+
+### Layout:
+
+Section 1 — Portfolio Value Chart
+- Line chart: portfolio total value over time (EUR)
+- Time range selector: 1W | 1M | 3M | 1Y | All
+- Data source: snapshot history (see data model below)
+- If < 7 days of data → show message "Keep tracking to see your history"
+
+Section 2 — Return Metrics
+Display as cards in a 2x2 grid:
+
+| Card             | Value                        |
+|------------------|------------------------------|
+| Total Return     | +€X,XXX.XX (+XX.XX%)         |
+| Time in Market   | X months                     |
+| Best ETF         | VWCE +XX.XX%                 |
+| Worst ETF        | CSBGE7 -X.XX%                |
+
+### Total Return calculation:
+totalReturn = currentPortfolioValue - totalInvested
+totalReturnPct = totalReturn / totalInvested × 100
+
+totalInvested = SUM(holding.quantity × holding.avg_cost_eur) for all holdings
+
+### Per-ETF return:
+etfReturn = (currentPrice - avgCost) / avgCost × 100
+
+Section 3 — Benchmark Comparison (Premium only)
+- Toggle: "Compare to VWCE" (default benchmark)
+- Show portfolio line vs VWCE line on same chart
+- VWCE benchmark data: fetch from Yahoo Finance (VWCE.DE)
+  using same priceService.fetchHistoricalPrices()
+- If free tier: show blurred chart with "Upgrade to Premium" overlay
+
+Section 4 — Dividend Estimate (annual)
+- For each holding, estimate annual dividend:
+  annualDividend = holding.quantity × holding.priceEUR × (yieldPct / 100)
+- Yield % is stored manually by user (no auto-fetch in v1)
+- Total estimated annual income in EUR
+- Show as: "Estimated annual income: €XXX.XX"
+- Small disclaimer: "Based on trailing yield. Not guaranteed."
+
+---
+
+## SNAPSHOT HISTORY (for chart)
+
+Add to SQLite schema:
+
+portfolio_snapshots table:
+- id (integer primary key)
+- snapshot_date (text, YYYY-MM-DD, unique)
+- total_value_eur (real)
+- total_invested_eur (real)
+- created_at (text)
+
+Snapshot logic:
+- Take one snapshot per day, on app open
+- Check if today's snapshot exists → if yes, skip
+- If prices available → save snapshot
+- If prices unavailable → skip (don't save incomplete data)
+- Keep max 365 snapshots (delete oldest if exceeded)
+
+Add to holdings table:
+- yield_pct (real, nullable)    -- trailing dividend yield, user-entered
+
+---
+
+## HISTORICAL PRICE FETCHING
+
+Add to priceService.ts:
+
+fetchHistoricalPrices(symbol, range) → Promise<PricePoint[]>
+
+Endpoint:
+https://query1.finance.yahoo.com/v8/finance/chart/{SYMBOL}?interval=1d&range={RANGE}
+
+Range mapping:
+"1W" → "5d"
+"1M" → "1mo"
+"3M" → "3mo"
+"1Y" → "1y"
+"All" → "5y"
+
+Parse response:
+- timestamps: result[0].timestamp (array of Unix timestamps)
+- prices: result[0].indicators.quote[0].close (array of closing prices)
+- Zip timestamps + prices into PricePoint[]
+- Filter out null values (market holidays)
+
+interface PricePoint {
+  date: string      -- ISO 8601 date
+  priceEUR: number  -- converted if needed (same FX logic as live price)
+}
+
+---
+
+## SETTINGS SCREEN
+
+File: screens/SettingsScreen.tsx
+
+### Sections:
+
+1. Portfolio
+   - "Manage Target Allocations" → navigates to Allocation Settings screen
+   - "Rebalancing Threshold" → picker: ±3% | ±5% (default) | ±10%
+   - "Default Benchmark" → picker: VWCE | IWDA | SWDA (v1 only these three)
+
+2. Display
+   - "Show Cost Basis" toggle (default: on)
+   - "Show Estimated Dividends" toggle (default: on)
+   - "Number Format" → fixed to European (1.234,56 €), display only
+
+3. Data
+   - "Export to CSV" button (Premium only)
+     → Exports all holdings + snapshot history
+     → Uses expo-sharing to share file
+     → Free tier: show upsell modal
+   - "Refresh All Prices" button
+     → Triggers refreshAllPrices() from priceService
+     → Show loading spinner, then "Updated X/Y prices"
+   - "Clear Price Cache" button (destructive, confirm dialog)
+
+4. Premium
+   - Show current status: Free | Premium
+   - "Upgrade to Fortis Premium" button (if free)
+     → Placeholder for RevenueCat in v1, show "Coming soon" modal
+   - Premium features list:
+     • Unlimited holdings
+     • Benchmark comparison
+     • CSV export
+     • Priority support
+
+5. About
+   - App version (from app.json)
+   - "Built for European ETF investors"
+   - Link to privacy policy (placeholder URL)
+
+---
+
+## SETTINGS PERSISTENCE
+
+Use expo-secure-store for sensitive settings.
+Use AsyncStorage for non-sensitive preferences.
+
+Settings to persist:
+
+AsyncStorage keys:
+- fortis_rebalance_threshold → "3" | "5" | "10"
+- fortis_show_cost_basis → "true" | "false"
+- fortis_show_dividends → "true" | "false"
+- fortis_default_benchmark → "VWCE" | "IWDA" | "SWDA"
+- fortis_is_premium → "true" | "false"  (temporary, replace with RevenueCat in v2)
+
+---
+
+## CSV EXPORT FORMAT
+
+Filename: fortis_export_YYYY-MM-DD.csv
+
+Holdings section:
+Ticker,ISIN,Exchange,Quantity,Avg Cost (EUR),Current Price (EUR),
+Current Value (EUR),Total Invested (EUR),Return (EUR),Return (%)
+
+Snapshots section (appended below holdings):
+Date,Portfolio Value (EUR),Total Invested (EUR)
+
+Use European decimal format in export (comma as decimal separator).
+
+---
+
+## TYPES
+
+interface PortfolioSnapshot {
+  id: number
+  snapshotDate: string
+  totalValueEUR: number
+  totalInvestedEUR: number
+  createdAt: string
+}
+
+interface PerformanceMetrics {
+  totalReturn: number
+  totalReturnPct: number
+  timeInMarketMonths: number
+  bestETF: { ticker: string; returnPct: number }
+  worstETF: { ticker: string; returnPct: number }
+  estimatedAnnualDividend: number
+}
+
+interface AppSettings {
+  rebalanceThreshold: 3 | 5 | 10
+  showCostBasis: boolean
+  showDividends: boolean
+  defaultBenchmark: "VWCE" | "IWDA" | "SWDA"
+  isPremium: boolean
+}
+
+---
+
+## TASK
+1. Implement portfolio_snapshots table in database service
+   Add snapshotService.ts with:
+   - takeSnapshot() → void (call on every app open)
+   - getSnapshots(range) → PortfolioSnapshot[]
+   - pruneOldSnapshots() → void
+
+2. Add fetchHistoricalPrices() to priceService.ts
+
+3. Build PerformanceScreen.tsx using snapshot history for the chart
+   Use Victory Native or react-native-gifted-charts for the line chart
+
+4. Build SettingsScreen.tsx with all sections above
+   Wire up AsyncStorage for persistence
+
+5. Add yield_pct field to holdings table (migration-safe: ALTER TABLE IF column not exists)

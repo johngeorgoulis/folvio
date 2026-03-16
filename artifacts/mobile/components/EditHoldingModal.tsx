@@ -36,6 +36,9 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
   const [quantity, setQuantity] = useState(holding.quantity.toString());
   const [avgCost, setAvgCost] = useState(holding.avg_cost_eur.toString());
   const [currentPrice, setCurrentPrice] = useState(holding.currentPrice.toString());
+  const [yieldPct, setYieldPct] = useState(
+    holding.yield_pct != null ? holding.yield_pct.toString() : ""
+  );
   const [purchaseDate, setPurchaseDate] = useState(holding.purchase_date);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -49,6 +52,7 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
       setQuantity(holding.quantity.toString());
       setAvgCost(holding.avg_cost_eur.toString());
       setCurrentPrice(holding.currentPrice.toString());
+      setYieldPct(holding.yield_pct != null ? holding.yield_pct.toString() : "");
       setPurchaseDate(holding.purchase_date);
       setError("");
     }
@@ -64,6 +68,13 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
     if (!currentPrice.trim() || isNaN(Number(currentPrice)) || Number(currentPrice) <= 0)
       return setError("Enter a valid current price.");
 
+    const parsedYield = yieldPct.trim()
+      ? parseFloat(yieldPct.replace(",", "."))
+      : null;
+    if (yieldPct.trim() && (parsedYield === null || isNaN(parsedYield) || parsedYield < 0 || parsedYield > 100)) {
+      return setError("Enter a valid yield percentage (0–100), or leave blank.");
+    }
+
     setSaving(true);
     try {
       await updateHolding(
@@ -76,6 +87,7 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
           quantity: Number(quantity),
           avg_cost_eur: Number(avgCost),
           purchase_date: purchaseDate,
+          yield_pct: parsedYield,
         },
         Number(currentPrice)
       );
@@ -206,16 +218,32 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
               />
             </View>
 
-            <View style={styles.field}>
-              <Text style={labelStyle}>PURCHASE DATE</Text>
-              <TextInput
-                style={inputStyle}
-                value={purchaseDate}
-                onChangeText={setPurchaseDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={theme.textTertiary}
-              />
+            <View style={styles.row}>
+              <View style={[styles.field, { flex: 1 }]}>
+                <Text style={labelStyle}>TRAILING YIELD %</Text>
+                <TextInput
+                  style={inputStyle}
+                  value={yieldPct}
+                  onChangeText={setYieldPct}
+                  placeholder="e.g. 1.4"
+                  placeholderTextColor={theme.textTertiary}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <View style={[styles.field, { flex: 1 }]}>
+                <Text style={labelStyle}>PURCHASE DATE</Text>
+                <TextInput
+                  style={inputStyle}
+                  value={purchaseDate}
+                  onChangeText={setPurchaseDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={theme.textTertiary}
+                />
+              </View>
             </View>
+            <Text style={[styles.hint, { color: theme.textTertiary, marginTop: -10 }]}>
+              Trailing yield used for dividend income estimates. Optional.
+            </Text>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -250,6 +278,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
   },
+  hint: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
   exchangeRow: { flexDirection: "row", gap: 8 },
   exchangeChip: {
     paddingHorizontal: 12,

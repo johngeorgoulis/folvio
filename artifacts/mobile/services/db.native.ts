@@ -9,6 +9,7 @@ export type HoldingRow = {
   quantity: number;
   avg_cost_eur: number;
   purchase_date: string;
+  yield_pct: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -28,6 +29,14 @@ export type TargetAllocationRow = {
   updated_at: string;
 };
 
+export type SnapshotRow = {
+  id: number;
+  snapshot_date: string;
+  total_value_eur: number;
+  total_invested_eur: number;
+  created_at: string;
+};
+
 let db: SQLite.SQLiteDatabase | null = null;
 
 async function getDb(): Promise<SQLite.SQLiteDatabase> {
@@ -44,6 +53,7 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
       quantity REAL NOT NULL DEFAULT 0,
       avg_cost_eur REAL NOT NULL DEFAULT 0,
       purchase_date TEXT NOT NULL DEFAULT '',
+      yield_pct REAL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -60,26 +70,46 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS portfolio_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      snapshot_date TEXT UNIQUE NOT NULL,
+      total_value_eur REAL NOT NULL,
+      total_invested_eur REAL NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
+  // Migration: add yield_pct to existing holdings tables
+  try {
+    await db.runAsync("ALTER TABLE holdings ADD COLUMN yield_pct REAL");
+  } catch {
+    // Column already exists — safe to ignore
+  }
   return db;
 }
+
+// ─── Holdings ────────────────────────────────────────────────────────────────
 
 export async function getAllHoldings(): Promise<HoldingRow[]> {
   const database = await getDb();
   return database.getAllAsync<HoldingRow>("SELECT * FROM holdings ORDER BY created_at ASC");
 }
 
-export async function insertHolding(h: Omit<HoldingRow, "created_at" | "updated_at">): Promise<void> {
+export async function insertHolding(
+  h: Omit<HoldingRow, "created_at" | "updated_at">
+): Promise<void> {
   const now = new Date().toISOString();
   const database = await getDb();
   await database.runAsync(
-    `INSERT INTO holdings (id, ticker, isin, exchange, name, quantity, avg_cost_eur, purchase_date, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [h.id, h.ticker, h.isin, h.exchange, h.name, h.quantity, h.avg_cost_eur, h.purchase_date, now, now]
+    `INSERT INTO holdings (id, ticker, isin, exchange, name, quantity, avg_cost_eur, purchase_date, yield_pct, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [h.id, h.ticker, h.isin, h.exchange, h.name, h.quantity, h.avg_cost_eur, h.purchase_date, h.yield_pct ?? null, now, now]
   );
 }
 
-export async function updateHolding(id: string, h: Partial<Omit<HoldingRow, "id" | "created_at">>): Promise<void> {
+export async function updateHolding(
+  id: string,
+  h: Partial<Omit<HoldingRow, "id" | "created_at">>
+): Promise<void> {
   const now = new Date().toISOString();
   const database = await getDb();
   const fields = Object.entries(h).map(([k]) => `${k} = ?`).join(", ");
@@ -91,6 +121,8 @@ export async function deleteHolding(id: string): Promise<void> {
   const database = await getDb();
   await database.runAsync("DELETE FROM holdings WHERE id = ?", [id]);
 }
+
+// ─── Prices ──────────────────────────────────────────────────────────────────
 
 export async function upsertPrice(ticker: string, price_eur: number, source: string): Promise<void> {
   const now = new Date().toISOString();
@@ -115,6 +147,13 @@ export async function getPrice(ticker: string): Promise<PriceCacheRow | null> {
     [ticker]
   );
 }
+
+export async function clearPriceCache(): Promise<void> {
+  const database = await getDb();
+  await database.runAsync("DELETE FROM prices_cache");
+}
+
+// ─── Target Allocations ───────────────────────────────────────────────────────
 
 export async function getAllTargets(): Promise<TargetAllocationRow[]> {
   const database = await getDb();
@@ -145,4 +184,51 @@ export async function hasAnyTargets(): Promise<boolean> {
     "SELECT COUNT(*) as count FROM target_allocations"
   );
   return (row?.count ?? 0) > 0;
+}
+
+// ─── Portfolio Snapshots ──────────────────────────────────────────────────────
+
+export async function hasTodaySnapshot(): Promise<boolean> {
+  const database = await getDb();
+  const today = new Date().toISOString().split("T")[0];
+  const row = await database.getFirstAsync<{ count: number }>(
+    "SELECT COUNT(*) as count FROM portfolio_snapshots WHERE snapshot_date = ?",
+    [today]
+  );
+  return (row?.count ?? 0) > 0;
+}
+
+export async function insertSnapshot(
+  snapshot_date: string,
+  total_value_eur: number,
+  total_invested_eur: number
+): Promise<void> {
+  const database = await getDb();
+  const now = new Date().toISOString();
+  await database.runAsync(
+    `INSERT OR IGNORE INTO portfolio_snapshots (snapshot_date, total_value_eur, total_invested_eur, created_at)
+     VALUES (?, ?, ?, ?)`,
+    [snapshot_date, total_value_eur, total_invested_eur, now]
+  );
+}
+
+export async function getSnapshotsByRange(days: number): Promise<SnapshotRow[]> {
+  const database = await getDb();
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+  return database.getAllAsync<SnapshotRow>(
+    "SELECT * FROM portfolio_snapshots WHERE snapshot_date >= ? ORDER BY snapshot_date ASC",
+    [cutoff]
+  );
+}
+
+export async function pruneSnapshots(maxCount: number): Promise<void> {
+  const database = await getDb();
+  await database.runAsync(
+    `DELETE FROM portfolio_snapshots WHERE id NOT IN (
+      SELECT id FROM portfolio_snapshots ORDER BY snapshot_date DESC LIMIT ?
+    )`,
+    [maxCount]
+  );
 }
