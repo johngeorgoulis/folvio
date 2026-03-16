@@ -53,7 +53,17 @@ European UCITS ETF portfolio tracker built with Expo (managed workflow).
 ### Free Tier Logic
 - Max **10 holdings** in free tier
 - On 11th add attempt: shows PremiumModal (RevenueCat paywall stub)
-- Premium unlocks: unlimited holdings, CSV export, benchmark comparison
+- Premium unlocks: unlimited holdings, CSV import, CSV export, benchmark comparison
+
+### CSV Import (`app/import.tsx`, `services/csvImport.ts`)
+- Accessible from Settings → DATA → "Import from CSV"
+- 3-step modal screen: broker selection → export instructions + file upload → preview & confirm
+- Supports 10 brokers: Trading 212, Degiro, Trade Republic, Lightyear, Freedom24, Scalable Capital, Flatex, Saxo Bank, Revolut, Generic CSV
+- `expo-document-picker` for file selection; `expo-file-system` for reading; `papaparse` for CSV parsing
+- Aggregates BUY/SELL transactions into holdings with weighted avg cost
+- Duplicate detection: Merge (weighted avg of qty+cost), Replace (delete old + add new), or Skip
+- Brokers without direct ticker columns (Degiro, Scalable, Flatex, Trade Republic) use instrument name heuristics and flag `needsTickerConfirmation=true` — user can edit ticker in Step 3
+- Free tier cap enforced at import time
 
 ### RevenueCat (Monetization)
 - **Status**: NOT configured — user dismissed the integration

@@ -1,0 +1,346 @@
+Add CSV Import as a Premium feature to Fortis.
+Supported brokers: Trading 212, Degiro, Trade Republic, 
+Lightyear, Freedom24, Scalable Capital, Flatex, 
+Saxo Bank, Revolut, + Generic CSV.
+IBKR is excluded for now.
+
+---
+
+## WHERE IT LIVES
+Settings → DATA section → New row:
+"Import from CSV"  [Premium badge]
+→ Opens ImportScreen (full screen modal)
+
+---
+
+## IMPORT SCREEN — 3 STEPS
+
+### STEP 1: Select Broker
+
+Title: "Import Portfolio"
+Subtitle: "Select your broker to get started"
+
+Grid of broker cards (2 columns):
+Each card has: broker name + icon/emoji + short label
+
+Trading 212    🟢  "Orders CSV"
+Degiro         🔵  "Account CSV"  
+Trade Republic ⚫  "Trades CSV"
+Lightyear      🟡  "Portfolio CSV"
+Freedom24      🟠  "Orders CSV"
+Scalable Cap.  🔴  "Trades CSV"
+Flatex         🟣  "Transactions CSV"
+Saxo Bank      🔷  "Orders CSV"
+Revolut        ⚪  "Statements CSV"
+Generic CSV    📄  "Any broker"
+
+Selected card: gold border + checkmark
+
+"Next →" button (gold, bottom) — enabled only when broker selected
+
+---
+
+## STEP 2: Instructions + Upload
+
+Show broker-specific instructions:
+
+### Trading 212:
+"1. Open Trading 212 (web or app)
+ 2. Go to History tab
+ 3. Tap the export icon (top right)
+ 4. Select date range → Export
+ 5. Upload the downloaded CSV below"
+
+Expected columns:
+Action, Time, ISIN, Ticker, Name, 
+No. of shares, Price / share, 
+Currency (Price / share), 
+Exchange rate, Result, 
+Total (EUR), Notes
+
+Key columns to parse:
+- Ticker:        "Ticker"
+- Quantity:      "No. of shares" (sum BUY, subtract SELL)
+- Avg Cost:      "Price / share" (weighted average of BUYs)
+- Currency:      "Currency (Price / share)"
+- Date:          "Time" (first BUY date)
+- Filter:        Action == "Market buy" OR "Limit buy"
+
+---
+
+### Degiro:
+"1. Login to Degiro
+ 2. Go to Activity → Account Overview
+ 3. Select full date range
+ 4. Click Export → CSV
+ 5. Upload below"
+
+Expected columns:
+Date, Time, Product, ISIN, 
+Description, FX, Change, 
+Balance, Order ID
+
+Key columns to parse:
+- Ticker:    extract from Product name
+             (e.g. "VWCE" from "Vanguard FTSE All-World")
+- ISIN:      "ISIN"
+- Quantity:  parse from Description 
+             (e.g. "Buy 10 @ 146.78 EUR")
+- Date:      "Date"
+
+Note: Degiro CSV has no direct ticker column.
+Extract ticker from ISIN lookup or prompt user 
+to confirm ticker after import.
+
+---
+
+### Trade Republic:
+"1. Open Trade Republic app
+ 2. Go to Profile → Documents
+ 3. Select Transaction History → Export CSV
+ 4. Upload below"
+
+Expected columns:
+date, type, instrument_isin, 
+instrument_name, shares, 
+average_price, total
+
+Key columns:
+- Ticker:    derive from instrument_isin (prompt user if unknown)
+- ISIN:      "instrument_isin"
+- Quantity:  "shares"
+- Avg Cost:  "average_price"
+- Date:      "date"
+- Filter:    type == "buy"
+
+---
+
+### Lightyear:
+"1. Open Lightyear app
+ 2. Go to Account → Statements
+ 3. Export transaction history CSV
+ 4. Upload below"
+
+Expected columns:
+Date, Type, Ticker, Name, 
+Quantity, Price, Currency, Amount
+
+Key columns:
+- Ticker:    "Ticker"
+- Quantity:  "Quantity"
+- Avg Cost:  "Price"
+- Date:      "Date"
+- Filter:    Type == "BUY"
+
+---
+
+### Freedom24:
+"1. Login to Freedom24 web platform
+ 2. Go to My Money → Reports
+ 3. Export trades as CSV
+ 4. Upload below"
+
+Expected columns:
+Date, Operation, Ticker, ISIN,
+Quantity, Price, Currency, Amount
+
+Key columns:
+- Ticker:    "Ticker"
+- Quantity:  "Quantity"
+- Avg Cost:  "Price"
+- Date:      "Date"
+- Filter:    Operation == "Buy"
+
+---
+
+### Scalable Capital:
+"1. Login to Scalable Capital
+ 2. Go to Documents → Transaction History
+ 3. Export CSV
+ 4. Upload below"
+
+Expected columns:
+Date, Type, WKN, ISIN, Name,
+Shares, Price, Currency
+
+Key columns:
+- Ticker:    derive from ISIN (prompt user)
+- ISIN:      "ISIN"
+- Quantity:  "Shares"
+- Avg Cost:  "Price"
+- Filter:    Type == "Buy"
+
+---
+
+### Flatex:
+"1. Login to Flatex
+ 2. Go to Reports → Transaction History
+ 3. Export as CSV
+ 4. Upload below"
+
+Expected columns:
+Datum, Typ, ISIN, Bezeichnung,
+Stücke, Kurs, Währung, Betrag
+
+Key columns (German headers):
+- Ticker:    derive from ISIN
+- ISIN:      "ISIN"
+- Quantity:  "Stücke"
+- Avg Cost:  "Kurs"
+- Date:      "Datum"
+- Filter:    Typ == "Kauf"
+
+---
+
+### Saxo Bank:
+"1. Login to Saxo Bank
+ 2. Go to Account → Reports → Trade History
+ 3. Export as CSV
+ 4. Upload below"
+
+Expected columns:
+Date, Description, Instrument,
+ISIN, Buy/Sell, Quantity, Price, Currency
+
+Key columns:
+- Ticker:    "Instrument"
+- ISIN:      "ISIN"
+- Quantity:  "Quantity"
+- Avg Cost:  "Price"
+- Filter:    Buy/Sell == "Buy"
+
+---
+
+### Revolut:
+"1. Open Revolut app
+ 2. Go to Stocks → Statements
+ 3. Select date range → Export CSV
+ 4. Upload below"
+
+Expected columns:
+Date, Ticker, Type, Quantity,
+Price per share, Total Amount, Currency
+
+Key columns:
+- Ticker:    "Ticker"
+- Quantity:  "Quantity"
+- Avg Cost:  "Price per share"
+- Date:      "Date"
+- Filter:    Type == "BUY"
+
+---
+
+### Generic CSV:
+"Prepare a CSV with these columns:
+ Ticker, ISIN (optional), Quantity, 
+ Avg Cost (EUR), Purchase Date (YYYY-MM-DD)
+
+ Example:
+ VWCE,,10,130.50,2024-01-15
+ TDIV,,25,52.00,2024-02-01"
+
+---
+
+## UPLOAD AREA (shown in Step 2)
+
+Large dashed upload box:
+"📎 Tap to select CSV file"
+Subtitle: "Supports .csv files up to 10MB"
+
+Use expo-document-picker to select file.
+Use expo-file-system to read content.
+Parse CSV using a lightweight JS CSV parser.
+
+After file selected: show filename + file size
+"✓ transactions_2024.csv (24KB)"
+
+"Preview Import →" button (gold)
+
+---
+
+## STEP 3: Preview & Confirm
+
+Title: "Review Import"
+Subtitle: "X holdings found — review before importing"
+
+### Aggregation logic (applied before preview):
+Group all BUY transactions by ticker:
+- Total quantity = sum of all BUY quantities
+- Avg cost = weighted average:
+  avgCost = Σ(qty × price) / Σ(qty)
+- First purchase date = earliest BUY date
+- Exclude SELL transactions from quantity
+  (subtract sells from total qty)
+- Skip rows with quantity ≤ 0 after sells
+
+### Preview table:
+Each row shows one holding to be imported:
+
+Ticker | Qty | Avg Cost | Date | Status
+VWCE   | 10  | €130.50  | Jan 2024 | ✅ New
+TDIV   | 25  | €52.00   | Feb 2024 | ✅ New
+VWCE   | --  | --       | --       | ⚠️ Duplicate
+
+Status logic:
+- "✅ New" — ticker not in existing holdings
+- "⚠️ Duplicate" — ticker already in holdings
+  Show toggle: "Skip" / "Merge" / "Replace"
+  Default: "Skip"
+
+### Merge logic (if user selects Merge):
+newQty     = existing.qty + imported.qty
+newAvgCost = weighted average of both
+
+### Unknown ticker warning:
+For brokers where ticker is derived from ISIN
+(Degiro, Scalable, Flatex, Trade Republic):
+Show editable ticker field in preview row:
+"⚠️ Confirm ticker: [____]"
+Pre-fill with best guess if possible.
+
+### Bottom action bar:
+"Cancel" (outlined)
+"Import X Holdings" (gold, full width)
+
+---
+
+## POST-IMPORT
+
+After successful import:
+- Save all confirmed holdings to SQLite
+- Trigger fetchLivePrice() for each new ticker
+- Navigate back to Holdings screen
+- Show success toast:
+  "✅ X holdings imported successfully"
+
+If partial failure:
+  "⚠️ X imported, Y failed — tap to review"
+
+---
+
+## ERROR HANDLING
+
+Wrong broker selected (columns don't match):
+"This doesn't look like a [Broker] CSV.
+ Try selecting 'Generic CSV' instead."
+
+Empty file:
+"No transactions found in this file."
+
+All transactions filtered out:
+"No BUY transactions found.
+ Make sure you exported your trade history."
+
+Unsupported currency:
+Flag row in preview with:
+"⚠️ Non-EUR price — please verify avg cost"
+
+---
+
+## IMPORTANT NOTES
+- Never auto-import without user confirmation (always show preview)
+- Free tier: show the import screen but block 
+  "Import X Holdings" button with upsell modal
+  if import would exceed 10 holding limit
+- After import, remove "Test Price Fetch (Debug)" 
+  button is NOT affected — keep it as is

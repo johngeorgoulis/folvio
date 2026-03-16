@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -390,6 +391,20 @@ export default function SettingsScreen() {
       {/* ── 3. DATA ──────────────────────────────────────────────────────── */}
       <Text style={labelStyle}>DATA</Text>
       <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+        {/* Import from CSV */}
+        <TouchableOpacity
+          style={[styles.dataRow, { borderBottomColor: theme.border }]}
+          onPress={() => router.push("/import" as never)}
+        >
+          <View style={styles.dataRowLeft}>
+            <Feather name="upload" size={17} color={theme.tint} />
+            <Text style={[styles.rowLabel, { color: theme.text }]}>Import from CSV</Text>
+          </View>
+          <View style={[styles.premiumPill, { backgroundColor: theme.tint + "22" }]}>
+            <Text style={[styles.premiumPillText, { color: theme.tint }]}>Premium</Text>
+          </View>
+        </TouchableOpacity>
+
         {/* Export CSV */}
         <TouchableOpacity
           style={[styles.dataRow, { borderBottomColor: theme.border }]}

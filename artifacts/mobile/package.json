@@ -56,6 +56,10 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
-    "expo-sqlite": "^16.0.10"
+    "@types/papaparse": "^5.5.2",
+    "expo-document-picker": "^14.0.8",
+    "expo-file-system": "^19.0.21",
+    "expo-sqlite": "^16.0.10",
+    "papaparse": "^5.5.3"
   }
 }
