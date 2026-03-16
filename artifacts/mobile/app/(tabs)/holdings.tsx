@@ -11,7 +11,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
@@ -21,9 +20,7 @@ import AddHoldingModal from "@/components/AddHoldingModal";
 import PremiumModal from "@/components/PremiumModal";
 
 export default function HoldingsScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+  const theme = Colors.dark;
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 24 : insets.top;
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;

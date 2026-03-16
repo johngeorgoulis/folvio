@@ -3,13 +3,16 @@ import type { HoldingRow } from "@/services/db";
 
 export const EXCHANGE_SUFFIXES: Record<string, string> = {
   "XETRA": ".DE",
+  "EURONEXT_AMS": ".AS",
+  "EURONEXT_PAR": ".PA",
+  "LSE": ".L",
+  "BORSA_IT": ".MI",
+  "SIX": ".SW",
   "Euronext Paris": ".PA",
   "Euronext Amsterdam": ".AS",
   "Euronext": ".PA",
-  "LSE": ".L",
   "Borsa Italiana": ".MI",
   "SIX Swiss": ".SW",
-  "SIX": ".SW",
   "Other": "",
 };
 

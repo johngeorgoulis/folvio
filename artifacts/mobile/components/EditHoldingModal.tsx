@@ -4,17 +4,16 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import Colors from "@/constants/colors";
-import { usePortfolio, EXCHANGES, type Holding } from "@/context/PortfolioContext";
+import { usePortfolio, type Holding } from "@/context/PortfolioContext";
+import ExchangePicker from "@/components/ExchangePicker";
 
 interface Props {
   visible: boolean;
@@ -22,11 +21,9 @@ interface Props {
   onClose: () => void;
 }
 
-export default function EditHoldingModal({ visible, holding, onClose }: Props) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+const theme = Colors.dark;
 
+export default function EditHoldingModal({ visible, holding, onClose }: Props) {
   const { updateHolding } = usePortfolio();
 
   const [ticker, setTicker] = useState(holding.ticker);
@@ -36,9 +33,7 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
   const [quantity, setQuantity] = useState(holding.quantity.toString());
   const [avgCost, setAvgCost] = useState(holding.avg_cost_eur.toString());
   const [currentPrice, setCurrentPrice] = useState(holding.currentPrice.toString());
-  const [yieldPct, setYieldPct] = useState(
-    holding.yield_pct != null ? holding.yield_pct.toString() : ""
-  );
+  const [yieldPct, setYieldPct] = useState(holding.yield_pct != null ? holding.yield_pct.toString() : "");
   const [purchaseDate, setPurchaseDate] = useState(holding.purchase_date);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -68,9 +63,7 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
     if (!currentPrice.trim() || isNaN(Number(currentPrice)) || Number(currentPrice) <= 0)
       return setError("Enter a valid current price.");
 
-    const parsedYield = yieldPct.trim()
-      ? parseFloat(yieldPct.replace(",", "."))
-      : null;
+    const parsedYield = yieldPct.trim() ? parseFloat(yieldPct.replace(",", ".")) : null;
     if (yieldPct.trim() && (parsedYield === null || isNaN(parsedYield) || parsedYield < 0 || parsedYield > 100)) {
       return setError("Enter a valid yield percentage (0–100), or leave blank.");
     }
@@ -99,7 +92,10 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
     }
   }
 
-  const inputStyle = [styles.input, { backgroundColor: theme.backgroundElevated, borderColor: theme.border, color: theme.text }];
+  const inputStyle = [
+    styles.input,
+    { backgroundColor: theme.backgroundElevated, borderColor: theme.border, color: theme.text },
+  ];
   const labelStyle = [styles.label, { color: theme.textSecondary }];
 
   return (
@@ -163,25 +159,7 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
 
             <View style={styles.field}>
               <Text style={labelStyle}>EXCHANGE</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.exchangeRow}>
-                {EXCHANGES.map((ex) => (
-                  <Pressable
-                    key={ex}
-                    style={[
-                      styles.exchangeChip,
-                      {
-                        backgroundColor: exchange === ex ? theme.deepBlue : theme.backgroundElevated,
-                        borderColor: exchange === ex ? theme.tint : theme.border,
-                      },
-                    ]}
-                    onPress={() => setExchange(ex)}
-                  >
-                    <Text style={[styles.exchangeChipText, { color: exchange === ex ? theme.tint : theme.textSecondary }]}>
-                      {ex}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+              <ExchangePicker value={exchange} onChange={setExchange} ticker={ticker} />
             </View>
 
             <View style={styles.row}>
@@ -279,14 +257,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
   },
   hint: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
-  exchangeRow: { flexDirection: "row", gap: 8 },
-  exchangeChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  exchangeChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   errorBox: {
     flexDirection: "row",
     alignItems: "center",

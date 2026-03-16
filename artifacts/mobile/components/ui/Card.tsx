@@ -3,7 +3,6 @@ import {
   StyleSheet,
   View,
   ViewStyle,
-  useColorScheme,
 } from "react-native";
 import Colors from "@/constants/colors";
 
@@ -13,11 +12,9 @@ interface CardProps {
   padding?: number;
 }
 
-export function Card({ children, style, padding = 16 }: CardProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+const theme = Colors.dark;
 
+export function Card({ children, style, padding = 16 }: CardProps) {
   return (
     <View
       style={[

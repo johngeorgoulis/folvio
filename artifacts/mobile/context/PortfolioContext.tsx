@@ -23,9 +23,13 @@ import { takeSnapshot } from "@/services/snapshotService";
 
 export const EXCHANGES = [
   "XETRA",
+  "EURONEXT_AMS",
+  "EURONEXT_PAR",
+  "LSE",
+  "BORSA_IT",
+  "SIX",
   "Euronext Paris",
   "Euronext Amsterdam",
-  "LSE",
   "Borsa Italiana",
   "SIX Swiss",
   "Other",

@@ -10,15 +10,17 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
-import { formatEUR, formatPct, formatDate } from "@/utils/format";
+import { formatEUR, formatPct } from "@/utils/format";
+import { getExchangeLabel } from "@/components/ExchangePicker";
 import EditHoldingModal from "@/components/EditHoldingModal";
 import { fetchLivePrice } from "@/services/priceService";
 import { upsertPrice } from "@/services/db";
+
+const theme = Colors.dark;
 
 function staleLabelFor(lastFetched: string): string {
   if (!lastFetched) return "";
@@ -31,49 +33,71 @@ function staleLabelFor(lastFetched: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function formatDate(iso: string): string {
+  if (!iso) return "—";
+  try {
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  } catch {
+    return iso;
+  }
+}
+
+function MetricCell({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) {
+  return (
+    <View style={styles.metricCell}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={[styles.metricValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>
+    </View>
+  );
+}
+
 export default function HoldingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 24 : insets.top;
+  const bottomPad = Platform.OS === "web" ? 16 : insets.bottom + 16;
 
-  const { holdings, deleteHolding, refreshPrices, totalPortfolioValue } =
-    usePortfolio();
+  const { holdings, deleteHolding, refreshPrices, totalPortfolioValue } = usePortfolio();
   const holding = holdings.find((h) => h.id === id);
   const [showEdit, setShowEdit] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   if (!holding) {
     return (
-      <View
-        style={[
-          styles.container,
-          { backgroundColor: theme.background, paddingTop: topPad + 20 },
-        ]}
-      >
-        <Text style={[styles.notFound, { color: theme.text }]}>
-          Holding not found.
-        </Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={{ color: theme.tint }}>Go back</Text>
+      <View style={[styles.container, { paddingTop: topPad + 20 }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtnStandalone}>
+          <Feather name="arrow-left" size={22} color={theme.text} />
         </TouchableOpacity>
+        <View style={styles.notFoundWrap}>
+          <Text style={styles.notFoundText}>Holding not found.</Text>
+        </View>
       </View>
     );
   }
 
   const marketValue = holding.quantity * holding.currentPrice;
-  const totalCost = holding.quantity * holding.avg_cost_eur;
-  const gain = marketValue - totalCost;
-  const gainPct = totalCost > 0 ? (gain / totalCost) * 100 : 0;
-  const weight =
-    totalPortfolioValue > 0 ? (marketValue / totalPortfolioValue) * 100 : 0;
+  const invested = holding.quantity * holding.avg_cost_eur;
+  const gain = marketValue - invested;
+  const gainPct = invested > 0 ? (gain / invested) * 100 : 0;
+  const weight = totalPortfolioValue > 0 ? (marketValue / totalPortfolioValue) * 100 : 0;
   const isPositive = gain >= 0;
+  const gainColor = isPositive ? theme.positive : theme.negative;
 
-  const priceIsManual = holding.priceSource === "manual";
-  const priceIsStale = holding.priceIsStale;
-  const hasPrice = holding.hasPrice;
+  const estimatedAnnualIncome =
+    holding.yield_pct != null && holding.currentPrice > 0
+      ? holding.quantity * holding.currentPrice * (holding.yield_pct / 100)
+      : null;
+
+  const exchangeLabel = getExchangeLabel(holding.exchange);
 
   async function handleRefreshPrice() {
     setRefreshing(true);
@@ -83,10 +107,7 @@ export default function HoldingDetailScreen() {
         await upsertPrice(holding!.ticker, result.priceEUR, "api");
         await refreshPrices();
       } else {
-        Alert.alert(
-          "Price Unavailable",
-          "Could not fetch a live price. Check your connection or enter a price manually."
-        );
+        Alert.alert("Price Unavailable", "Could not fetch a live price for this ticker.");
       }
     } finally {
       setRefreshing(false);
@@ -111,371 +132,313 @@ export default function HoldingDetailScreen() {
     );
   }
 
-  function renderPriceStatus() {
-    if (!hasPrice) {
-      return (
-        <View style={styles.priceStatusRow}>
-          <Text style={[styles.priceStatusText, { color: theme.textSecondary }]}>
-            Price unavailable
-          </Text>
-          <TouchableOpacity
-            onPress={() => setShowEdit(true)}
-            style={[styles.manualBtn, { borderColor: theme.tint }]}
-          >
-            <Text style={[styles.manualBtnText, { color: theme.tint }]}>
-              Enter manually
-            </Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    if (priceIsStale) {
-      return (
-        <View style={styles.priceStatusRow}>
-          <View style={styles.staleChip}>
-            <Text style={styles.staleIcon}>⚠</Text>
-            <Text style={styles.staleText}>
-              Stale · {staleLabelFor(holding.priceLastFetched)}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={handleRefreshPrice}
-            style={[styles.refreshBtn, { backgroundColor: theme.tint }]}
-            disabled={refreshing}
-          >
-            {refreshing ? (
-              <ActivityIndicator size="small" color="#000" />
-            ) : (
-              <Text style={styles.refreshBtnText}>Refresh</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    if (priceIsManual) {
-      return (
-        <View style={styles.priceStatusRow}>
-          <Text style={[styles.priceStatusText, { color: theme.textSecondary }]}>
-            Manual price
-          </Text>
-          <TouchableOpacity
-            onPress={handleRefreshPrice}
-            style={[styles.refreshBtn, { backgroundColor: "rgba(255,255,255,0.1)" }]}
-            disabled={refreshing}
-          >
-            {refreshing ? (
-              <ActivityIndicator size="small" color={theme.tint} />
-            ) : (
-              <Text style={[styles.refreshBtnText, { color: theme.tint }]}>
-                Fetch live
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    return (
-      <View style={styles.priceStatusRow}>
-        <View style={styles.liveChip}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveText}>
-            Live · {staleLabelFor(holding.priceLastFetched)}
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={handleRefreshPrice}
-          style={[styles.refreshBtn, { backgroundColor: "rgba(255,255,255,0.1)" }]}
-          disabled={refreshing}
-        >
-          {refreshing ? (
-            <ActivityIndicator size="small" color={theme.tint} />
-          ) : (
-            <Feather name="refresh-cw" size={13} color={theme.tint} />
-          )}
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const detailRows = [
-    { label: "ISIN", value: holding.isin || "—" },
-    { label: "Exchange", value: holding.exchange },
-    { label: "Quantity", value: holding.quantity.toString() },
-    { label: "Avg Cost (EUR)", value: formatEUR(holding.avg_cost_eur) },
-    {
-      label: "Current Price",
-      value: hasPrice ? formatEUR(holding.currentPrice) : "—",
-    },
-    { label: "Total Invested", value: formatEUR(totalCost) },
-    { label: "Market Value", value: hasPrice ? formatEUR(marketValue) : "—" },
-    {
-      label: "Total Return",
-      value: hasPrice
-        ? `${isPositive ? "+" : ""}${formatEUR(gain)} (${formatPct(gainPct)})`
-        : "—",
-      isReturn: true,
-    },
-    { label: "Portfolio Weight", value: `${weight.toFixed(1)}%` },
-    {
-      label: "Purchase Date",
-      value: holding.purchase_date ? formatDate(holding.purchase_date) : "—",
-    },
-  ];
-
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View
-        style={[
-          styles.navBar,
-          { paddingTop: topPad + 8, borderBottomColor: theme.border },
-        ]}
-      >
+    <View style={styles.container}>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <View style={[styles.headerWrap, { paddingTop: topPad + 12 }]}>
         <TouchableOpacity
           onPress={() => router.back()}
-          style={styles.backPressable}
+          style={styles.backBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Feather name="arrow-left" size={22} color={theme.text} />
+          <Feather name="arrow-left" size={22} color="rgba(255,255,255,0.8)" />
         </TouchableOpacity>
-        <Text style={[styles.navTitle, { color: theme.text }]}>
-          {holding.ticker}
-        </Text>
-        <View style={styles.navActions}>
-          <TouchableOpacity
-            onPress={() => setShowEdit(true)}
-            style={styles.navBtn}
-          >
-            <Feather name="edit-2" size={18} color={theme.tint} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleDelete} style={styles.navBtn}>
-            <Feather name="trash-2" size={18} color={theme.negative} />
-          </TouchableOpacity>
+
+        <View style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <Text style={styles.tickerText}>{holding.ticker}</Text>
+            <View style={styles.exchangeBadge}>
+              <Text style={styles.exchangeText}>{exchangeLabel.split(" (")[0]}</Text>
+            </View>
+          </View>
+          {!!holding.name && (
+            <Text style={styles.nameText} numberOfLines={1}>{holding.name}</Text>
+          )}
+          <View style={styles.priceRow}>
+            <Text style={styles.priceText}>
+              {holding.hasPrice ? formatEUR(holding.currentPrice) : "No price"}
+            </Text>
+            {holding.hasPrice && (
+              <View style={[styles.gainPill, { backgroundColor: gainColor + "22" }]}>
+                <Text style={[styles.gainPillText, { color: gainColor }]}>
+                  {isPositive ? "+" : ""}{gainPct.toFixed(2)}% vs cost
+                </Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.priceStatusRow}>
+            {holding.priceIsStale ? (
+              <Text style={styles.staleLabel}>⚠ Stale · {staleLabelFor(holding.priceLastFetched)}</Text>
+            ) : holding.hasPrice ? (
+              <Text style={styles.liveLabel}>● Live · {staleLabelFor(holding.priceLastFetched)}</Text>
+            ) : (
+              <Text style={styles.noPriceLabel}>No live price</Text>
+            )}
+            <TouchableOpacity
+              style={styles.refreshBtn}
+              onPress={handleRefreshPrice}
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <ActivityIndicator size="small" color={theme.tint} />
+              ) : (
+                <Feather name="refresh-cw" size={13} color={theme.tint} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 90 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.heroCard, { backgroundColor: theme.deepBlue }]}>
-          <View style={styles.heroHeader}>
-            <View>
-              <Text style={styles.heroTicker}>{holding.ticker}</Text>
-              {holding.name ? (
-                <Text style={styles.heroName}>{holding.name}</Text>
-              ) : null}
-            </View>
-            <View
-              style={[
-                styles.exchangeBadge,
-                { backgroundColor: "rgba(255,255,255,0.12)" },
-              ]}
-            >
-              <Text style={styles.exchangeText}>{holding.exchange}</Text>
-            </View>
+        {/* ── 2×3 Metrics Grid ─────────────────────────────────────────── */}
+        <View style={[styles.card, styles.metricsCard]}>
+          <View style={styles.metricRow}>
+            <MetricCell label="Quantity" value={`${holding.quantity} units`} />
+            <View style={styles.metricVDivider} />
+            <MetricCell label="Avg Cost" value={formatEUR(holding.avg_cost_eur)} />
           </View>
+          <View style={styles.metricHDivider} />
+          <View style={styles.metricRow}>
+            <MetricCell label="Total Invested" value={formatEUR(invested)} />
+            <View style={styles.metricVDivider} />
+            <MetricCell
+              label="Current Value"
+              value={holding.hasPrice ? formatEUR(marketValue) : "—"}
+            />
+          </View>
+          <View style={styles.metricHDivider} />
+          <View style={styles.metricRow}>
+            <MetricCell
+              label="Return (€)"
+              value={
+                holding.hasPrice
+                  ? `${isPositive ? "+" : ""}${formatEUR(gain, true)}`
+                  : "—"
+              }
+              valueColor={holding.hasPrice ? gainColor : undefined}
+            />
+            <View style={styles.metricVDivider} />
+            <MetricCell
+              label="Return (%)"
+              value={
+                holding.hasPrice
+                  ? `${isPositive ? "+" : ""}${gainPct.toFixed(2)}%`
+                  : "—"
+              }
+              valueColor={holding.hasPrice ? gainColor : undefined}
+            />
+          </View>
+        </View>
 
-          <Text style={styles.heroValue}>
-            {hasPrice ? formatEUR(marketValue) : "—"}
-          </Text>
-
-          {hasPrice && (
-            <View
-              style={[
-                styles.gainChip,
-                {
-                  backgroundColor: isPositive
-                    ? "rgba(52,211,153,0.15)"
-                    : "rgba(248,113,113,0.15)",
-                },
-              ]}
-            >
-              <Feather
-                name={isPositive ? "trending-up" : "trending-down"}
-                size={14}
-                color={isPositive ? "#34D399" : "#F87171"}
-              />
-              <Text
-                style={[
-                  styles.gainChipText,
-                  { color: isPositive ? "#34D399" : "#F87171" },
-                ]}
-              >
-                {isPositive ? "+" : ""}
-                {formatEUR(gain)} ({formatPct(gainPct)})
+        {/* ── Additional Info ───────────────────────────────────────────── */}
+        <View style={styles.card}>
+          {holding.yield_pct != null && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Trailing Yield</Text>
+              <Text style={styles.infoValue}>
+                {holding.yield_pct.toFixed(2)}%
+                {estimatedAnnualIncome != null && (
+                  <Text style={styles.infoSub}> → est. {formatEUR(estimatedAnnualIncome)}/yr</Text>
+                )}
               </Text>
             </View>
           )}
-
-          {renderPriceStatus()}
-        </View>
-
-        <View
-          style={[
-            styles.detailCard,
-            { backgroundColor: theme.backgroundCard, borderColor: theme.border },
-          ]}
-        >
-          {detailRows.map((row, i) => (
-            <View key={row.label}>
-              {i > 0 && (
-                <View
-                  style={[styles.rowDivider, { backgroundColor: theme.border }]}
-                />
-              )}
-              <View style={styles.detailRow}>
-                <Text
-                  style={[styles.detailLabel, { color: theme.textSecondary }]}
-                >
-                  {row.label}
-                </Text>
-                <Text
-                  style={[
-                    styles.detailValue,
-                    { color: theme.text },
-                    row.isReturn && hasPrice
-                      ? { color: isPositive ? theme.positive : theme.negative }
-                      : null,
-                  ]}
-                >
-                  {row.value}
-                </Text>
-              </View>
+          {!!holding.purchase_date && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Purchase Date</Text>
+              <Text style={styles.infoValue}>{formatDate(holding.purchase_date)}</Text>
             </View>
-          ))}
+          )}
+          {!!holding.isin && (
+            <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+              <Text style={styles.infoLabel}>ISIN</Text>
+              <Text style={[styles.infoValue, { letterSpacing: 0.5, fontFamily: "Inter_400Regular" }]}>
+                {holding.isin}
+              </Text>
+            </View>
+          )}
+          {holding.yield_pct == null && !holding.purchase_date && !holding.isin && (
+            <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+              <Text style={styles.infoLabel}>Portfolio Weight</Text>
+              <Text style={styles.infoValue}>{weight.toFixed(1)}%</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
-      {holding && (
-        <EditHoldingModal
-          visible={showEdit}
-          holding={holding}
-          onClose={() => setShowEdit(false)}
-        />
-      )}
+      {/* ── Bottom action bar ─────────────────────────────────────────────── */}
+      <View style={[styles.actionBar, { paddingBottom: bottomPad }]}>
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.editBtn]}
+          onPress={() => setShowEdit(true)}
+          activeOpacity={0.75}
+        >
+          <Feather name="edit-2" size={16} color={theme.tint} />
+          <Text style={[styles.actionBtnText, { color: theme.tint }]}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.deleteBtn]}
+          onPress={handleDelete}
+          activeOpacity={0.75}
+        >
+          <Feather name="trash-2" size={16} color={theme.negative} />
+          <Text style={[styles.actionBtnText, { color: theme.negative }]}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+
+      <EditHoldingModal visible={showEdit} holding={holding} onClose={() => setShowEdit(false)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  notFound: { textAlign: "center", marginTop: 40, fontSize: 16 },
-  backBtn: { alignItems: "center", marginTop: 16 },
-  navBar: {
-    flexDirection: "row",
-    alignItems: "center",
+  container: { flex: 1, backgroundColor: theme.background },
+
+  headerWrap: {
+    backgroundColor: theme.deepBlue,
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
+    paddingBottom: 20,
   },
-  backPressable: { padding: 4, marginRight: 8 },
-  navTitle: { flex: 1, fontSize: 18, fontFamily: "Inter_700Bold" },
-  navActions: { flexDirection: "row", gap: 8 },
-  navBtn: { padding: 8 },
-  scrollContent: { padding: 16, gap: 14, paddingBottom: 40 },
-  heroCard: { borderRadius: 20, padding: 24, gap: 10 },
-  heroHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  heroTicker: {
-    color: "#FFFFFF",
-    fontSize: 26,
+  backBtn: { marginBottom: 14 },
+  backBtnStandalone: { margin: 16 },
+
+  headerContent: { gap: 4 },
+  headerTop: { flexDirection: "row", alignItems: "center", gap: 10 },
+  tickerText: {
+    fontSize: 32,
     fontFamily: "Inter_700Bold",
-  },
-  heroName: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    marginTop: 3,
-  },
-  exchangeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  exchangeText: {
-    color: "#C9A84C",
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-  },
-  heroValue: {
     color: "#FFFFFF",
-    fontSize: 36,
-    fontFamily: "Inter_700Bold",
     letterSpacing: -1,
   },
-  gainChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+  exchangeBadge: {
+    backgroundColor: "rgba(201,168,76,0.18)",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: "rgba(201,168,76,0.35)",
   },
-  gainChipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  exchangeText: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    color: "#C9A84C",
+    letterSpacing: 0.5,
+  },
+  nameText: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.6)",
+    fontFamily: "Inter_400Regular",
+  },
+  priceRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
+  priceText: {
+    fontSize: 28,
+    fontFamily: "Inter_700Bold",
+    color: "#FFFFFF",
+    letterSpacing: -0.5,
+  },
+  gainPill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 20 },
+  gainPillText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+
   priceStatusRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 4,
+    marginTop: 6,
   },
-  priceStatusText: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  staleChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  staleIcon: { fontSize: 12, color: "#FBBF24" },
-  staleText: {
-    fontSize: 12,
-    color: "#FBBF24",
-    fontFamily: "Inter_400Regular",
-  },
-  liveChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#34D399",
-  },
-  liveText: {
-    fontSize: 12,
-    color: "#34D399",
-    fontFamily: "Inter_400Regular",
-  },
+  liveLabel: { fontSize: 12, color: "#2ECC71", fontFamily: "Inter_400Regular" },
+  staleLabel: { fontSize: 12, color: "#F39C12", fontFamily: "Inter_400Regular" },
+  noPriceLabel: { fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "Inter_400Regular" },
   refreshBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    padding: 6,
     borderRadius: 8,
-    minWidth: 28,
-    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
   },
-  refreshBtnText: {
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-    color: "#0A0F1A",
-  },
-  manualBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+
+  content: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
+
+  card: {
+    backgroundColor: theme.backgroundCard,
+    borderRadius: 16,
     borderWidth: 1,
+    borderColor: theme.border,
+    overflow: "hidden",
   },
-  manualBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  detailCard: { borderRadius: 16, padding: 16, borderWidth: 1 },
-  detailRow: {
+  metricsCard: {},
+
+  metricRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  metricHDivider: { height: 1, backgroundColor: theme.border },
+  metricVDivider: { width: 1, backgroundColor: theme.border, marginHorizontal: 16 },
+  metricCell: { flex: 1, gap: 5 },
+  metricLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    color: theme.textSecondary,
+    letterSpacing: 0.2,
+  },
+  metricValue: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    color: theme.text,
+  },
+
+  infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
   },
-  detailLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
-  detailValue: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  rowDivider: { height: 1 },
+  infoLabel: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: theme.textSecondary,
+  },
+  infoValue: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    color: theme.text,
+  },
+  infoSub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: theme.textSecondary,
+  },
+
+  actionBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    gap: 12,
+    padding: 16,
+    backgroundColor: theme.backgroundCard,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  editBtn: { borderColor: theme.tint, backgroundColor: theme.tint + "11" },
+  deleteBtn: { borderColor: theme.negative, backgroundColor: theme.negative + "11" },
+  actionBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+
+  notFoundWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+  notFoundText: { fontSize: 14, fontFamily: "Inter_400Regular", color: theme.textSecondary },
 });

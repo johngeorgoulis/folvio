@@ -6,7 +6,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import Colors from "@/constants/colors";
 import { FREE_TIER_LIMIT } from "@/context/PortfolioContext";
@@ -24,11 +23,9 @@ const FEATURES = [
   { icon: "refresh-cw" as const, text: "Automatic price updates" },
 ];
 
-export default function PremiumModal({ visible, onClose }: Props) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+const theme = Colors.dark;
 
+export default function PremiumModal({ visible, onClose }: Props) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" transparent={false} onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>

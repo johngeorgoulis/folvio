@@ -9,7 +9,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useColorScheme,
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -37,9 +36,7 @@ function PortfolioChart({
   snapshots: PortfolioSnapshot[];
   width: number;
 }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+  const theme = Colors.dark;
 
   const data = snapshots.map((s) => s.totalValueEUR);
   if (data.length < 2) return null;
@@ -215,9 +212,7 @@ function BenchmarkSection({ theme }: { theme: typeof Colors.dark }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function PerformanceScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+  const theme = Colors.dark;
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const topPad = Platform.OS === "web" ? 24 : insets.top;

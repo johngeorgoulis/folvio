@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View, useColorScheme } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Colors from "@/constants/colors";
 
 interface BadgeProps {
@@ -7,11 +7,9 @@ interface BadgeProps {
   variant?: "acc" | "dist" | "etf" | "stock" | "default" | "positive" | "negative";
 }
 
-export function Badge({ label, variant = "default" }: BadgeProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+const theme = Colors.dark;
 
+export function Badge({ label, variant = "default" }: BadgeProps) {
   const getColors = () => {
     switch (variant) {
       case "acc":
@@ -27,7 +25,7 @@ export function Badge({ label, variant = "default" }: BadgeProps) {
       case "negative":
         return { bg: "rgba(255, 59, 48, 0.15)", text: theme.negative };
       default:
-        return { bg: isDark ? "#2A2A2A" : "#F3F4F6", text: theme.textSecondary };
+        return { bg: theme.backgroundElevated, text: theme.textSecondary };
     }
   };
 

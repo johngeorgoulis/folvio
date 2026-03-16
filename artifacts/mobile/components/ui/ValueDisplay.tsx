@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View, useColorScheme } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Colors from "@/constants/colors";
 
 interface ValueDisplayProps {
@@ -11,6 +11,8 @@ interface ValueDisplayProps {
   align?: "left" | "center";
 }
 
+const theme = Colors.dark;
+
 export function ValueDisplay({
   label,
   value,
@@ -19,10 +21,6 @@ export function ValueDisplay({
   size = "md",
   align = "left",
 }: ValueDisplayProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
-
   const valueFontSize =
     size === "xl" ? 36 : size === "lg" ? 28 : size === "md" ? 22 : 16;
   const labelFontSize = size === "xl" ? 13 : size === "lg" ? 12 : 11;
@@ -32,12 +30,7 @@ export function ValueDisplay({
       <Text style={[styles.label, { color: theme.textSecondary, fontSize: labelFontSize }]}>
         {label}
       </Text>
-      <Text
-        style={[
-          styles.value,
-          { color: theme.text, fontSize: valueFontSize },
-        ]}
-      >
+      <Text style={[styles.value, { color: theme.text, fontSize: valueFontSize }]}>
         {value}
       </Text>
       {subValue !== undefined && (

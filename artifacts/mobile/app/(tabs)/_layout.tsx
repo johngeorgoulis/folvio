@@ -2,17 +2,16 @@ import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 
+const theme = Colors.dark;
+
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const safeAreaInsets = useSafeAreaInsets();
-  const theme = isDark ? Colors.dark : Colors.light;
 
   return (
     <Tabs
@@ -22,7 +21,7 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : isDark ? Colors.dark.background : "#fff",
+          backgroundColor: isIOS ? "transparent" : theme.background,
           borderTopWidth: isWeb ? 1 : 0.5,
           borderTopColor: theme.border,
           elevation: 0,
@@ -33,14 +32,14 @@ export default function TabLayout() {
           isIOS ? (
             <BlurView
               intensity={90}
-              tint={isDark ? "dark" : "extraLight"}
+              tint="dark"
               style={StyleSheet.absoluteFill}
             />
           ) : isWeb ? (
             <View
               style={[
                 StyleSheet.absoluteFill,
-                { backgroundColor: isDark ? Colors.dark.background : "#fff" },
+                { backgroundColor: theme.background },
               ]}
             />
           ) : null,

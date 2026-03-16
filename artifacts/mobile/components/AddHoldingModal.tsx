@@ -4,35 +4,32 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import Colors from "@/constants/colors";
-import { usePortfolio, EXCHANGES } from "@/context/PortfolioContext";
+import { usePortfolio } from "@/context/PortfolioContext";
 import { todayISO } from "@/utils/format";
+import ExchangePicker from "@/components/ExchangePicker";
 
 interface Props {
   visible: boolean;
   onClose: () => void;
 }
 
-export default function AddHoldingModal({ visible, onClose }: Props) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+const theme = Colors.dark;
 
+export default function AddHoldingModal({ visible, onClose }: Props) {
   const { addHolding } = usePortfolio();
 
   const [ticker, setTicker] = useState("");
   const [isin, setIsin] = useState("");
   const [name, setName] = useState("");
-  const [exchange, setExchange] = useState<string>("XETRA");
+  const [exchange, setExchange] = useState("XETRA");
   const [quantity, setQuantity] = useState("");
   const [avgCost, setAvgCost] = useState("");
   const [currentPrice, setCurrentPrice] = useState("");
@@ -65,9 +62,7 @@ export default function AddHoldingModal({ visible, onClose }: Props) {
     if (!currentPrice.trim() || isNaN(Number(currentPrice)) || Number(currentPrice) <= 0)
       return setError("Enter a valid current price in EUR.");
 
-    const parsedYield = yieldPct.trim()
-      ? parseFloat(yieldPct.replace(",", "."))
-      : null;
+    const parsedYield = yieldPct.trim() ? parseFloat(yieldPct.replace(",", ".")) : null;
     if (yieldPct.trim() && (parsedYield === null || isNaN(parsedYield) || parsedYield < 0 || parsedYield > 100)) {
       return setError("Enter a valid yield percentage (0–100), or leave blank.");
     }
@@ -95,15 +90,15 @@ export default function AddHoldingModal({ visible, onClose }: Props) {
     }
   }
 
-  const inputStyle = [styles.input, { backgroundColor: theme.backgroundElevated, borderColor: theme.border, color: theme.text }];
+  const inputStyle = [
+    styles.input,
+    { backgroundColor: theme.backgroundElevated, borderColor: theme.border, color: theme.text },
+  ];
   const labelStyle = [styles.label, { color: theme.textSecondary }];
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <View style={[styles.container, { backgroundColor: theme.background }]}>
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
             <TouchableOpacity onPress={() => { reset(); onClose(); }} style={styles.cancelBtn}>
@@ -165,25 +160,7 @@ export default function AddHoldingModal({ visible, onClose }: Props) {
 
             <View style={styles.field}>
               <Text style={labelStyle}>EXCHANGE *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.exchangeRow}>
-                {EXCHANGES.map((ex) => (
-                  <Pressable
-                    key={ex}
-                    style={[
-                      styles.exchangeChip,
-                      {
-                        backgroundColor: exchange === ex ? theme.deepBlue : theme.backgroundElevated,
-                        borderColor: exchange === ex ? theme.tint : theme.border,
-                      },
-                    ]}
-                    onPress={() => setExchange(ex)}
-                  >
-                    <Text style={[styles.exchangeChipText, { color: exchange === ex ? theme.tint : theme.textSecondary }]}>
-                      {ex}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+              <ExchangePicker value={exchange} onChange={setExchange} ticker={ticker} />
             </View>
 
             <View style={styles.row}>
@@ -272,11 +249,7 @@ const styles = StyleSheet.create({
   cancelBtn: { padding: 4 },
   cancelText: { fontSize: 15, fontFamily: "Inter_400Regular" },
   headerTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  saveBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
+  saveBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
   saveBtnText: { color: "#0A0F1A", fontSize: 14, fontFamily: "Inter_700Bold" },
   form: { padding: 16, gap: 16, paddingBottom: 40 },
   field: { gap: 6 },
@@ -291,14 +264,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
   },
   hint: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
-  exchangeRow: { flexDirection: "row", gap: 8 },
-  exchangeChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  exchangeChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   errorBox: {
     flexDirection: "row",
     alignItems: "center",

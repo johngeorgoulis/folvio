@@ -13,7 +13,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
@@ -21,6 +20,7 @@ import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import { useAllocation, THRESHOLD_OPTIONS, type ThresholdOption } from "@/context/AllocationContext";
 import { formatEUR } from "@/utils/format";
 import PremiumModal from "@/components/PremiumModal";
+import { fetchLivePrice, buildYahooSymbol } from "@/services/priceService";
 
 const APP_VERSION = "1.0.0";
 const BENCHMARKS = ["VWCE", "IWDA", "SWDA"] as const;
@@ -34,9 +34,7 @@ const ASYNC_KEYS = {
 };
 
 export default function SettingsScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+  const theme = Colors.dark;
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 24 : insets.top;
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
@@ -110,6 +108,29 @@ export default function SettingsScreen() {
         },
       ]
     );
+  }
+
+  async function handleDebugPriceFetch() {
+    const tests = [
+      { ticker: "VWCE", exchange: "XETRA" },
+      { ticker: "TDIV", exchange: "EURONEXT_AMS" },
+      { ticker: "CSBGE7", exchange: "SIX" },
+    ];
+    const lines: string[] = [];
+    for (const t of tests) {
+      const sym = buildYahooSymbol(t.ticker, t.exchange);
+      try {
+        const result = await fetchLivePrice(t.ticker, t.exchange);
+        if (result) {
+          lines.push(`${sym} → €${result.priceEUR.toFixed(2)} (${result.currency}) ✅`);
+        } else {
+          lines.push(`${sym} → ❌ No data returned`);
+        }
+      } catch (e: any) {
+        lines.push(`${sym} → ❌ ${e?.message ?? String(e)}`);
+      }
+    }
+    Alert.alert("Price Fetch Test", lines.join("\n\n"));
   }
 
   function handleExportCSV() {
@@ -392,12 +413,24 @@ export default function SettingsScreen() {
 
         {/* Clear Price Cache */}
         <TouchableOpacity
-          style={[styles.dataRow, { borderBottomColor: "transparent" }]}
+          style={[styles.dataRow, { borderBottomColor: theme.border }]}
           onPress={handleClearCache}
         >
           <View style={styles.dataRowLeft}>
             <Feather name="trash" size={17} color={theme.negative} />
             <Text style={[styles.rowLabel, { color: theme.negative }]}>Clear Price Cache</Text>
+          </View>
+          <Feather name="chevron-right" size={16} color={theme.textTertiary} />
+        </TouchableOpacity>
+
+        {/* Debug: Test Price Fetch */}
+        <TouchableOpacity
+          style={[styles.dataRow, { borderBottomColor: "transparent" }]}
+          onPress={handleDebugPriceFetch}
+        >
+          <View style={styles.dataRowLeft}>
+            <Feather name="terminal" size={17} color={theme.textSecondary} />
+            <Text style={[styles.rowLabel, { color: theme.textSecondary }]}>Test Price Fetch (Debug)</Text>
           </View>
           <Feather name="chevron-right" size={16} color={theme.textTertiary} />
         </TouchableOpacity>

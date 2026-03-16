@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View, useColorScheme } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Colors from "@/constants/colors";
 
 interface EmptyStateProps {
@@ -11,6 +11,8 @@ interface EmptyStateProps {
   onAction?: () => void;
 }
 
+const theme = Colors.dark;
+
 export function EmptyState({
   icon,
   title,
@@ -18,13 +20,9 @@ export function EmptyState({
   actionLabel,
   onAction,
 }: EmptyStateProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
-
   return (
     <View style={styles.container}>
-      <View style={[styles.iconWrap, { backgroundColor: isDark ? "#1E1E1E" : "#F3F4F6" }]}>
+      <View style={[styles.iconWrap, { backgroundColor: theme.backgroundElevated }]}>
         <Feather name={icon as any} size={28} color={theme.textTertiary} />
       </View>
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
@@ -75,7 +73,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   btnText: {
-    color: "#fff",
+    color: "#0A0F1A",
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
   },

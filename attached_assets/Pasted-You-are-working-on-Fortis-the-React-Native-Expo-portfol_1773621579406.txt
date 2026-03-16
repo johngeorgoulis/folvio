@@ -1,0 +1,146 @@
+You are working on "Fortis", the React Native + Expo portfolio tracker 
+for European ETF investors. The base app is built. 
+Apply the following fixes and additions in order.
+
+---
+
+## FIX 1: Dark Mode (highest priority)
+
+The app must be dark mode first. Apply globally.
+
+Background colors:
+- App background:       #0F1923
+- Card background:      #1A2633
+- Card border:          #1E3A5F (subtle)
+
+Text colors:
+- Primary text:         #FFFFFF
+- Secondary text:       #8A9BB0
+- Muted text:           #4A5568
+
+Accent colors (unchanged):
+- Deep blue:            #1E3A5F
+- Gold:                 #C9A84C
+- Success green:        #2ECC71
+- Warning amber:        #F39C12
+- Danger red:           #E74C3C
+
+Apply to:
+- App root background
+- All screen backgrounds
+- All cards / list items
+- Bottom tab bar (dark background, gold active icon)
+- Modal backgrounds (Add Holding, etc.)
+- Input fields (dark background, light text, blue border on focus)
+- Status bar: light-content
+
+---
+
+## FIX 2: Exchange Selector in Add Holding
+
+Current: horizontal scroll with only 3 exchanges shown
+Fix: replace with a full dropdown picker (or modal picker) 
+showing all supported exchanges:
+
+const EXCHANGES = [
+  { label: "Xetra (DE)",              value: "XETRA",        suffix: ".DE" },
+  { label: "Euronext Amsterdam (NL)", value: "EURONEXT_AMS", suffix: ".AS" },
+  { label: "Euronext Paris (FR)",     value: "EURONEXT_PAR", suffix: ".PA" },
+  { label: "LSE (UK)",                value: "LSE",          suffix: ".L"  },
+  { label: "Borsa Italiana (IT)",     value: "BORSA_IT",     suffix: ".MI" },
+  { label: "SIX Swiss (CH)",          value: "SIX",          suffix: ".SW" },
+]
+
+Show selected exchange with its suffix, e.g. "Xetra (DE) → VWCE.DE"
+Update the preview label dynamically as user types the ticker.
+
+---
+
+## FIX 3: Rebalance Badge Overflow
+
+In the Allocation Overview table, the "Underweight" / "Overweight" badges 
+are being clipped.
+
+Fix the row layout:
+- TICKER column:  flex 2, left aligned
+- TARGET column:  flex 1, center aligned  
+- ACTUAL column:  flex 1, center aligned
+- DRIFT column:   flex 1, center aligned
+- STATUS column:  flex 1.5, right aligned
+
+Badge text:
+- Shorten labels: "Under" / "Over" / "OK"
+- Use colored dot instead of full badge if space is still tight:
+  🔴 = overweight, 🟡 = underweight, 🟢 = ok
+- Full label ("Underweight") only in tooltip or detail view
+
+---
+
+## FIX 4: Holding Detail Screen
+
+Create screens/HoldingDetailScreen.tsx
+
+Accessible by tapping any holding in the Holdings list.
+
+Layout (dark card style):
+
+Header:
+- Ticker (large, bold, white)
+- Full name / description (secondary text)
+- Exchange badge (e.g. "XETRA")
+- Current price in EUR (large) with daily change % (green/red)
+
+Metrics grid (2x3):
+┌─────────────────┬─────────────────┐
+│ Quantity        │ Avg Cost        │
+│ X.XX units      │ €XX.XX          │
+├─────────────────┼─────────────────┤
+│ Total Invested  │ Current Value   │
+│ €X,XXX.XX       │ €X,XXX.XX       │
+├─────────────────┼─────────────────┤
+│ Return (€)      │ Return (%)      │
+│ +€XXX.XX        │ +XX.XX%         │
+└─────────────────┴─────────────────┘
+
+Return values: green if positive, red if negative.
+
+Below grid:
+- Trailing Yield: X.XX% → Est. annual income: €XX.XX
+- Purchase Date: DD/MM/YYYY
+- ISIN: XX00XXXXXXXX
+
+Bottom action bar (two buttons):
+- "Edit" (gold, outlined)
+- "Delete" (red, outlined) → confirm dialog before delete
+
+---
+
+## FIX 5: Price Fetch Test
+
+After applying all fixes above, add a temporary debug button 
+in the Settings screen under DATA section:
+
+"Test Price Fetch (Debug)"
+
+On tap, run:
+  fetchLivePrice("VWCE", "XETRA")
+  fetchLivePrice("TDIV", "EURONEXT_AMS")
+  fetchLivePrice("CSBGE7", "SIX")
+
+Show results in an Alert or modal:
+  VWCE.DE → €XX.XX (EUR) ✅
+  TDIV.AS → €XX.XX (EUR) ✅  
+  CSBGE7.SW → €XX.XX (CHF→EUR converted) ✅
+
+If fetch fails, show:
+  VWCE.DE → ❌ Error: [message]
+
+This button can be removed before App Store submission.
+
+---
+
+## IMPORTANT
+- Do not break existing functionality
+- Apply dark mode as a global theme, not screen by screen
+- Test that Add Holding still saves correctly after exchange picker change
+- Holding Detail must receive the holding object via navigation params

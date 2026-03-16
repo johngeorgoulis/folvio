@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   View,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
@@ -16,9 +15,7 @@ import { formatEUR, formatPct, currentMonthLabel } from "@/utils/format";
 import { DonutChart, CHART_COLORS } from "@/components/DonutChart";
 
 export default function DashboardScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+  const theme = Colors.dark;
   const insets = useSafeAreaInsets();
 
   const {

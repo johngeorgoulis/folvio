@@ -12,7 +12,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
@@ -49,15 +48,16 @@ function getColor(index: number): string {
 
 function StatusBadge({ status }: { status: AllocationRow["status"] }) {
   const configs = {
-    ok: { label: "OK", bg: "#34D39922", text: "#34D399" },
-    overweight: { label: "Overweight", bg: "#FBBF2422", text: "#FBBF24" },
-    underweight: { label: "Underweight", bg: "#FBBF2422", text: "#FBBF24" },
-    untracked: { label: "Untracked", bg: "#64748B22", text: "#64748B" },
-    no_price: { label: "No Price", bg: "#F8717122", text: "#F87171" },
+    ok:          { label: "OK",    dot: "#2ECC71", bg: "#2ECC7122", text: "#2ECC71" },
+    overweight:  { label: "Over",  dot: "#F39C12", bg: "#F39C1222", text: "#F39C12" },
+    underweight: { label: "Under", dot: "#F39C12", bg: "#F39C1222", text: "#F39C12" },
+    untracked:   { label: "—",     dot: "#64748B", bg: "#64748B22", text: "#64748B" },
+    no_price:    { label: "N/A",   dot: "#E74C3C", bg: "#E74C3C22", text: "#E74C3C" },
   };
   const c = configs[status];
   return (
     <View style={[styles.badge, { backgroundColor: c.bg }]}>
+      <View style={[styles.badgeDot, { backgroundColor: c.dot }]} />
       <Text style={[styles.badgeText, { color: c.text }]}>{c.label}</Text>
     </View>
   );
@@ -103,9 +103,7 @@ function AllocationLegend({ rows }: { rows: AllocationRow[] }) {
 }
 
 export default function RebalanceScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+  const theme = Colors.dark;
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 24 : insets.top;
 
@@ -469,12 +467,13 @@ const styles = StyleSheet.create({
   tableDivider: { height: 1, marginBottom: 2 },
   rowDivider: { height: 1 },
   thTicker: { flex: 2, flexDirection: "row", alignItems: "center", gap: 6 },
-  thNum: { flex: 1, fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 0.3, textAlign: "right" },
-  thStatus: { flex: 1.4, alignItems: "flex-end" },
+  thNum: { flex: 1, fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 0.3, textAlign: "center" },
+  thStatus: { flex: 1.5, alignItems: "flex-end" },
   tableRow: { flexDirection: "row", alignItems: "center", paddingVertical: 9 },
   colorDot: { width: 8, height: 8, borderRadius: 4 },
   rowTicker: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  badge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 },
+  badge: { flexDirection: "row", alignItems: "center", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, gap: 4 },
+  badgeDot: { width: 5, height: 5, borderRadius: 3 },
   badgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   modeToggle: { flexDirection: "row", gap: 10 },
   modeBtn: {

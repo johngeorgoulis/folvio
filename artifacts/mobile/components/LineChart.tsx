@@ -1,5 +1,5 @@
 import React from "react";
-import { View, useColorScheme } from "react-native";
+import { View } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Polyline, Stop } from "react-native-svg";
 import Colors from "@/constants/colors";
 
@@ -28,9 +28,7 @@ function buildPath(points: { x: number; y: number }[]): string {
 }
 
 export function LineChart({ conservative, base, optimistic, width, height = 180 }: LineChartProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+  const theme = Colors.dark;
 
   const padding = { top: 12, bottom: 12, left: 8, right: 8 };
   const chartW = width - padding.left - padding.right;
@@ -71,7 +69,7 @@ export function LineChart({ conservative, base, optimistic, width, height = 180 
         />
         <Path
           d={conservativePath}
-          stroke={isDark ? "#4B5563" : "#D1D5DB"}
+          stroke="#1E3A5F"
           strokeWidth={1.5}
           fill="none"
           strokeDasharray="4 4"

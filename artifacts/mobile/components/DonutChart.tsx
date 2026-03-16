@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View, useColorScheme } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G } from "react-native-svg";
 import Colors from "@/constants/colors";
 
@@ -37,9 +37,7 @@ export function DonutChart({
   centerLabel,
   centerSublabel,
 }: DonutChartProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+  const theme = Colors.dark;
 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -55,7 +53,7 @@ export function DonutChart({
             cx={center}
             cy={center}
             r={radius}
-            stroke={isDark ? "#2A2A2A" : "#E5E7EB"}
+            stroke="#1E3A5F"
             strokeWidth={strokeWidth}
             fill="none"
           />
