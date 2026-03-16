@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
+import { EncodingType } from "expo-file-system";
 import { router, Stack } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
@@ -252,22 +253,50 @@ export default function ImportScreen() {
   const handlePickFile = useCallback(async () => {
     try {
       setPickingFile(true);
+
       const result = await DocumentPicker.getDocumentAsync({
-        type: ["text/csv", "text/comma-separated-values", "application/csv", "*/*"],
+        type: "*/*",
         copyToCacheDirectory: true,
         multiple: false,
       });
+
+      console.log("PICKER RESULT:", JSON.stringify(result));
+
       if (result.canceled) return;
-      const asset = result.assets ? result.assets[0] : (result as unknown as { uri: string; name: string; size?: number });
-      const content = await readFile(asset.uri);
+
+      const asset = result.assets ? result.assets[0] : (result as unknown as { uri: string; name: string; size?: number; mimeType?: string });
+      console.log("ASSET URI:", asset.uri);
+      console.log("ASSET NAME:", asset.name);
+      console.log("ASSET SIZE:", asset.size);
+      console.log("ASSET MIME:", (asset as { mimeType?: string }).mimeType);
+
+      const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+      console.log("FILE INFO:", JSON.stringify(fileInfo));
+
+      let content: string;
+      try {
+        content = await FileSystem.readAsStringAsync(asset.uri, { encoding: EncodingType.UTF8 });
+        console.log("CONTENT LENGTH:", content.length);
+        console.log("FIRST 200 CHARS:", content.substring(0, 200));
+      } catch (readErr: unknown) {
+        const e = readErr as Error & { code?: string };
+        console.log("READ ERROR TYPE:", e.constructor?.name);
+        console.log("READ ERROR MESSAGE:", e.message);
+        console.log("READ ERROR CODE:", e.code);
+        console.log("FULL READ ERROR:", JSON.stringify(readErr));
+        throw readErr;
+      }
+
       setFileName(asset.name);
-      setFileSize(asset.size ?? content.length);
+      setFileSize((asset.size as number | undefined) ?? content.length);
       setCsvContent(content);
-    } catch (err) {
-      Alert.alert(
-        "Could not read file",
-        "Please make sure the file is a valid CSV and try downloading it again from your broker."
-      );
+    } catch (err: unknown) {
+      const e = err as Error & { code?: string };
+      console.log("ERROR TYPE:", e.constructor?.name);
+      console.log("ERROR MESSAGE:", e.message);
+      console.log("ERROR CODE:", e.code);
+      console.log("FULL ERROR:", JSON.stringify(err));
+      Alert.alert("Debug Error", e.message ?? "Unknown error");
     } finally {
       setPickingFile(false);
     }
