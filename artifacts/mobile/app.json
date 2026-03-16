@@ -28,7 +28,9 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-document-picker",
+      "expo-file-system"
     ],
     "experiments": {
       "typedRoutes": true,

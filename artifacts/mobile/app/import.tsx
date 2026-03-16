@@ -96,7 +96,14 @@ async function readFile(uri: string): Promise<string> {
     const res = await fetch(uri);
     return res.text();
   }
-  return FileSystem.readAsStringAsync(uri);
+  // Try UTF-8 first; fall back to base64 decode for restricted iOS locations
+  try {
+    return await FileSystem.readAsStringAsync(uri, { encoding: "utf8" as "utf8" });
+  } catch {
+    const b64 = await FileSystem.readAsStringAsync(uri, { encoding: "base64" as "base64" });
+    // atob is available globally in React Native's Hermes / JSC engines
+    return atob(b64);
+  }
 }
 
 function fmtBytes(bytes: number): string {
@@ -246,17 +253,21 @@ export default function ImportScreen() {
     try {
       setPickingFile(true);
       const result = await DocumentPicker.getDocumentAsync({
-        type: ["text/csv", "text/plain", "text/comma-separated-values", "*/*"],
+        type: ["text/csv", "text/comma-separated-values", "application/csv", "*/*"],
         copyToCacheDirectory: true,
+        multiple: false,
       });
       if (result.canceled) return;
-      const asset = result.assets[0];
+      const asset = result.assets ? result.assets[0] : (result as unknown as { uri: string; name: string; size?: number });
       const content = await readFile(asset.uri);
       setFileName(asset.name);
       setFileSize(asset.size ?? content.length);
       setCsvContent(content);
     } catch (err) {
-      Alert.alert("Error", "Could not read the file. Please try again.");
+      Alert.alert(
+        "Could not read file",
+        "Please make sure the file is a valid CSV and try downloading it again from your broker."
+      );
     } finally {
       setPickingFile(false);
     }
