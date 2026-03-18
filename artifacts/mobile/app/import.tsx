@@ -20,7 +20,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
-import { BROKER_CONFIGS, parseCSV, type BrokerConfig, type ParsedHolding } from "@/services/csvImport";
+import {
+  BROKER_CONFIGS,
+  parseCSV,
+  type BrokerConfig,
+  type ParsedHolding,
+} from "@/services/csvImport";
 import PremiumModal from "@/components/PremiumModal";
 
 type DuplicateAction = "skip" | "merge" | "replace";
@@ -42,15 +47,32 @@ function StepProgress({ step }: { step: 1 | 2 | 3 }) {
     <View style={prog.row}>
       {([1, 2, 3] as const).map((s) => (
         <React.Fragment key={s}>
-          <View style={[prog.dot, { backgroundColor: step >= s ? theme.tint : theme.border }]} />
-          {s < 3 && <View style={[prog.line, { backgroundColor: step > s ? theme.tint : theme.border }]} />}
+          <View
+            style={[
+              prog.dot,
+              { backgroundColor: step >= s ? theme.tint : theme.border },
+            ]}
+          />
+          {s < 3 && (
+            <View
+              style={[
+                prog.line,
+                { backgroundColor: step > s ? theme.tint : theme.border },
+              ]}
+            />
+          )}
         </React.Fragment>
       ))}
     </View>
   );
 }
 const prog = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 20 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
   dot: { width: 10, height: 10, borderRadius: 5 },
   line: { flex: 1, height: 2, maxWidth: 60 },
 });
@@ -84,8 +106,17 @@ function BrokerCard({
         </View>
       )}
       <Text style={styles.brokerEmoji}>{broker.emoji}</Text>
-      <Text style={[styles.brokerName, { color: selected ? theme.tint : theme.text }]}>{broker.name}</Text>
-      <Text style={[styles.brokerLabel, { color: theme.textSecondary }]}>{broker.label}</Text>
+      <Text
+        style={[
+          styles.brokerName,
+          { color: selected ? theme.tint : theme.text },
+        ]}
+      >
+        {broker.name}
+      </Text>
+      <Text style={[styles.brokerLabel, { color: theme.textSecondary }]}>
+        {broker.label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -101,9 +132,13 @@ async function readFile(uri: string): Promise<string> {
   const cacheUri = FileSystem.cacheDirectory + "import_temp.csv";
   await FileSystem.copyAsync({ from: uri, to: cacheUri });
   try {
-    return await FileSystem.readAsStringAsync(cacheUri, { encoding: EncodingType.UTF8 });
+    return await FileSystem.readAsStringAsync(cacheUri, {
+      encoding: EncodingType.UTF8,
+    });
   } catch {
-    const b64 = await FileSystem.readAsStringAsync(cacheUri, { encoding: EncodingType.Base64 });
+    const b64 = await FileSystem.readAsStringAsync(cacheUri, {
+      encoding: EncodingType.Base64,
+    });
     return atob(b64);
   }
 }
@@ -135,11 +170,19 @@ function DuplicateToggle({
           key={o.key}
           style={[
             styles.segBtn,
-            { backgroundColor: value === o.key ? theme.tint : theme.backgroundElevated },
+            {
+              backgroundColor:
+                value === o.key ? theme.tint : theme.backgroundElevated,
+            },
           ]}
           onPress={() => onChange(o.key)}
         >
-          <Text style={[styles.segBtnText, { color: value === o.key ? "#000" : theme.textSecondary }]}>
+          <Text
+            style={[
+              styles.segBtnText,
+              { color: value === o.key ? "#000" : theme.textSecondary },
+            ]}
+          >
             {o.label}
           </Text>
         </TouchableOpacity>
@@ -159,14 +202,30 @@ function PreviewRow({
 }) {
   const willImport = !item.isDuplicate || item.duplicateAction !== "skip";
   return (
-    <View style={[styles.previewRow, { borderBottomColor: theme.border, opacity: (!willImport && item.isDuplicate) ? 0.5 : 1 }]}>
+    <View
+      style={[
+        styles.previewRow,
+        {
+          borderBottomColor: theme.border,
+          opacity: !willImport && item.isDuplicate ? 0.5 : 1,
+        },
+      ]}
+    >
       {/* Ticker */}
       <View style={styles.previewLeft}>
         {item.holding.needsTickerConfirmation ? (
           <View style={styles.tickerEditRow}>
-            <Feather name="alert-triangle" size={12} color="#FBBF24" style={{ marginRight: 4 }} />
+            <Feather
+              name="alert-triangle"
+              size={12}
+              color="#FBBF24"
+              style={{ marginRight: 4 }}
+            />
             <TextInput
-              style={[styles.tickerInput, { color: theme.text, borderColor: theme.tint }]}
+              style={[
+                styles.tickerInput,
+                { color: theme.text, borderColor: theme.tint },
+              ]}
               value={item.editedTicker}
               onChangeText={(t) => onTickerChange(t.toUpperCase())}
               autoCapitalize="characters"
@@ -176,15 +235,24 @@ function PreviewRow({
             />
           </View>
         ) : (
-          <Text style={[styles.previewTicker, { color: theme.text }]}>{item.editedTicker}</Text>
-        )}
-        {item.holding.instrumentName && item.holding.needsTickerConfirmation && (
-          <Text style={[styles.previewInstrName, { color: theme.textTertiary }]} numberOfLines={1}>
-            {item.holding.instrumentName}
+          <Text style={[styles.previewTicker, { color: theme.text }]}>
+            {item.editedTicker}
           </Text>
         )}
+        {item.holding.instrumentName &&
+          item.holding.needsTickerConfirmation && (
+            <Text
+              style={[styles.previewInstrName, { color: theme.textTertiary }]}
+              numberOfLines={1}
+            >
+              {item.holding.instrumentName}
+            </Text>
+          )}
         {item.holding.warning && (
-          <Text style={[styles.previewWarning, { color: "#FBBF24" }]} numberOfLines={2}>
+          <Text
+            style={[styles.previewWarning, { color: "#FBBF24" }]}
+            numberOfLines={2}
+          >
             ⚠ {item.holding.warning}
           </Text>
         )}
@@ -193,7 +261,10 @@ function PreviewRow({
       {/* Stats */}
       <View style={styles.previewMid}>
         <Text style={[styles.previewStat, { color: theme.textSecondary }]}>
-          ×{item.holding.quantity % 1 === 0 ? item.holding.quantity.toFixed(0) : item.holding.quantity.toFixed(4).replace(/\.?0+$/, "")}
+          ×
+          {item.holding.quantity % 1 === 0
+            ? item.holding.quantity.toFixed(0)
+            : item.holding.quantity.toFixed(4).replace(/\.?0+$/, "")}
         </Text>
         <Text style={[styles.previewStat, { color: theme.textSecondary }]}>
           €{item.holding.avgCostEUR.toFixed(2)}
@@ -209,14 +280,28 @@ function PreviewRow({
       <View style={styles.previewRight}>
         {item.isDuplicate ? (
           <View>
-            <View style={[styles.statusBadge, { backgroundColor: "#FBBF2422" }]}>
-              <Text style={[styles.statusText, { color: "#FBBF24" }]}>⚠ Duplicate</Text>
+            <View
+              style={[styles.statusBadge, { backgroundColor: "#FBBF2422" }]}
+            >
+              <Text style={[styles.statusText, { color: "#FBBF24" }]}>
+                ⚠ Duplicate
+              </Text>
             </View>
-            <DuplicateToggle value={item.duplicateAction} onChange={onActionChange} />
+            <DuplicateToggle
+              value={item.duplicateAction}
+              onChange={onActionChange}
+            />
           </View>
         ) : (
-          <View style={[styles.statusBadge, { backgroundColor: theme.positive + "22" }]}>
-            <Text style={[styles.statusText, { color: theme.positive }]}>✓ New</Text>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: theme.positive + "22" },
+            ]}
+          >
+            <Text style={[styles.statusText, { color: theme.positive }]}>
+              ✓ New
+            </Text>
           </View>
         )}
       </View>
@@ -226,7 +311,20 @@ function PreviewRow({
 
 function fmtShortDate(iso: string): string {
   if (!iso || iso.length < 7) return iso;
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const [yyyy, mm] = iso.split("-");
   const m = parseInt(mm, 10) - 1;
   return `${months[m] ?? mm} ${yyyy}`;
@@ -236,10 +334,13 @@ function fmtShortDate(iso: string): string {
 
 export default function ImportScreen() {
   const insets = useSafeAreaInsets();
-  const { holdings, holdingCount, addHolding, updateHolding, deleteHolding } = usePortfolio();
+  const { holdings, holdingCount, addHolding, updateHolding, deleteHolding } =
+    usePortfolio();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [selectedBroker, setSelectedBroker] = useState<BrokerConfig | null>(null);
+  const [selectedBroker, setSelectedBroker] = useState<BrokerConfig | null>(
+    null,
+  );
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileSize, setFileSize] = useState<number>(0);
   const [csvContent, setCsvContent] = useState<string>("");
@@ -265,14 +366,18 @@ export default function ImportScreen() {
 
       if (result.canceled) return;
 
-      const asset = result.assets ? result.assets[0] : (result as unknown as { uri: string; name: string; size?: number; mimeType?: string });
+      const asset = result.assets
+        ? result.assets[0]
+        : (result as unknown as {
+            uri: string;
+            name: string;
+            size?: number;
+            mimeType?: string;
+          });
       console.log("ASSET URI:", asset.uri);
       console.log("ASSET NAME:", asset.name);
       console.log("ASSET SIZE:", asset.size);
       console.log("ASSET MIME:", (asset as { mimeType?: string }).mimeType);
-
-      const fileInfo = await FileSystem.getInfoAsync(asset.uri);
-      console.log("FILE INFO:", JSON.stringify(fileInfo));
 
       let content: string;
       try {
@@ -294,7 +399,7 @@ export default function ImportScreen() {
       console.log("ERROR MESSAGE:", e.message);
       console.log("ERROR CODE:", e.code);
       console.log("FULL ERROR:", JSON.stringify(err));
-      Alert.alert("Debug Error", e.message ?? "Unknown error");
+      Alert.alert("Error", "Could not read the file. Please try again.");
     } finally {
       setPickingFile(false);
     }
@@ -307,10 +412,14 @@ export default function ImportScreen() {
     try {
       setParsing(true);
       const parsed = parseCSV(selectedBroker.key, csvContent);
-      const existingTickers = new Set(holdings.map((h) => h.ticker.toUpperCase()));
+      const existingTickers = new Set(
+        holdings.map((h) => h.ticker.toUpperCase()),
+      );
       const items: ImportItem[] = parsed.map((h) => {
         const upperTicker = h.ticker.toUpperCase();
-        const existing = holdings.find((eh) => eh.ticker.toUpperCase() === upperTicker);
+        const existing = holdings.find(
+          (eh) => eh.ticker.toUpperCase() === upperTicker,
+        );
         return {
           holding: h,
           editedTicker: upperTicker,
@@ -328,12 +437,12 @@ export default function ImportScreen() {
       } else if (msg === "NO_BUYS") {
         Alert.alert(
           "No Transactions Found",
-          `No BUY transactions found.\n\nThis might not be a ${selectedBroker.name} CSV. Try selecting "Generic CSV" instead.`
+          `No BUY transactions found.\n\nThis might not be a ${selectedBroker.name} CSV. Try selecting "Generic CSV" instead.`,
         );
       } else {
         Alert.alert(
           "Parse Error",
-          `This doesn't look like a ${selectedBroker.name} CSV.\n\nTry selecting "Generic CSV" instead.`
+          `This doesn't look like a ${selectedBroker.name} CSV.\n\nTry selecting "Generic CSV" instead.`,
         );
       }
     } finally {
@@ -344,7 +453,9 @@ export default function ImportScreen() {
   // ── Import count logic ───────────────────────────────────────────────────────
 
   const importableCount = useMemo(() => {
-    return importItems.filter((item) => !item.isDuplicate || item.duplicateAction !== "skip").length;
+    return importItems.filter(
+      (item) => !item.isDuplicate || item.duplicateAction !== "skip",
+    ).length;
   }, [importItems]);
 
   const newHoldingsCount = useMemo(() => {
@@ -360,7 +471,9 @@ export default function ImportScreen() {
     }
 
     // Free tier check: how many new holdings would be added?
-    const newItemsCount = importItems.filter((item) => !item.isDuplicate).length;
+    const newItemsCount = importItems.filter(
+      (item) => !item.isDuplicate,
+    ).length;
     const slotsRemaining = FREE_TIER_LIMIT - holdingCount;
     if (newItemsCount > slotsRemaining) {
       setShowPremium(true);
@@ -374,7 +487,10 @@ export default function ImportScreen() {
     for (const item of importItems) {
       if (item.isDuplicate && item.duplicateAction === "skip") continue;
       const ticker = item.editedTicker.trim().toUpperCase();
-      if (!ticker) { failed++; continue; }
+      if (!ticker) {
+        failed++;
+        continue;
+      }
 
       const holdingData = {
         ticker,
@@ -398,8 +514,13 @@ export default function ImportScreen() {
           if (existing && item.existingId) {
             const newQty = existing.quantity + item.holding.quantity;
             const newAvg =
-              (existing.quantity * existing.avg_cost_eur + item.holding.quantity * item.holding.avgCostEUR) / newQty;
-            await updateHolding(item.existingId, { quantity: newQty, avg_cost_eur: Math.round(newAvg * 100) / 100 });
+              (existing.quantity * existing.avg_cost_eur +
+                item.holding.quantity * item.holding.avgCostEUR) /
+              newQty;
+            await updateHolding(item.existingId, {
+              quantity: newQty,
+              avg_cost_eur: Math.round(newAvg * 100) / 100,
+            });
           }
         }
         imported++;
@@ -415,25 +536,51 @@ export default function ImportScreen() {
       Alert.alert(
         "Partial Import",
         `${imported} imported, ${failed} failed.\nYou can review your holdings in the Holdings tab.`,
-        [{ text: "OK", onPress: () => router.replace("/(tabs)/holdings" as never) }]
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace("/(tabs)/holdings" as never),
+          },
+        ],
       );
     } else {
       Alert.alert(
         "Import Complete",
         `✓ ${imported} holding${imported !== 1 ? "s" : ""} imported successfully`,
-        [{ text: "View Holdings", onPress: () => router.replace("/(tabs)/holdings" as never) }]
+        [
+          {
+            text: "View Holdings",
+            onPress: () => router.replace("/(tabs)/holdings" as never),
+          },
+        ],
       );
     }
-  }, [importItems, importableCount, holdingCount, holdings, addHolding, updateHolding, deleteHolding]);
+  }, [
+    importItems,
+    importableCount,
+    holdingCount,
+    holdings,
+    addHolding,
+    updateHolding,
+    deleteHolding,
+  ]);
 
   // ── Item update helpers ──────────────────────────────────────────────────────
 
   function updateItemTicker(index: number, ticker: string) {
-    setImportItems((prev) => prev.map((item, i) => (i === index ? { ...item, editedTicker: ticker } : item)));
+    setImportItems((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, editedTicker: ticker } : item,
+      ),
+    );
   }
 
   function updateItemAction(index: number, action: DuplicateAction) {
-    setImportItems((prev) => prev.map((item, i) => (i === index ? { ...item, duplicateAction: action } : item)));
+    setImportItems((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, duplicateAction: action } : item,
+      ),
+    );
   }
 
   const topPad = Platform.OS === "web" ? 0 : insets.top;
@@ -450,7 +597,14 @@ export default function ImportScreen() {
           headerTintColor: theme.text,
           headerTitleStyle: { fontFamily: "Inter_600SemiBold", fontSize: 17 },
           headerLeft: () => (
-            <TouchableOpacity onPress={() => (step === 1 ? router.back() : setStep((s) => (s - 1) as 1 | 2 | 3))} style={{ paddingRight: 8 }}>
+            <TouchableOpacity
+              onPress={() =>
+                step === 1
+                  ? router.back()
+                  : setStep((s) => (s - 1) as 1 | 2 | 3)
+              }
+              style={{ paddingRight: 8 }}
+            >
               <Feather name="arrow-left" size={22} color={theme.text} />
             </TouchableOpacity>
           ),
@@ -462,11 +616,16 @@ export default function ImportScreen() {
         <View style={{ flex: 1 }}>
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={[styles.content, { paddingTop: 20, paddingBottom: bottomPad + 80 }]}
+            contentContainerStyle={[
+              styles.content,
+              { paddingTop: 20, paddingBottom: bottomPad + 80 },
+            ]}
             showsVerticalScrollIndicator={false}
           >
             <StepProgress step={1} />
-            <Text style={[styles.stepTitle, { color: theme.text }]}>Select your broker</Text>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>
+              Select your broker
+            </Text>
             <Text style={[styles.stepSub, { color: theme.textSecondary }]}>
               Choose the app or platform you exported from
             </Text>
@@ -483,14 +642,27 @@ export default function ImportScreen() {
             </View>
           </ScrollView>
 
-          <View style={[styles.bottomBar, { paddingBottom: bottomPad, borderTopColor: theme.border }]}>
+          <View
+            style={[
+              styles.bottomBar,
+              { paddingBottom: bottomPad, borderTopColor: theme.border },
+            ]}
+          >
             <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: selectedBroker ? theme.tint : theme.border }]}
+              style={[
+                styles.primaryBtn,
+                { backgroundColor: selectedBroker ? theme.tint : theme.border },
+              ]}
               onPress={() => selectedBroker && setStep(2)}
               disabled={!selectedBroker}
               activeOpacity={0.8}
             >
-              <Text style={[styles.primaryBtnText, { color: selectedBroker ? "#000" : theme.textTertiary }]}>
+              <Text
+                style={[
+                  styles.primaryBtnText,
+                  { color: selectedBroker ? "#000" : theme.textTertiary },
+                ]}
+              >
                 Next →
               </Text>
             </TouchableOpacity>
@@ -503,27 +675,55 @@ export default function ImportScreen() {
         <View style={{ flex: 1 }}>
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={[styles.content, { paddingTop: 20, paddingBottom: bottomPad + 100 }]}
+            contentContainerStyle={[
+              styles.content,
+              { paddingTop: 20, paddingBottom: bottomPad + 100 },
+            ]}
             showsVerticalScrollIndicator={false}
           >
             <StepProgress step={2} />
-            <Text style={[styles.stepTitle, { color: theme.text }]}>{selectedBroker.name}</Text>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>
+              {selectedBroker.name}
+            </Text>
             <Text style={[styles.stepSub, { color: theme.textSecondary }]}>
               Follow these steps to export your CSV
             </Text>
 
             {/* Instructions */}
-            <View style={[styles.instructionsCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+            <View
+              style={[
+                styles.instructionsCard,
+                {
+                  backgroundColor: theme.backgroundCard,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
               {selectedBroker.instructions.map((line, i) => (
                 <View key={i} style={styles.instrRow}>
                   {/^\s/.test(line) ? (
-                    <Text style={[styles.instrCode, { color: theme.textSecondary }]}>{line}</Text>
+                    <Text
+                      style={[styles.instrCode, { color: theme.textSecondary }]}
+                    >
+                      {line}
+                    </Text>
                   ) : (
                     <>
-                      <View style={[styles.instrNum, { backgroundColor: theme.tint + "22" }]}>
-                        <Text style={[styles.instrNumText, { color: theme.tint }]}>{i + 1}</Text>
+                      <View
+                        style={[
+                          styles.instrNum,
+                          { backgroundColor: theme.tint + "22" },
+                        ]}
+                      >
+                        <Text
+                          style={[styles.instrNumText, { color: theme.tint }]}
+                        >
+                          {i + 1}
+                        </Text>
                       </View>
-                      <Text style={[styles.instrText, { color: theme.text }]}>{line}</Text>
+                      <Text style={[styles.instrText, { color: theme.text }]}>
+                        {line}
+                      </Text>
                     </>
                   )}
                 </View>
@@ -536,7 +736,9 @@ export default function ImportScreen() {
                 styles.uploadBox,
                 {
                   borderColor: fileName ? theme.positive : theme.tint,
-                  backgroundColor: fileName ? theme.positive + "11" : theme.backgroundCard,
+                  backgroundColor: fileName
+                    ? theme.positive + "11"
+                    : theme.backgroundCard,
                 },
               ]}
               onPress={handlePickFile}
@@ -547,17 +749,34 @@ export default function ImportScreen() {
                 <ActivityIndicator size="small" color={theme.tint} />
               ) : fileName ? (
                 <>
-                  <Feather name="check-circle" size={32} color={theme.positive} />
-                  <Text style={[styles.uploadFileName, { color: theme.positive }]}>{fileName}</Text>
-                  <Text style={[styles.uploadFileSub, { color: theme.textSecondary }]}>
+                  <Feather
+                    name="check-circle"
+                    size={32}
+                    color={theme.positive}
+                  />
+                  <Text
+                    style={[styles.uploadFileName, { color: theme.positive }]}
+                  >
+                    {fileName}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.uploadFileSub,
+                      { color: theme.textSecondary },
+                    ]}
+                  >
                     {fmtBytes(fileSize)} · tap to change
                   </Text>
                 </>
               ) : (
                 <>
                   <Feather name="paperclip" size={32} color={theme.tint} />
-                  <Text style={[styles.uploadTitle, { color: theme.text }]}>Tap to select CSV file</Text>
-                  <Text style={[styles.uploadSub, { color: theme.textSecondary }]}>
+                  <Text style={[styles.uploadTitle, { color: theme.text }]}>
+                    Tap to select CSV file
+                  </Text>
+                  <Text
+                    style={[styles.uploadSub, { color: theme.textSecondary }]}
+                  >
                     Supports .csv files up to 10 MB
                   </Text>
                 </>
@@ -565,9 +784,20 @@ export default function ImportScreen() {
             </TouchableOpacity>
           </ScrollView>
 
-          <View style={[styles.bottomBar, { paddingBottom: bottomPad, borderTopColor: theme.border }]}>
+          <View
+            style={[
+              styles.bottomBar,
+              { paddingBottom: bottomPad, borderTopColor: theme.border },
+            ]}
+          >
             <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: fileName && !parsing ? theme.tint : theme.border }]}
+              style={[
+                styles.primaryBtn,
+                {
+                  backgroundColor:
+                    fileName && !parsing ? theme.tint : theme.border,
+                },
+              ]}
               onPress={handlePreview}
               disabled={!fileName || parsing}
               activeOpacity={0.8}
@@ -575,7 +805,12 @@ export default function ImportScreen() {
               {parsing ? (
                 <ActivityIndicator size="small" color="#000" />
               ) : (
-                <Text style={[styles.primaryBtnText, { color: fileName ? "#000" : theme.textTertiary }]}>
+                <Text
+                  style={[
+                    styles.primaryBtnText,
+                    { color: fileName ? "#000" : theme.textTertiary },
+                  ]}
+                >
                   Preview Import →
                 </Text>
               )}
@@ -586,16 +821,30 @@ export default function ImportScreen() {
 
       {/* ── STEP 3: Preview & Confirm ─────────────────────────────────────── */}
       {step === 3 && (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
           <View style={{ flex: 1 }}>
-            <View style={[styles.content, { paddingTop: 20, paddingBottom: 0 }]}>
+            <View
+              style={[styles.content, { paddingTop: 20, paddingBottom: 0 }]}
+            >
               <StepProgress step={3} />
-              <Text style={[styles.stepTitle, { color: theme.text }]}>Review Import</Text>
+              <Text style={[styles.stepTitle, { color: theme.text }]}>
+                Review Import
+              </Text>
               <Text style={[styles.stepSub, { color: theme.textSecondary }]}>
-                {importItems.length} holding{importItems.length !== 1 ? "s" : ""} found — review before importing
+                {importItems.length} holding
+                {importItems.length !== 1 ? "s" : ""} found — review before
+                importing
               </Text>
               {importItems.some((i) => i.holding.needsTickerConfirmation) && (
-                <View style={[styles.warnBanner, { backgroundColor: "#FBBF2418", borderColor: "#FBBF2433" }]}>
+                <View
+                  style={[
+                    styles.warnBanner,
+                    { backgroundColor: "#FBBF2418", borderColor: "#FBBF2433" },
+                  ]}
+                >
                   <Feather name="alert-triangle" size={14} color="#FBBF24" />
                   <Text style={[styles.warnBannerText, { color: "#FBBF24" }]}>
                     Some tickers need confirmation — tap the field to edit
@@ -617,15 +866,32 @@ export default function ImportScreen() {
               contentContainerStyle={{ paddingBottom: 120 }}
             />
 
-            <View style={[styles.actionBar, { paddingBottom: bottomPad, borderTopColor: theme.border, backgroundColor: theme.backgroundCard }]}>
+            <View
+              style={[
+                styles.actionBar,
+                {
+                  paddingBottom: bottomPad,
+                  borderTopColor: theme.border,
+                  backgroundColor: theme.backgroundCard,
+                },
+              ]}
+            >
               <TouchableOpacity
                 style={[styles.cancelBtn, { borderColor: theme.border }]}
                 onPress={() => router.back()}
               >
-                <Text style={[styles.cancelBtnText, { color: theme.text }]}>Cancel</Text>
+                <Text style={[styles.cancelBtnText, { color: theme.text }]}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.importBtn, { backgroundColor: importableCount > 0 ? theme.tint : theme.border }]}
+                style={[
+                  styles.importBtn,
+                  {
+                    backgroundColor:
+                      importableCount > 0 ? theme.tint : theme.border,
+                  },
+                ]}
                 onPress={handleImport}
                 disabled={importing || importableCount === 0}
                 activeOpacity={0.8}
@@ -633,8 +899,17 @@ export default function ImportScreen() {
                 {importing ? (
                   <ActivityIndicator size="small" color="#000" />
                 ) : (
-                  <Text style={[styles.importBtnText, { color: importableCount > 0 ? "#000" : theme.textTertiary }]}>
-                    Import {importableCount} Holding{importableCount !== 1 ? "s" : ""}
+                  <Text
+                    style={[
+                      styles.importBtnText,
+                      {
+                        color:
+                          importableCount > 0 ? "#000" : theme.textTertiary,
+                      },
+                    ]}
+                  >
+                    Import {importableCount} Holding
+                    {importableCount !== 1 ? "s" : ""}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -643,7 +918,10 @@ export default function ImportScreen() {
         </KeyboardAvoidingView>
       )}
 
-      <PremiumModal visible={showPremium} onClose={() => setShowPremium(false)} />
+      <PremiumModal
+        visible={showPremium}
+        onClose={() => setShowPremium(false)}
+      />
     </View>
   );
 }
@@ -654,8 +932,18 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: 16 },
 
-  stepTitle: { fontSize: 22, fontFamily: "Inter_700Bold", letterSpacing: -0.5, marginBottom: 4 },
-  stepSub: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 20 },
+  stepTitle: {
+    fontSize: 22,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  stepSub: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
 
   // Broker grid
   brokerGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
@@ -679,8 +967,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   brokerEmoji: { fontSize: 28, marginBottom: 8 },
-  brokerName: { fontSize: 13, fontFamily: "Inter_600SemiBold", textAlign: "center" },
-  brokerLabel: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2, textAlign: "center" },
+  brokerName: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    textAlign: "center",
+  },
+  brokerLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+    textAlign: "center",
+  },
 
   // Instructions
   instructionsCard: {
@@ -700,8 +997,18 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   instrNumText: { fontSize: 11, fontFamily: "Inter_700Bold" },
-  instrText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20, flex: 1 },
-  instrCode: { fontSize: 11, fontFamily: "Inter_400Regular", fontStyle: "italic", paddingLeft: 32 },
+  instrText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 20,
+    flex: 1,
+  },
+  instrCode: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    fontStyle: "italic",
+    paddingLeft: 32,
+  },
 
   // Upload box
   uploadBox: {
@@ -715,8 +1022,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   uploadTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  uploadSub: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
-  uploadFileName: { fontSize: 14, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  uploadSub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+  },
+  uploadFileName: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    textAlign: "center",
+  },
   uploadFileSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
 
   // Bottom bars
@@ -754,7 +1069,11 @@ const styles = StyleSheet.create({
   previewStat: { fontSize: 12, fontFamily: "Inter_400Regular" },
   previewDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
   previewInstrName: { fontSize: 10, fontFamily: "Inter_400Regular" },
-  previewWarning: { fontSize: 10, fontFamily: "Inter_400Regular", lineHeight: 14 },
+  previewWarning: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 14,
+  },
 
   tickerEditRow: { flexDirection: "row", alignItems: "center" },
   tickerInput: {
@@ -777,7 +1096,12 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 
   // Duplicate segmented control
-  segmented: { flexDirection: "row", borderRadius: 6, overflow: "hidden", marginTop: 6 },
+  segmented: {
+    flexDirection: "row",
+    borderRadius: 6,
+    overflow: "hidden",
+    marginTop: 6,
+  },
   segBtn: { paddingHorizontal: 7, paddingVertical: 4 },
   segBtnText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
 
