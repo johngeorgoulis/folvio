@@ -331,6 +331,20 @@ function fmtShortDate(iso: string): string {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
+function guessExchangeFromISIN(isin: string): string {
+  if (!isin) return "XETRA";
+  const country = isin.substring(0, 2).toUpperCase();
+  switch (country) {
+    case "IE": return "XETRA";       // Irish-domiciled UCITS → XETRA
+    case "NL": return "EURONEXT_AMS"; // Dutch → Euronext Amsterdam
+    case "LU": return "EURONEXT_PAR"; // Luxembourg → Euronext Paris
+    case "FR": return "EURONEXT_PAR";
+    case "GB": return "LSE";
+    case "DE": return "XETRA";
+    default:   return "XETRA";
+  }
+}
+
 export default function ImportScreen() {
   const insets = useSafeAreaInsets();
   const { holdings, holdingCount, addHolding, updateHolding, deleteHolding } =
@@ -495,7 +509,7 @@ export default function ImportScreen() {
       const holdingData = {
         ticker,
         isin: item.holding.isin ?? "",
-        exchange: "XETRA",
+        exchange: guessExchangeFromISIN(item.holding.isin ?? ""),
         name: ticker,
         quantity: item.holding.quantity,
         avg_cost_eur: item.holding.avgCostEUR,
