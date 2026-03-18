@@ -505,10 +505,10 @@ export default function ImportScreen() {
 
       try {
         if (!item.isDuplicate) {
-          await addHolding(holdingData, item.holding.avgCostEUR);
+          await addHolding(holdingData, 0);
         } else if (item.duplicateAction === "replace") {
           if (item.existingId) await deleteHolding(item.existingId);
-          await addHolding(holdingData, item.holding.avgCostEUR);
+          await addHolding(holdingData, 0);
         } else if (item.duplicateAction === "merge") {
           const existing = holdings.find((h) => h.id === item.existingId);
           if (existing && item.existingId) {
