@@ -128,10 +128,23 @@ async function readFile(uri: string): Promise<string> {
     const res = await fetch(uri);
     return res.text();
   }
+  // On iOS, copy to a writable cache location first
+  const filename = uri.split("/").pop() ?? "import.csv";
+  const dest = FileSystem.cacheDirectory + filename;
   try {
-    return await FileSystem.readAsStringAsync(uri, { encoding: EncodingType.UTF8 });
+    await FileSystem.copyAsync({ from: uri, to: dest });
   } catch {
-    const b64 = await FileSystem.readAsStringAsync(uri, { encoding: EncodingType.Base64 });
+    // already in cache or copy not needed
+  }
+  const target = dest;
+  try {
+    return await FileSystem.readAsStringAsync(target, {
+      encoding: EncodingType.UTF8,
+    });
+  } catch {
+    const b64 = await FileSystem.readAsStringAsync(target, {
+      encoding: EncodingType.Base64,
+    });
     return atob(b64);
   }
 }
@@ -351,7 +364,7 @@ export default function ImportScreen() {
 
       const result = await DocumentPicker.getDocumentAsync({
         type: "*/*",
-        copyToCacheDirectory: true,
+        copyToCacheDirectory: false,
         multiple: false,
       });
 
