@@ -276,15 +276,12 @@ export default function ImportScreen() {
 
       let content: string;
       try {
-        content = await FileSystem.readAsStringAsync(asset.uri, { encoding: EncodingType.UTF8 });
+        content = await readFile(asset.uri);
         console.log("CONTENT LENGTH:", content.length);
         console.log("FIRST 200 CHARS:", content.substring(0, 200));
       } catch (readErr: unknown) {
         const e = readErr as Error & { code?: string };
-        console.log("READ ERROR TYPE:", e.constructor?.name);
-        console.log("READ ERROR MESSAGE:", e.message);
-        console.log("READ ERROR CODE:", e.code);
-        console.log("FULL READ ERROR:", JSON.stringify(readErr));
+        console.log("READ ERROR:", e.message);
         throw readErr;
       }
 
