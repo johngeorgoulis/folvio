@@ -128,17 +128,10 @@ async function readFile(uri: string): Promise<string> {
     const res = await fetch(uri);
     return res.text();
   }
-  // Copy to cache first (required on iOS for picker URIs)
-  const cacheUri = FileSystem.cacheDirectory + "import_temp.csv";
-  await FileSystem.copyAsync({ from: uri, to: cacheUri });
   try {
-    return await FileSystem.readAsStringAsync(cacheUri, {
-      encoding: EncodingType.UTF8,
-    });
+    return await FileSystem.readAsStringAsync(uri, { encoding: EncodingType.UTF8 });
   } catch {
-    const b64 = await FileSystem.readAsStringAsync(cacheUri, {
-      encoding: EncodingType.Base64,
-    });
+    const b64 = await FileSystem.readAsStringAsync(uri, { encoding: EncodingType.Base64 });
     return atob(b64);
   }
 }
