@@ -468,7 +468,8 @@ export default function ImportScreen() {
       (item) => !item.isDuplicate,
     ).length;
     const slotsRemaining = FREE_TIER_LIMIT - holdingCount;
-    if (newItemsCount > slotsRemaining) {
+    const TESTING_BYPASS = true; // TODO: set to false before release
+    if (!TESTING_BYPASS && newItemsCount > slotsRemaining) {
       setShowPremium(true);
       return;
     }
