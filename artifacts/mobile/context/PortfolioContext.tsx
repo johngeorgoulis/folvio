@@ -194,7 +194,9 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     ) => {
       const id = generateId();
       await insertHolding({ id, ...h, yield_pct: h.yield_pct ?? null });
-      await upsertPrice(h.ticker, manualPrice, "manual");
+      if (manualPrice > 0) {
+        await upsertPrice(h.ticker, manualPrice, "manual");
+      }
       await loadData();
       doRefreshPrices(holdingRowsRef.current);
     },
