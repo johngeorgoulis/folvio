@@ -405,7 +405,7 @@ export default function ImportScreen() {
       console.log("ERROR MESSAGE:", e.message);
       console.log("ERROR CODE:", e.code);
       console.log("FULL ERROR:", JSON.stringify(err));
-      Alert.alert("Error", "Could not read the file. Please try again.");
+      Alert.alert("Debug", `URI: ${(err as any)?.uri ?? 'none'}\nMsg: ${(err as Error)?.message ?? String(err)}`);
     } finally {
       setPickingFile(false);
     }
