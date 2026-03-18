@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
-import { EncodingType } from "expo-file-system";
 import { router, Stack } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
@@ -128,23 +127,17 @@ async function readFile(uri: string): Promise<string> {
     const res = await fetch(uri);
     return res.text();
   }
-  // On iOS, copy to a writable cache location first
   const filename = uri.split("/").pop() ?? "import.csv";
-  const dest = FileSystem.cacheDirectory + filename;
+  const dest = (FileSystem.cacheDirectory ?? "") + filename;
   try {
     await FileSystem.copyAsync({ from: uri, to: dest });
   } catch {
-    // already in cache or copy not needed
+    // ignore copy errors
   }
-  const target = dest;
   try {
-    return await FileSystem.readAsStringAsync(target, {
-      encoding: EncodingType.UTF8,
-    });
+    return await FileSystem.readAsStringAsync(dest, { encoding: "utf8" });
   } catch {
-    const b64 = await FileSystem.readAsStringAsync(target, {
-      encoding: EncodingType.Base64,
-    });
+    const b64 = await FileSystem.readAsStringAsync(dest, { encoding: "base64" });
     return atob(b64);
   }
 }
