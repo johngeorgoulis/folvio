@@ -331,13 +331,23 @@ function fmtShortDate(iso: string): string {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
-function guessExchangeFromISIN(isin: string): string {
+function guessExchangeFromISIN(isin: string, ticker?: string): string {
+  // Ticker-specific overrides (known listings)
+  const tickerOverrides: Record<string, string> = {
+    "ERNE": "LSE",
+    "IEGE": "LSE",
+    "CSBGE7": "SIX",
+    "EGLN": "LSE",
+  };
+  if (ticker && tickerOverrides[ticker.toUpperCase()]) {
+    return tickerOverrides[ticker.toUpperCase()];
+  }
   if (!isin) return "XETRA";
   const country = isin.substring(0, 2).toUpperCase();
   switch (country) {
-    case "IE": return "XETRA";       // Irish-domiciled UCITS → XETRA
-    case "NL": return "EURONEXT_AMS"; // Dutch → Euronext Amsterdam
-    case "LU": return "EURONEXT_PAR"; // Luxembourg → Euronext Paris
+    case "IE": return "XETRA";
+    case "NL": return "EURONEXT_AMS";
+    case "LU": return "EURONEXT_PAR";
     case "FR": return "EURONEXT_PAR";
     case "GB": return "LSE";
     case "DE": return "XETRA";
@@ -509,7 +519,7 @@ export default function ImportScreen() {
       const holdingData = {
         ticker,
         isin: item.holding.isin ?? "",
-        exchange: guessExchangeFromISIN(item.holding.isin ?? ""),
+        exchange: guessExchangeFromISIN(item.holding.isin ?? "", ticker),
         name: ticker,
         quantity: item.holding.quantity,
         avg_cost_eur: item.holding.avgCostEUR,
