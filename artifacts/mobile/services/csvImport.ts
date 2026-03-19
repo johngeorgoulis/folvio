@@ -41,7 +41,7 @@ function parseRows(content: string): Record<string, string>[] {
   const result = Papa.parse<Record<string, string>>(content, {
     header: true,
     skipEmptyLines: true,
-    transformHeader: (h) => h.trim(),
+    transformHeader: (h) => h.trim().replace(/^"|"$/g, ""),
   });
   return result.data;
 }
