@@ -331,16 +331,22 @@ function parseRevolut(content: string): ParsedHolding[] {
   const txs: RawTransaction[] = [];
   for (const row of rows) {
     const type = col(row, "Type", "type", "Transaction Type").toUpperCase();
-    const isBuy = type === "BUY" || type === "PURCHASE";
-    const isSell = type === "SELL";
+    const isBuy = type.includes("BUY");
+    const isSell = type.includes("SELL");
     if (!isBuy && !isSell) continue;
-    const ticker = col(row, "Ticker", "ticker", "Symbol");
+    const ticker = col(row, "Ticker", "ticker", "Symbol").trim();
+    if (!ticker) continue;
     const qty = parseNum(col(row, "Quantity", "quantity", "Shares"));
-    const price = parseNum(col(row, "Price per share", "Price", "price"));
-    const currency = col(row, "Currency", "currency") || "USD";
+    // Price per share has format "EUR 109.38" — strip currency prefix
+    const priceRaw = col(row, "Price per share", "Price/share", "Price");
+    const price = parseNum(priceRaw.replace(/^[A-Z]+\s*/i, ""));
+    // Currency from the price field or Currency column
+    const currencyMatch = priceRaw.match(/^([A-Z]+)\s/i);
+    const currency = currencyMatch ? currencyMatch[1].toUpperCase() : (col(row, "Currency", "currency") || "EUR");
     const date = normalizeDate(col(row, "Date", "date", "Completed Date"));
-    if (!ticker || qty <= 0) continue;
-    txs.push({ ticker, qty, price, currency, date, isBuy });
+    const isin = col(row, "ISIN", "isin").trim();
+    if (qty <= 0) continue;
+    txs.push({ ticker, isin, qty, price, currency, date, isBuy });
   }
   return aggregate(txs);
 }
