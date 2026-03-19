@@ -338,6 +338,7 @@ function guessExchangeFromISIN(isin: string, ticker?: string): string {
     "IEGE": "LSE",
     "CSBGE7": "SIX",
     "EGLN": "LSE",
+    "VHYL": "EURONEXT_AMS",
   };
   if (ticker && tickerOverrides[ticker.toUpperCase()]) {
     return tickerOverrides[ticker.toUpperCase()];
