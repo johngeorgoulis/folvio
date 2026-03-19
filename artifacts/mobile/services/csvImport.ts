@@ -221,17 +221,19 @@ function parseLightyear(content: string): ParsedHolding[] {
   const rows = parseRows(content);
   const txs: RawTransaction[] = [];
   for (const row of rows) {
-    const type = col(row, "Type", "type").toUpperCase();
-    const isBuy = type === "BUY" || type === "PURCHASE";
-    const isSell = type === "SELL";
+    const type = col(row, "Type", "type").trim();
+    const isBuy = type.toLowerCase() === "buy";
+    const isSell = type.toLowerCase() === "sell";
     if (!isBuy && !isSell) continue;
-    const ticker = col(row, "Ticker", "ticker", "Symbol");
-    const qty = parseNum(col(row, "Quantity", "quantity", "Shares"));
-    const price = parseNum(col(row, "Price", "price", "Price per share"));
-    const currency = col(row, "Currency", "currency") || "EUR";
+    const ticker = col(row, "Ticker", "ticker", "Symbol").trim();
+    const isin = col(row, "ISIN", "isin").trim();
+    if (!ticker || ticker === "") continue;
+    const qty = parseNum(col(row, "Quantity", "quantity"));
+    const price = parseNum(col(row, "Price/share", "Price / share", "Price per share"));
+    const currency = col(row, "CCY", "Currency", "currency") || "EUR";
     const date = normalizeDate(col(row, "Date", "date"));
-    if (!ticker || qty <= 0) continue;
-    txs.push({ ticker, qty, price, currency, date, isBuy });
+    if (qty <= 0) continue;
+    txs.push({ ticker, isin, qty, price, currency, date, isBuy });
   }
   return aggregate(txs);
 }
