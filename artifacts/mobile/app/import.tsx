@@ -26,11 +26,12 @@ import {
   type ParsedHolding,
 } from "@/services/csvImport";
 import PremiumModal from "@/components/PremiumModal";
+import { resolveExchangeFromISIN } from "@/services/priceService";
 
 type DuplicateAction = "skip" | "merge" | "replace";
 
 interface ImportItem {
-  holding: ParsedHolding;
+  holding: ParsedHolding & { resolvedExchange: string };
   editedTicker: string;
   isDuplicate: boolean;
   existingId?: string;
@@ -436,10 +437,19 @@ export default function ImportScreen() {
     try {
       setParsing(true);
       const parsed = parseCSV(selectedBroker.key, csvContent);
+
+      // Resolve correct exchange for each holding via Yahoo Finance ISIN lookup
+      const parsedWithExchange = await Promise.all(
+        parsed.map(async (h) => ({
+          ...h,
+          resolvedExchange: await resolveExchangeFromISIN(h.isin ?? "", h.ticker),
+        }))
+      );
+
       const existingTickers = new Set(
         holdings.map((h) => h.ticker.toUpperCase()),
       );
-      const items: ImportItem[] = parsed.map((h) => {
+      const items: ImportItem[] = parsedWithExchange.map((h) => {
         const upperTicker = h.ticker.toUpperCase();
         const existing = holdings.find(
           (eh) => eh.ticker.toUpperCase() === upperTicker,
@@ -520,7 +530,7 @@ export default function ImportScreen() {
       const holdingData = {
         ticker,
         isin: item.holding.isin ?? "",
-        exchange: guessExchangeFromISIN(item.holding.isin ?? "", ticker),
+        exchange: item.holding.resolvedExchange ?? guessExchangeFromISIN(item.holding.isin ?? "", ticker),
         name: ticker,
         quantity: item.holding.quantity,
         avg_cost_eur: item.holding.avgCostEUR,

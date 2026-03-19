@@ -319,6 +319,71 @@ export async function searchTickers(query: string): Promise<SearchResult[]> {
   }
 }
 
+export async function resolveExchangeFromISIN(isin: string, ticker: string): Promise<string> {
+  if (!isin) return "XETRA";
+  try {
+    // Search Yahoo Finance by ISIN to find the correct listing
+    const results = await searchTickers(isin);
+    if (results.length === 0) return "XETRA";
+
+    // Prefer EUR-denominated listings, then by known EU exchanges
+    const EXCHANGE_PRIORITY: Record<string, number> = {
+      "GER": 1,   // XETRA
+      "XET": 1,
+      "AMS": 2,   // Euronext Amsterdam
+      "PAR": 3,   // Euronext Paris
+      "MIL": 4,   // Borsa Italiana
+      "EBS": 5,   // SIX Swiss
+      "LSE": 6,   // London
+      "BRU": 7,   // Euronext Brussels
+      "OSL": 8,   // Oslo
+    };
+
+    const EXCHANGE_MAP: Record<string, string> = {
+      "GER": "XETRA",
+      "XET": "XETRA",
+      "AMS": "EURONEXT_AMS",
+      "PAR": "EURONEXT_PAR",
+      "MIL": "BORSA_IT",
+      "EBS": "SIX",
+      "LSE": "LSE",
+      "BRU": "EURONEXT_PAR",
+      "OSL": "Other",
+    };
+
+    // Filter to only results matching our ticker
+    const matching = results.filter(r =>
+      r.symbol.toUpperCase().startsWith(ticker.toUpperCase())
+    );
+    const candidates = matching.length > 0 ? matching : results;
+
+    // Sort by priority
+    const sorted = candidates.sort((a, b) => {
+      const pa = EXCHANGE_PRIORITY[a.exchange] ?? 99;
+      const pb = EXCHANGE_PRIORITY[b.exchange] ?? 99;
+      return pa - pb;
+    });
+
+    const best = sorted[0];
+    const mapped = EXCHANGE_MAP[best.exchange];
+    if (mapped) return mapped;
+
+    // Fallback: derive from Yahoo symbol suffix
+    const suffix = best.symbol.split(".").pop()?.toUpperCase() ?? "";
+    const SUFFIX_MAP: Record<string, string> = {
+      "DE": "XETRA",
+      "AS": "EURONEXT_AMS",
+      "PA": "EURONEXT_PAR",
+      "MI": "BORSA_IT",
+      "SW": "SIX",
+      "L": "LSE",
+    };
+    return SUFFIX_MAP[suffix] ?? "XETRA";
+  } catch {
+    return "XETRA";
+  }
+}
+
 export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null> {
   const url = yahooChartUrl(symbol, "1d", "1y");
   try {
