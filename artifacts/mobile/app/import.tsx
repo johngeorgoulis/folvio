@@ -335,7 +335,7 @@ function guessExchangeFromISIN(isin: string, ticker?: string): string {
   // Ticker-specific overrides (known listings)
   const tickerOverrides: Record<string, string> = {
     "ERNE": "LSE",
-    "IEGE": "LSE",
+    "IEGE": "BORSA_IT",
     "CSBGE7": "SIX",
     "EGLN": "LSE",
     "VHYL": "EURONEXT_AMS",
