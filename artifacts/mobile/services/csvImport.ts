@@ -219,9 +219,15 @@ function parseTradeRepublic(content: string): ParsedHolding[] {
 
 function parseLightyear(content: string): ParsedHolding[] {
   const rows = parseRows(content);
+  console.log("[Lightyear] Total rows:", rows.length);
+  if (rows.length > 0) {
+    console.log("[Lightyear] First row keys:", Object.keys(rows[0]).join(" | "));
+    console.log("[Lightyear] First row values:", Object.values(rows[0]).join(" | "));
+  }
   const txs: RawTransaction[] = [];
   for (const row of rows) {
     const type = col(row, "Type", "type").trim();
+    console.log("[Lightyear] type value:", JSON.stringify(type));
     const isBuy = type.toLowerCase() === "buy";
     const isSell = type.toLowerCase() === "sell";
     if (!isBuy && !isSell) continue;
