@@ -327,6 +327,7 @@ function parseSaxo(content: string): ParsedHolding[] {
 }
 
 function parseRevolut(content: string): ParsedHolding[] {
+  console.log("[REVOLUT PARSER v2] content length:", content.length);
   const rows = parseRows(content);
   const txs: RawTransaction[] = [];
   for (const row of rows) {
