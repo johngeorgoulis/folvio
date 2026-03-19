@@ -142,15 +142,6 @@ function aggregate(txs: RawTransaction[]): ParsedHolding[] {
   return results;
 }
 
-function guessTickerFromName(name: string, isin?: string): { ticker: string; needsConfirmation: boolean } {
-  if (!name) return { ticker: isin ?? "UNKNOWN", needsConfirmation: true };
-  const words = name.trim().split(/\s+/);
-  const first = words[0];
-  if (/^[A-Z0-9]{2,8}$/.test(first)) return { ticker: first, needsConfirmation: false };
-  if (words.length >= 2 && /^[A-Z0-9]{2,8}$/.test(words[1])) return { ticker: words[1], needsConfirmation: false };
-  return { ticker: isin ?? name.substring(0, 8).toUpperCase(), needsConfirmation: true };
-}
-
 // ─── Broker Parsers ────────────────────────────────────────────────────────────
 
 function parseTrading212(content: string): ParsedHolding[] {
@@ -174,152 +165,20 @@ function parseTrading212(content: string): ParsedHolding[] {
   return aggregate(txs);
 }
 
-function parseDegiro(content: string): ParsedHolding[] {
+function parseIBKR(content: string): ParsedHolding[] {
   const rows = parseRows(content);
   const txs: RawTransaction[] = [];
   for (const row of rows) {
-    const desc = col(row, "Description", "description");
-    const isBuy = /^buy\b/i.test(desc);
-    const isSell = /^sell\b/i.test(desc);
+    const action = col(row, "Action", "action", "TransactionType", "Type").toLowerCase();
+    const isBuy = action.includes("buy");
+    const isSell = action.includes("sell");
     if (!isBuy && !isSell) continue;
-    const isin = col(row, "ISIN", "isin");
-    const productName = col(row, "Product", "product");
-    const { ticker, needsConfirmation } = guessTickerFromName(productName, isin);
-    const match = desc.match(/[\d,.]+ @\s*([\d,.]+)/);
-    const price = match ? parseNum(match[1]) : 0;
-    const qtyMatch = desc.match(/^(?:buy|sell)\s+([\d,.]+)/i);
-    const qty = qtyMatch ? parseNum(qtyMatch[1]) : 0;
-    const currency = col(row, "FX", "Currency") || "EUR";
-    const date = normalizeDate(col(row, "Date", "date"));
-    if (qty <= 0) continue;
-    txs.push({ ticker, isin, qty, price, currency, date, isBuy, instrumentName: productName, needsTickerConfirmation: needsConfirmation });
-  }
-  return aggregate(txs);
-}
-
-function parseTradeRepublic(content: string): ParsedHolding[] {
-  const rows = parseRows(content);
-  const txs: RawTransaction[] = [];
-  for (const row of rows) {
-    const type = col(row, "type", "Type").toLowerCase();
-    const isBuy = type === "buy" || type === "order";
-    const isSell = type === "sell";
-    if (!isBuy && !isSell) continue;
-    const isin = col(row, "instrument_isin", "isin");
-    const name = col(row, "instrument_name", "name");
-    const { ticker, needsConfirmation } = guessTickerFromName(name, isin);
-    const qty = parseNum(col(row, "shares", "quantity", "Shares"));
-    const price = parseNum(col(row, "average_price", "price", "Price"));
-    const date = normalizeDate(col(row, "date", "Date", "timestamp"));
-    if (qty <= 0) continue;
-    txs.push({ ticker, isin, qty, price, currency: "EUR", date, isBuy, instrumentName: name, needsTickerConfirmation: needsConfirmation });
-  }
-  return aggregate(txs);
-}
-
-function parseLightyear(content: string): ParsedHolding[] {
-  const rows = parseRows(content);
-  console.log("[Lightyear] Total rows:", rows.length);
-  if (rows.length > 0) {
-    console.log("[Lightyear] First row keys:", Object.keys(rows[0]).join(" | "));
-    console.log("[Lightyear] First row values:", Object.values(rows[0]).join(" | "));
-  }
-  const txs: RawTransaction[] = [];
-  for (const row of rows) {
-    const type = col(row, "Type", "type").trim();
-    console.log("[Lightyear] type value:", JSON.stringify(type));
-    const isBuy = type.toLowerCase() === "buy";
-    const isSell = type.toLowerCase() === "sell";
-    if (!isBuy && !isSell) continue;
-    const ticker = col(row, "Ticker", "ticker", "Symbol").trim();
+    const ticker = col(row, "Symbol", "symbol", "Ticker", "ticker").trim();
     const isin = col(row, "ISIN", "isin").trim();
-    if (!ticker || ticker === "") continue;
-    const qty = parseNum(col(row, "Quantity", "quantity"));
-    const price = parseNum(col(row, "Price/share", "Price / share", "Price per share"));
-    const currency = col(row, "CCY", "Currency", "currency") || "EUR";
-    const date = normalizeDate(col(row, "Date", "date"));
-    if (qty <= 0) continue;
-    txs.push({ ticker, isin, qty, price, currency, date, isBuy });
-  }
-  return aggregate(txs);
-}
-
-function parseFreedom24(content: string): ParsedHolding[] {
-  const rows = parseRows(content);
-  const txs: RawTransaction[] = [];
-  for (const row of rows) {
-    const op = col(row, "Operation", "operation", "Type", "type").toLowerCase();
-    const isBuy = op === "buy" || op.includes("purchase");
-    const isSell = op === "sell";
-    if (!isBuy && !isSell) continue;
-    const ticker = col(row, "Ticker", "ticker", "Symbol");
-    const isin = col(row, "ISIN", "isin");
-    const qty = parseNum(col(row, "Quantity", "quantity", "Shares"));
-    const price = parseNum(col(row, "Price", "price"));
-    const currency = col(row, "Currency", "currency") || "EUR";
-    const date = normalizeDate(col(row, "Date", "date"));
-    if (!ticker || qty <= 0) continue;
-    txs.push({ ticker, isin, qty, price, currency, date, isBuy });
-  }
-  return aggregate(txs);
-}
-
-function parseScalable(content: string): ParsedHolding[] {
-  const rows = parseRows(content);
-  const txs: RawTransaction[] = [];
-  for (const row of rows) {
-    const type = col(row, "Type", "type", "Typ").toLowerCase();
-    const isBuy = type === "buy" || type === "kauf";
-    const isSell = type === "sell" || type === "verkauf";
-    if (!isBuy && !isSell) continue;
-    const isin = col(row, "ISIN", "isin");
-    const name = col(row, "Name", "name", "Bezeichnung");
-    const { ticker, needsConfirmation } = guessTickerFromName(name, isin);
-    const qty = parseNum(col(row, "Shares", "shares", "Stücke", "Quantity"));
-    const price = parseNum(col(row, "Price", "price", "Kurs"));
-    const currency = col(row, "Currency", "currency", "Währung") || "EUR";
-    const date = normalizeDate(col(row, "Date", "date", "Datum"));
-    if (qty <= 0) continue;
-    txs.push({ ticker, isin, qty, price, currency, date, isBuy, instrumentName: name, needsTickerConfirmation: needsConfirmation });
-  }
-  return aggregate(txs);
-}
-
-function parseFlatex(content: string): ParsedHolding[] {
-  const rows = parseRows(content);
-  const txs: RawTransaction[] = [];
-  for (const row of rows) {
-    const typ = col(row, "Typ", "Type", "type").toLowerCase();
-    const isBuy = typ === "kauf" || typ === "buy";
-    const isSell = typ === "verkauf" || typ === "sell";
-    if (!isBuy && !isSell) continue;
-    const isin = col(row, "ISIN", "isin");
-    const name = col(row, "Bezeichnung", "Name", "name");
-    const { ticker, needsConfirmation } = guessTickerFromName(name, isin);
-    const qty = parseNum(col(row, "Stücke", "Shares", "Quantity", "Menge"));
-    const price = parseNum(col(row, "Kurs", "Price", "Preis"));
-    const currency = col(row, "Währung", "Currency", "currency") || "EUR";
-    const date = normalizeDate(col(row, "Datum", "Date", "date"));
-    if (qty <= 0) continue;
-    txs.push({ ticker, isin, qty, price, currency, date, isBuy, instrumentName: name, needsTickerConfirmation: needsConfirmation });
-  }
-  return aggregate(txs);
-}
-
-function parseSaxo(content: string): ParsedHolding[] {
-  const rows = parseRows(content);
-  const txs: RawTransaction[] = [];
-  for (const row of rows) {
-    const side = col(row, "Buy/Sell", "Side", "Direction", "type").toLowerCase();
-    const isBuy = side === "buy" || side === "b";
-    const isSell = side === "sell" || side === "s";
-    if (!isBuy && !isSell) continue;
-    const ticker = col(row, "Instrument", "Symbol", "Ticker", "ticker");
-    const isin = col(row, "ISIN", "isin");
-    const qty = parseNum(col(row, "Quantity", "quantity", "Shares", "Amount"));
-    const price = parseNum(col(row, "Price", "price", "Trade Price"));
-    const currency = col(row, "Currency", "currency") || "EUR";
-    const date = normalizeDate(col(row, "Date", "date", "Trade Date"));
+    const qty = Math.abs(parseNum(col(row, "Quantity", "quantity", "Qty")));
+    const price = parseNum(col(row, "TradePrice", "Price", "price", "T. Price"));
+    const currency = col(row, "CurrencyPrimary", "Currency", "currency") || "EUR";
+    const date = normalizeDate(col(row, "TradeDate", "Date", "date", "SettleDate"));
     if (!ticker || qty <= 0) continue;
     txs.push({ ticker, isin, qty, price, currency, date, isBuy });
   }
@@ -393,96 +252,18 @@ export const BROKER_CONFIGS: BrokerConfig[] = [
     parse: parseTrading212,
   },
   {
-    key: "degiro",
-    name: "Degiro",
+    key: "ibkr",
+    name: "Interactive Brokers",
     emoji: "🔵",
-    label: "Account CSV",
+    label: "Activity CSV",
     instructions: [
-      "Login to Degiro",
-      "Go to Activity → Account Overview",
-      "Select your full date range",
-      "Click Export → CSV",
-      "Upload the downloaded CSV below",
-    ],
-    parse: parseDegiro,
-  },
-  {
-    key: "traderepublic",
-    name: "Trade Republic",
-    emoji: "⚫",
-    label: "Trades CSV",
-    instructions: [
-      "Open the Trade Republic app",
-      "Go to Profile → Documents",
-      "Select Transaction History → Export CSV",
-      "Upload the downloaded CSV below",
-    ],
-    parse: parseTradeRepublic,
-  },
-  {
-    key: "lightyear",
-    name: "Lightyear",
-    emoji: "🟡",
-    label: "Portfolio CSV",
-    instructions: [
-      "Open the Lightyear app",
-      "Go to Account → Statements",
-      "Export transaction history CSV",
-      "Upload the downloaded CSV below",
-    ],
-    parse: parseLightyear,
-  },
-  {
-    key: "freedom24",
-    name: "Freedom24",
-    emoji: "🟠",
-    label: "Orders CSV",
-    instructions: [
-      "Login to Freedom24 web platform",
-      "Go to My Money → Reports",
-      "Export trades as CSV",
-      "Upload the downloaded CSV below",
-    ],
-    parse: parseFreedom24,
-  },
-  {
-    key: "scalable",
-    name: "Scalable Capital",
-    emoji: "🔴",
-    label: "Trades CSV",
-    instructions: [
-      "Login to Scalable Capital",
-      "Go to Documents → Transaction History",
-      "Export CSV",
-      "Upload the downloaded CSV below",
-    ],
-    parse: parseScalable,
-  },
-  {
-    key: "flatex",
-    name: "Flatex",
-    emoji: "🟣",
-    label: "Transactions CSV",
-    instructions: [
-      "Login to Flatex",
-      "Go to Reports → Transaction History",
-      "Export as CSV (German headers expected)",
-      "Upload the downloaded CSV below",
-    ],
-    parse: parseFlatex,
-  },
-  {
-    key: "saxo",
-    name: "Saxo Bank",
-    emoji: "🔷",
-    label: "Orders CSV",
-    instructions: [
-      "Login to Saxo Bank",
-      "Go to Account → Reports → Trade History",
+      "Login to IBKR Client Portal or TWS",
+      "Go to Reports → Activity → Flex Query",
+      "Create a Trade Confirmation flex query",
       "Export as CSV",
       "Upload the downloaded CSV below",
     ],
-    parse: parseSaxo,
+    parse: parseIBKR,
   },
   {
     key: "revolut",
