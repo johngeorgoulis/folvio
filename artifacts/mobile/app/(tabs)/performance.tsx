@@ -518,7 +518,7 @@ export default function PerformanceScreen() {
   const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
   const [loadingChart, setLoadingChart] = useState(true);
 
-  const [isPremium, setIsPremium] = useState(false);
+  const [isPremium, setIsPremium] = useState(true); // TODO: wire to RevenueCat before release
   const [defaultBenchmark, setDefaultBenchmark] = useState<BenchmarkItem>(DEFAULT_BENCHMARK);
   const [showPremium, setShowPremium] = useState(false);
 
