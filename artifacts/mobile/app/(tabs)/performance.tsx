@@ -233,53 +233,67 @@ function BenchmarkComparisonSection({
   width: number;
 }) {
   const theme = Colors.dark;
-  const [range, setRange] = useState<BenchRange>("1M");
+  const { holdings, totalInvested, totalPortfolioValue } = usePortfolio();
   const [activeBench, setActiveBench] = useState<BenchmarkItem>(defaultBenchmark);
-  const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
-  const [benchData, setBenchData] = useState<ChartPoint[]>([]);
+  const [benchReturn, setBenchReturn] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setActiveBench(defaultBenchmark);
   }, [defaultBenchmark]);
 
-  const loadData = useCallback(async () => {
-    if (!isPremium) return;
+  // Find earliest purchase date across all holdings
+  const earliestDate = useMemo(() => {
+    if (holdings.length === 0) return null;
+    const dates = holdings
+      .map((h) => h.purchase_date)
+      .filter(Boolean)
+      .sort();
+    return dates[0] ?? null;
+  }, [holdings]);
+
+  // Fetch benchmark return from earliest purchase date to now
+  const loadBenchmark = useCallback(async () => {
+    if (!isPremium || !earliestDate) return;
     setLoading(true);
     try {
-      const [snaps, bench] = await Promise.all([
-        getSnapshots(range),
-        fetchChartHistory(activeBench.symbol, range),
-      ]);
-      setSnapshots(snaps);
-      setBenchData(bench);
+      // Determine range based on how long ago the earliest purchase was
+      const daysSince = Math.floor(
+        (Date.now() - new Date(earliestDate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      let range = "1Y";
+      if (daysSince <= 7) range = "1W";
+      else if (daysSince <= 30) range = "1M";
+      else if (daysSince <= 90) range = "3M";
+      else if (daysSince <= 180) range = "6M";
+      else if (daysSince <= 365) range = "1Y";
+      else range = "All";
+
+      const history = await fetchChartHistory(activeBench.symbol, range);
+      if (history.length >= 2) {
+        const start = history[0].priceEUR;
+        const end = history[history.length - 1].priceEUR;
+        setBenchReturn(start > 0 ? ((end - start) / start) * 100 : null);
+      } else {
+        setBenchReturn(null);
+      }
+    } catch {
+      setBenchReturn(null);
     } finally {
       setLoading(false);
     }
-  }, [isPremium, range, activeBench]);
+  }, [isPremium, activeBench, earliestDate]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadBenchmark();
+  }, [loadBenchmark]);
 
-  const { portfolioNorm, benchNorm } = useMemo(() => {
-    const portValues = snapshots.map((s) => s.totalValueEUR).filter((v) => v > 0);
-    const benchValues = benchData.map((b) => b.priceEUR).filter((v) => v > 0);
+  // Portfolio return %
+  const portfolioReturn = totalInvested > 0
+    ? ((totalPortfolioValue - totalInvested) / totalInvested) * 100
+    : 0;
 
-    if (portValues.length < 2 || benchValues.length < 2) {
-      return { portfolioNorm: portValues.length >= 2 ? portValues.map((v) => (v / portValues[0]) * 100) : [], benchNorm: benchValues.length >= 2 ? benchValues.map((v) => (v / benchValues[0]) * 100) : [] };
-    }
-
-    const portStart = portValues[0];
-    const benchStart = benchValues[0];
-    return {
-      portfolioNorm: portValues.map((v) => (v / portStart) * 100),
-      benchNorm: benchValues.map((v) => (v / benchStart) * 100),
-    };
-  }, [snapshots, benchData]);
-
-  const hasPortfolioData = portfolioNorm.length >= 2;
-  const hasBenchData = benchNorm.length >= 2;
+  const diff = benchReturn !== null ? portfolioReturn - benchReturn : null;
 
   if (!isPremium) {
     return (
@@ -287,10 +301,9 @@ function BenchmarkComparisonSection({
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Benchmark Comparison</Text>
         <View style={styles.benchmarkBlur}>
           <View style={[styles.fakeLine, { backgroundColor: "#C9A84C55", top: 38, width: "80%" }]} />
-          <View style={[styles.fakeLine, { backgroundColor: "#8A9BB055", top: 56, width: "90%", borderStyle: "dashed" }]} />
+          <View style={[styles.fakeLine, { backgroundColor: "#8A9BB055", top: 56, width: "90%" }]} />
           <View style={[styles.fakeLine, { backgroundColor: "#C9A84C44", top: 80, width: "65%" }]} />
           <View style={[styles.fakeLine, { backgroundColor: "#8A9BB044", top: 100, width: "75%" }]} />
-          <View style={[styles.fakeLine, { backgroundColor: "#C9A84C33", top: 118, width: "85%" }]} />
         </View>
         <View style={styles.premiumOverlay}>
           <TouchableOpacity
@@ -311,32 +324,10 @@ function BenchmarkComparisonSection({
 
   return (
     <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-      {/* Title row */}
-      <View style={styles.chartHeader}>
-        <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>Benchmark Comparison</Text>
-        <View style={styles.rangeRow}>
-          {BENCH_RANGES.map((r) => (
-            <TouchableOpacity
-              key={r}
-              style={[
-                styles.rangeBtn,
-                {
-                  backgroundColor: range === r ? theme.tint + "22" : "transparent",
-                  borderColor: range === r ? theme.tint : "transparent",
-                },
-              ]}
-              onPress={() => setRange(r)}
-            >
-              <Text style={[styles.rangeBtnText, { color: range === r ? theme.tint : theme.textTertiary }]}>
-                {r}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>Benchmark Comparison</Text>
 
       {/* Benchmark picker */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
         <View style={{ flexDirection: "row", gap: 6 }}>
           {BENCHMARKS.map((bm) => (
             <TouchableOpacity
@@ -358,28 +349,39 @@ function BenchmarkComparisonSection({
         </View>
       </ScrollView>
 
-      {/* Chart area */}
-      {loading ? (
-        <View style={[styles.chartPlaceholder, { height: BCHART_H }]}>
-          <ActivityIndicator size="small" color={theme.tint} />
-        </View>
-      ) : !hasPortfolioData && !hasBenchData ? (
-        <View style={[styles.chartPlaceholder, { height: BCHART_H }]}>
-          <Feather name="bar-chart-2" size={28} color={theme.textTertiary} />
-          <Text style={[styles.chartEmptyTitle, { color: theme.text }]}>No data yet</Text>
-          <Text style={[styles.chartEmptySub, { color: theme.textSecondary }]}>
-            Build portfolio history by opening the app daily. Benchmark data requires a live connection.
-          </Text>
-        </View>
-      ) : (
-        <DualLineChart
-          portfolioNorm={portfolioNorm}
-          benchNorm={benchNorm}
-          portfolioLabel="Your Portfolio"
-          benchLabel={activeBench.label}
-          width={width - 36}
-        />
+      {/* Since date */}
+      {earliestDate && (
+        <Text style={[{ fontSize: 11, fontFamily: "Inter_400Regular", color: theme.textTertiary, marginBottom: 14 }]}>
+          Since {earliestDate} (your first purchase)
+        </Text>
       )}
+
+      {loading ? (
+        <ActivityIndicator size="small" color={theme.tint} style={{ marginVertical: 20 }} />
+      ) : (
+        <View style={[dStyles.summaryBox, { backgroundColor: theme.backgroundElevated, borderRadius: 10 }]}>
+          <SummaryRow label="Your Portfolio" value={portfolioReturn} theme={theme} />
+          <SummaryRow label={activeBench.label} value={benchReturn ?? 0} theme={theme} />
+          <View style={[dStyles.summaryDivider, { backgroundColor: theme.border }]} />
+          <View style={dStyles.summaryRow}>
+            <Text style={[dStyles.summaryLabel, { color: theme.textSecondary }]}>Difference</Text>
+            {diff !== null ? (
+              <Text style={[dStyles.summaryValue, { color: diff >= 0 ? theme.positive : theme.negative }]}>
+                {diff >= 0 ? "+" : ""}{diff.toFixed(2)}%{" "}
+                <Text style={[dStyles.summaryNote, { color: diff >= 0 ? theme.positive : theme.negative }]}>
+                  ({diff >= 0 ? "outperforming" : "underperforming"})
+                </Text>
+              </Text>
+            ) : (
+              <Text style={[dStyles.summaryValue, { color: theme.textTertiary }]}>—</Text>
+            )}
+          </View>
+        </View>
+      )}
+
+      <Text style={[dStyles.disclaimer, { color: theme.textTertiary }]}>
+        Portfolio return based on avg cost vs current price. Benchmark return over same period.
+      </Text>
     </View>
   );
 }

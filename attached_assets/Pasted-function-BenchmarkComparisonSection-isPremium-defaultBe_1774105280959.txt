@@ -1,0 +1,164 @@
+function BenchmarkComparisonSection({
+  isPremium,
+  defaultBenchmark,
+  onUpgrade,
+  width,
+}: {
+  isPremium: boolean;
+  defaultBenchmark: BenchmarkItem;
+  onUpgrade: () => void;
+  width: number;
+}) {
+  const theme = Colors.dark;
+  const { holdings, totalInvested, totalPortfolioValue } = usePortfolio();
+  const [activeBench, setActiveBench] = useState<BenchmarkItem>(defaultBenchmark);
+  const [benchReturn, setBenchReturn] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setActiveBench(defaultBenchmark);
+  }, [defaultBenchmark]);
+
+  // Find earliest purchase date across all holdings
+  const earliestDate = useMemo(() => {
+    if (holdings.length === 0) return null;
+    const dates = holdings
+      .map((h) => h.purchase_date)
+      .filter(Boolean)
+      .sort();
+    return dates[0] ?? null;
+  }, [holdings]);
+
+  // Fetch benchmark return from earliest purchase date to now
+  const loadBenchmark = useCallback(async () => {
+    if (!isPremium || !earliestDate) return;
+    setLoading(true);
+    try {
+      // Determine range based on how long ago the earliest purchase was
+      const daysSince = Math.floor(
+        (Date.now() - new Date(earliestDate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      let range = "1Y";
+      if (daysSince <= 7) range = "1W";
+      else if (daysSince <= 30) range = "1M";
+      else if (daysSince <= 90) range = "3M";
+      else if (daysSince <= 180) range = "6M";
+      else if (daysSince <= 365) range = "1Y";
+      else range = "All";
+
+      const history = await fetchChartHistory(activeBench.symbol, range);
+      if (history.length >= 2) {
+        const start = history[0].priceEUR;
+        const end = history[history.length - 1].priceEUR;
+        setBenchReturn(start > 0 ? ((end - start) / start) * 100 : null);
+      } else {
+        setBenchReturn(null);
+      }
+    } catch {
+      setBenchReturn(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [isPremium, activeBench, earliestDate]);
+
+  useEffect(() => {
+    loadBenchmark();
+  }, [loadBenchmark]);
+
+  // Portfolio return %
+  const portfolioReturn = totalInvested > 0
+    ? ((totalPortfolioValue - totalInvested) / totalInvested) * 100
+    : 0;
+
+  const diff = benchReturn !== null ? portfolioReturn - benchReturn : null;
+
+  if (!isPremium) {
+    return (
+      <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border, overflow: "hidden" }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Benchmark Comparison</Text>
+        <View style={styles.benchmarkBlur}>
+          <View style={[styles.fakeLine, { backgroundColor: "#C9A84C55", top: 38, width: "80%" }]} />
+          <View style={[styles.fakeLine, { backgroundColor: "#8A9BB055", top: 56, width: "90%" }]} />
+          <View style={[styles.fakeLine, { backgroundColor: "#C9A84C44", top: 80, width: "65%" }]} />
+          <View style={[styles.fakeLine, { backgroundColor: "#8A9BB044", top: 100, width: "75%" }]} />
+        </View>
+        <View style={styles.premiumOverlay}>
+          <TouchableOpacity
+            style={[styles.premiumBadge, { backgroundColor: theme.tint + "22", borderColor: theme.tint + "44" }]}
+            onPress={onUpgrade}
+            activeOpacity={0.8}
+          >
+            <Feather name="lock" size={16} color={theme.tint} />
+            <Text style={[styles.premiumText, { color: theme.tint }]}>Premium Feature</Text>
+          </TouchableOpacity>
+          <Text style={[styles.premiumSub, { color: theme.textSecondary }]}>
+            Upgrade to compare your portfolio{"\n"}against S&P 500, MSCI World, DAX & more
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>Benchmark Comparison</Text>
+
+      {/* Benchmark picker */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+        <View style={{ flexDirection: "row", gap: 6 }}>
+          {BENCHMARKS.map((bm) => (
+            <TouchableOpacity
+              key={bm.symbol}
+              style={[
+                styles.benchChip,
+                {
+                  backgroundColor: activeBench.symbol === bm.symbol ? theme.deepBlue : theme.backgroundElevated,
+                  borderColor: activeBench.symbol === bm.symbol ? theme.tint : theme.border,
+                },
+              ]}
+              onPress={() => setActiveBench(bm)}
+            >
+              <Text style={[styles.benchChipText, { color: activeBench.symbol === bm.symbol ? theme.tint : theme.textSecondary }]}>
+                {bm.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+
+      {/* Since date */}
+      {earliestDate && (
+        <Text style={[{ fontSize: 11, fontFamily: "Inter_400Regular", color: theme.textTertiary, marginBottom: 14 }]}>
+          Since {earliestDate} (your first purchase)
+        </Text>
+      )}
+
+      {loading ? (
+        <ActivityIndicator size="small" color={theme.tint} style={{ marginVertical: 20 }} />
+      ) : (
+        <View style={[dStyles.summaryBox, { backgroundColor: theme.backgroundElevated, borderRadius: 10 }]}>
+          <SummaryRow label="Your Portfolio" value={portfolioReturn} theme={theme} />
+          <SummaryRow label={activeBench.label} value={benchReturn ?? 0} theme={theme} />
+          <View style={[dStyles.summaryDivider, { backgroundColor: theme.border }]} />
+          <View style={dStyles.summaryRow}>
+            <Text style={[dStyles.summaryLabel, { color: theme.textSecondary }]}>Difference</Text>
+            {diff !== null ? (
+              <Text style={[dStyles.summaryValue, { color: diff >= 0 ? theme.positive : theme.negative }]}>
+                {diff >= 0 ? "+" : ""}{diff.toFixed(2)}%{" "}
+                <Text style={[dStyles.summaryNote, { color: diff >= 0 ? theme.positive : theme.negative }]}>
+                  ({diff >= 0 ? "outperforming" : "underperforming"})
+                </Text>
+              </Text>
+            ) : (
+              <Text style={[dStyles.summaryValue, { color: theme.textTertiary }]}>—</Text>
+            )}
+          </View>
+        </View>
+      )}
+
+      <Text style={[dStyles.disclaimer, { color: theme.textTertiary }]}>
+        Portfolio return based on avg cost vs current price. Benchmark return over same period.
+      </Text>
+    </View>
+  );
+}
