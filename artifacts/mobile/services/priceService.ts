@@ -320,67 +320,73 @@ export async function searchTickers(query: string): Promise<SearchResult[]> {
 }
 
 export async function resolveExchangeFromISIN(isin: string, ticker: string): Promise<string> {
-  if (!isin) return "XETRA";
+  // Static overrides — highest priority, known correct listings
+  const STATIC_OVERRIDES: Record<string, string> = {
+    "VWCE": "XETRA",
+    "VWRL": "XETRA",
+    "IWDA": "EURONEXT_AMS",
+    "VHYL": "EURONEXT_AMS",
+    "TDIV": "EURONEXT_AMS",
+    "EGLN": "LSE",
+    "CSBGE7": "SIX",
+    "ERNE": "LSE",
+    "IEGE": "BORSA_IT",
+    "VUSA": "LSE",
+    "EQQQ": "XETRA",
+    "VGOV": "LSE",
+  };
+
+  const upper = ticker.toUpperCase();
+  if (STATIC_OVERRIDES[upper]) return STATIC_OVERRIDES[upper];
+
+  // Try ticker-based Yahoo search (more reliable than ISIN search)
   try {
-    // Search Yahoo Finance by ISIN to find the correct listing
-    const results = await searchTickers(isin);
-    if (results.length === 0) return "XETRA";
-
-    // Prefer EUR-denominated listings, then by known EU exchanges
-    const EXCHANGE_PRIORITY: Record<string, number> = {
-      "GER": 1,   // XETRA
-      "XET": 1,
-      "AMS": 2,   // Euronext Amsterdam
-      "PAR": 3,   // Euronext Paris
-      "MIL": 4,   // Borsa Italiana
-      "EBS": 5,   // SIX Swiss
-      "LSE": 6,   // London
-      "BRU": 7,   // Euronext Brussels
-      "OSL": 8,   // Oslo
-    };
-
-    const EXCHANGE_MAP: Record<string, string> = {
-      "GER": "XETRA",
-      "XET": "XETRA",
-      "AMS": "EURONEXT_AMS",
-      "PAR": "EURONEXT_PAR",
-      "MIL": "BORSA_IT",
-      "EBS": "SIX",
-      "LSE": "LSE",
-      "BRU": "EURONEXT_PAR",
-      "OSL": "Other",
-    };
-
-    // Filter to only results matching our ticker
-    const matching = results.filter(r =>
-      r.symbol.toUpperCase().startsWith(ticker.toUpperCase())
-    );
-    const candidates = matching.length > 0 ? matching : results;
-
-    // Sort by priority
-    const sorted = candidates.sort((a, b) => {
-      const pa = EXCHANGE_PRIORITY[a.exchange] ?? 99;
-      const pb = EXCHANGE_PRIORITY[b.exchange] ?? 99;
-      return pa - pb;
-    });
-
-    const best = sorted[0];
-    const mapped = EXCHANGE_MAP[best.exchange];
-    if (mapped) return mapped;
-
-    // Fallback: derive from Yahoo symbol suffix
-    const suffix = best.symbol.split(".").pop()?.toUpperCase() ?? "";
-    const SUFFIX_MAP: Record<string, string> = {
-      "DE": "XETRA",
-      "AS": "EURONEXT_AMS",
-      "PA": "EURONEXT_PAR",
-      "MI": "BORSA_IT",
-      "SW": "SIX",
-      "L": "LSE",
-    };
-    return SUFFIX_MAP[suffix] ?? "XETRA";
+    const results = await searchTickers(ticker);
+    if (results.length > 0) {
+      const EXCHANGE_PRIORITY: Record<string, number> = {
+        "GER": 1, "XET": 1,
+        "AMS": 2, "PAR": 3,
+        "MIL": 4, "EBS": 5,
+        "LSE": 6, "BRU": 7,
+      };
+      const EXCHANGE_MAP: Record<string, string> = {
+        "GER": "XETRA", "XET": "XETRA",
+        "AMS": "EURONEXT_AMS", "PAR": "EURONEXT_PAR",
+        "MIL": "BORSA_IT", "EBS": "SIX",
+        "LSE": "LSE", "BRU": "EURONEXT_PAR",
+      };
+      const matching = results.filter(r =>
+        r.symbol.toUpperCase().startsWith(upper)
+      );
+      const candidates = matching.length > 0 ? matching : results.slice(0, 3);
+      const sorted = candidates.sort((a, b) =>
+        (EXCHANGE_PRIORITY[a.exchange] ?? 99) - (EXCHANGE_PRIORITY[b.exchange] ?? 99)
+      );
+      const best = sorted[0];
+      if (EXCHANGE_MAP[best.exchange]) return EXCHANGE_MAP[best.exchange];
+      // Derive from symbol suffix
+      const suffix = best.symbol.split(".").pop()?.toUpperCase() ?? "";
+      const SUFFIX_MAP: Record<string, string> = {
+        "DE": "XETRA", "AS": "EURONEXT_AMS", "PA": "EURONEXT_PAR",
+        "MI": "BORSA_IT", "SW": "SIX", "L": "LSE",
+      };
+      if (SUFFIX_MAP[suffix]) return SUFFIX_MAP[suffix];
+    }
   } catch {
-    return "XETRA";
+    // fall through to ISIN-based fallback
+  }
+
+  // ISIN country fallback
+  if (!isin) return "XETRA";
+  const country = isin.substring(0, 2).toUpperCase();
+  switch (country) {
+    case "IE": return "XETRA";
+    case "NL": return "EURONEXT_AMS";
+    case "LU": return "EURONEXT_PAR";
+    case "FR": return "EURONEXT_PAR";
+    case "GB": return "LSE";
+    case "DE": return "XETRA";
+    default:   return "XETRA";
   }
 }
 

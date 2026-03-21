@@ -1,0 +1,70 @@
+export async function resolveExchangeFromISIN(isin: string, ticker: string): Promise<string> {
+  // Static overrides — highest priority, known correct listings
+  const STATIC_OVERRIDES: Record<string, string> = {
+    "VWCE": "XETRA",
+    "VWRL": "XETRA",
+    "IWDA": "EURONEXT_AMS",
+    "VHYL": "EURONEXT_AMS",
+    "TDIV": "EURONEXT_AMS",
+    "EGLN": "LSE",
+    "CSBGE7": "SIX",
+    "ERNE": "LSE",
+    "IEGE": "BORSA_IT",
+    "VUSA": "LSE",
+    "EQQQ": "XETRA",
+    "VGOV": "LSE",
+  };
+
+  const upper = ticker.toUpperCase();
+  if (STATIC_OVERRIDES[upper]) return STATIC_OVERRIDES[upper];
+
+  // Try ticker-based Yahoo search (more reliable than ISIN search)
+  try {
+    const results = await searchTickers(ticker);
+    if (results.length > 0) {
+      const EXCHANGE_PRIORITY: Record<string, number> = {
+        "GER": 1, "XET": 1,
+        "AMS": 2, "PAR": 3,
+        "MIL": 4, "EBS": 5,
+        "LSE": 6, "BRU": 7,
+      };
+      const EXCHANGE_MAP: Record<string, string> = {
+        "GER": "XETRA", "XET": "XETRA",
+        "AMS": "EURONEXT_AMS", "PAR": "EURONEXT_PAR",
+        "MIL": "BORSA_IT", "EBS": "SIX",
+        "LSE": "LSE", "BRU": "EURONEXT_PAR",
+      };
+      const matching = results.filter(r =>
+        r.symbol.toUpperCase().startsWith(upper)
+      );
+      const candidates = matching.length > 0 ? matching : results.slice(0, 3);
+      const sorted = candidates.sort((a, b) =>
+        (EXCHANGE_PRIORITY[a.exchange] ?? 99) - (EXCHANGE_PRIORITY[b.exchange] ?? 99)
+      );
+      const best = sorted[0];
+      if (EXCHANGE_MAP[best.exchange]) return EXCHANGE_MAP[best.exchange];
+      // Derive from symbol suffix
+      const suffix = best.symbol.split(".").pop()?.toUpperCase() ?? "";
+      const SUFFIX_MAP: Record<string, string> = {
+        "DE": "XETRA", "AS": "EURONEXT_AMS", "PA": "EURONEXT_PAR",
+        "MI": "BORSA_IT", "SW": "SIX", "L": "LSE",
+      };
+      if (SUFFIX_MAP[suffix]) return SUFFIX_MAP[suffix];
+    }
+  } catch {
+    // fall through to ISIN-based fallback
+  }
+
+  // ISIN country fallback
+  if (!isin) return "XETRA";
+  const country = isin.substring(0, 2).toUpperCase();
+  switch (country) {
+    case "IE": return "XETRA";
+    case "NL": return "EURONEXT_AMS";
+    case "LU": return "EURONEXT_PAR";
+    case "FR": return "EURONEXT_PAR";
+    case "GB": return "LSE";
+    case "DE": return "XETRA";
+    default:   return "XETRA";
+  }
+}
