@@ -18,7 +18,7 @@ import {
   type HoldingRow,
   type PriceCacheRow,
 } from "@/services/db";
-import { refreshAllPrices } from "@/services/priceService";
+import { refreshAllPrices, fetchDividendYield } from "@/services/priceService";
 import { takeSnapshot } from "@/services/snapshotService";
 
 export const EXCHANGES = [
@@ -137,6 +137,25 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     setIsRefreshingPrices(true);
     try {
       await refreshAllPrices(rows);
+
+      // Auto-fetch dividend yields for holdings that don't have one set
+      for (const row of rows) {
+        if (row.yield_pct === null || row.yield_pct === undefined) {
+          try {
+            const yld = await fetchDividendYield(row.ticker, row.exchange);
+            if (yld !== null && yld > 0) {
+              await dbUpdateHolding(row.id, { yield_pct: yld });
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+      // Reload after yield updates
+      const updatedRows = await getAllHoldings();
+      setHoldingRows(updatedRows);
+      holdingRowsRef.current = updatedRows;
+
       const priceRows = await getAllPrices();
       setPrices(priceRows);
 

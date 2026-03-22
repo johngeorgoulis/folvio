@@ -449,6 +449,24 @@ export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null
   }
 }
 
+export async function fetchDividendYield(ticker: string, exchange: string): Promise<number | null> {
+  const symbol = buildYahooSymbol(ticker, exchange);
+  const url = yahooChartUrl(symbol, "1d", "1y");
+  try {
+    const res = await fetch(url, { headers: YAHOO_HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const meta = data?.chart?.result?.[0]?.meta;
+    if (!meta) return null;
+    // trailingAnnualDividendYield is a decimal (e.g. 0.034 = 3.4%)
+    const yld: number | undefined = meta.trailingAnnualDividendYield;
+    if (yld && yld > 0) return Math.round(yld * 10000) / 100; // convert to %
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchChartHistory(symbol: string, range: string): Promise<ChartPoint[]> {
   const cfg = CHART_INTERVALS[range] ?? { interval: "1d", range: "1mo" };
   const url = yahooChartUrl(symbol, cfg.interval, cfg.range);
