@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { usePortfolio } from "@/context/PortfolioContext";
 import {
   fetchSymbolPrice,
   searchTickers,
@@ -166,6 +167,30 @@ export default function SearchScreen() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
 
+  const { holdings } = usePortfolio();
+
+  const userETFs = useMemo(() => {
+    return holdings.map(h => ({
+      symbol: h.ticker + (
+        h.exchange === "XETRA" ? ".DE" :
+        h.exchange === "EURONEXT_AMS" ? ".AS" :
+        h.exchange === "EURONEXT_PAR" ? ".PA" :
+        h.exchange === "LSE" ? ".L" :
+        h.exchange === "BORSA_IT" ? ".MI" :
+        h.exchange === "SIX" ? ".SW" : ""
+      ),
+      ticker: h.ticker,
+      name: h.name || h.ticker,
+      isInPortfolio: true,
+    }));
+  }, [holdings]);
+
+  const displayETFs = useMemo(() => {
+    const userTickers = new Set(userETFs.map(e => e.ticker));
+    const extra = POPULAR_ETFS.filter(e => !userTickers.has(e.ticker));
+    return [...userETFs, ...extra].slice(0, 8);
+  }, [userETFs]);
+
   useEffect(() => {
     const all = [...POPULAR_ETFS, ...POPULAR_STOCKS];
     Promise.allSettled(all.map((item) => fetchSymbolPrice(item.symbol))).then(
@@ -250,7 +275,7 @@ export default function SearchScreen() {
         {showHome && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Popular ETFs</Text>
+              <Text style={styles.sectionTitle}>{userETFs.length > 0 ? "Your ETFs" : "Popular ETFs"}</Text>
             </View>
             <ScrollView
               horizontal
@@ -258,7 +283,7 @@ export default function SearchScreen() {
               contentContainerStyle={styles.horizontalList}
               keyboardShouldPersistTaps="handled"
             >
-              {POPULAR_ETFS.map((item) => (
+              {displayETFs.map((item) => (
                 <PopularCard
                   key={item.symbol}
                   {...item}

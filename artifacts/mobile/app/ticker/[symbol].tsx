@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -22,8 +23,16 @@ import {
   type ChartPoint,
   type TickerMeta,
 } from "@/services/priceService";
+import { getAssetClass, getTER } from "@/services/assetClassService";
 
 const theme = Colors.dark;
+
+const KNOWN_YIELDS_MAP: Record<string, number> = {
+  "VHYL": 3.4, "TDIV": 3.8, "VWRL": 1.6, "VWCE": 0.0,
+  "IWDA": 0.0, "EGLN": 0.0, "CSBGE7": 2.8, "ERNE": 3.9,
+  "IEGE": 3.2, "VUAA": 0.0, "CSPX": 1.2, "SWDA": 0.0,
+  "IDVY": 3.8, "IHYG": 5.8, "AGGH": 3.1, "VGOV": 2.1,
+};
 const SCREEN_W = Dimensions.get("window").width;
 const CHART_W = SCREEN_W - 32;
 const RANGES = ["1D", "1W", "1M", "3M", "6M", "1Y", "All"] as const;
@@ -135,6 +144,7 @@ export default function TickerDetailScreen() {
   const [metaError, setMetaError] = useState(false);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [rangePerf, setRangePerf] = useState<number | null>(null);
 
   const safeSymbol = symbol ?? "";
 
@@ -178,11 +188,19 @@ export default function TickerDetailScreen() {
     setRange(r);
     if (r === "1Y") {
       setChartData(yearData);
+      const p = yearData.length >= 2
+        ? ((yearData[yearData.length - 1].priceEUR - yearData[0].priceEUR) / yearData[0].priceEUR) * 100
+        : null;
+      setRangePerf(p);
       return;
     }
     setLoadingChart(true);
     const d = await fetchChartHistory(safeSymbol, r);
     setChartData(d);
+    const p = d.length >= 2
+      ? ((d[d.length - 1].priceEUR - d[0].priceEUR) / d[0].priceEUR) * 100
+      : null;
+    setRangePerf(p);
     setLoadingChart(false);
   }
 
@@ -204,6 +222,11 @@ export default function TickerDetailScreen() {
   }
 
   const isETF = meta?.quoteType === "ETF" || meta?.quoteType === "MUTUALFUND";
+  const cleanTicker = symbolToTicker(safeSymbol);
+  const ter = getTER(cleanTicker);
+  const assetClass = getAssetClass(cleanTicker);
+  const knownYield = KNOWN_YIELDS_MAP[cleanTicker.toUpperCase()];
+  const isin = holdings.find(h => h.ticker.toUpperCase() === cleanTicker.toUpperCase())?.isin ?? "";
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const bottomPad = Platform.OS === "web" ? 24 : insets.bottom + 24;
 
@@ -276,7 +299,7 @@ export default function TickerDetailScreen() {
         <View style={styles.headerCard}>
           <View style={styles.headerTop}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.symbolText}>{meta.symbol}</Text>
+              <Text style={styles.symbolText}>{symbolToTicker(safeSymbol)}</Text>
               <Text style={styles.nameText} numberOfLines={2}>{meta.longName || meta.shortName}</Text>
             </View>
             <View style={styles.badgeGroup}>
@@ -344,6 +367,18 @@ export default function TickerDetailScreen() {
           ) : (
             <PriceChart data={chartData} width={CHART_W - 32} height={200} range={range} />
           )}
+          {rangePerf !== null && (
+            <View style={{ alignItems: "center", marginTop: 8 }}>
+              <View style={[styles.exchBadge, {
+                backgroundColor: rangePerf >= 0 ? theme.positive + "22" : theme.negative + "22",
+                paddingHorizontal: 14, paddingVertical: 6,
+              }]}>
+                <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: rangePerf >= 0 ? theme.positive : theme.negative }}>
+                  {rangePerf >= 0 ? "+" : ""}{rangePerf.toFixed(2)}% this {range}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* ── Key Stats ─────────────────────────────────────────────────── */}
@@ -352,19 +387,22 @@ export default function TickerDetailScreen() {
           <View style={styles.statsGrid}>
             <StatCell label="52W High" value={fmt(meta.fiftyTwoWeekHigh)} />
             <StatCell label="52W Low"  value={fmt(meta.fiftyTwoWeekLow)} />
+            <StatCell label="Asset Class" value={assetClass} />
+            <StatCell label="Currency" value={meta.currency || "—"} />
+            {ter !== null && (
+              <StatCell label="TER (Fee)" value={`${ter.toFixed(2)}%/yr`} />
+            )}
+            {knownYield !== undefined && knownYield > 0 && (
+              <StatCell label="Div. Yield" value={`${knownYield.toFixed(1)}%`} />
+            )}
             {isETF ? (
-              <>
-                <StatCell label="AUM" value={fmtLarge(meta.totalAssets)} />
-                <StatCell label="Div. Yield" value={fmtPct(meta.trailingAnnualDividendYield)} />
-              </>
+              <StatCell label="AUM" value={fmtLarge(meta.totalAssets)} />
             ) : (
               <>
                 <StatCell label="Market Cap" value={fmtLarge(meta.marketCap)} />
-                <StatCell label="P/E Ratio"  value={meta.trailingPE != null ? meta.trailingPE.toFixed(1) : "—"} />
+                <StatCell label="P/E Ratio" value={meta.trailingPE != null ? meta.trailingPE.toFixed(1) : "—"} />
               </>
             )}
-            <StatCell label="Avg Volume" value={fmtVol(meta.averageDailyVolume3Month)} />
-            <StatCell label="Currency"   value={meta.currency || "—"} />
           </View>
         </View>
 
@@ -378,6 +416,19 @@ export default function TickerDetailScreen() {
             <PerfCard label="1Y" changePct={perf1Y} />
           </View>
         </View>
+
+        {!!isin && (
+          <TouchableOpacity
+            style={[styles.sectionCard, { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
+            onPress={() => Linking.openURL(`https://www.justetf.com/en/etf-profile.html?isin=${isin}`)}
+          >
+            <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: theme.textSecondary }}>View on JustETF</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: theme.tint }}>justetf.com</Text>
+              <Feather name="external-link" size={12} color={theme.tint} />
+            </View>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* ── Fixed Action Button ────────────────────────────────────────── */}
