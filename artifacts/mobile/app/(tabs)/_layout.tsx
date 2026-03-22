@@ -74,6 +74,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="projections"
+        options={{
+          title: "Projections",
+          tabBarIcon: ({ color }) => <Feather name="trending-up" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
