@@ -9,7 +9,8 @@ import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { formatEUR, formatPct, currentMonthLabel } from "@/utils/format";
 import { DonutChart, CHART_COLORS } from "@/components/DonutChart";
-import { classifyPortfolio } from "@/services/assetClassService";
+import { classifyPortfolio, getAssetClass } from "@/services/assetClassService";
+import { router } from "expo-router";
 
 const theme = Colors.dark;
 
@@ -28,6 +29,7 @@ const CLASS_COLORS: Record<string, string> = {
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const [timeframe, setTimeframe] = useState<Timeframe>("All");
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
 
   const {
     holdings, isLoading,
@@ -61,14 +63,17 @@ export default function DashboardScreen() {
     [holdings]
   );
 
-  const donutSegments = useMemo(() =>
-    holdings.map((h, i) => ({
-      label: h.ticker,
-      value: h.quantity * h.currentPrice,
-      color: CHART_COLORS[i % CHART_COLORS.length],
-    })),
-    [holdings]
-  );
+  const donutSegments = useMemo(() => {
+    return holdings.map((h, i) => {
+      const assetClass = getAssetClass(h.ticker, h.isin ?? "");
+      const isSelected = selectedClass === null || assetClass === selectedClass;
+      return {
+        label: h.ticker,
+        value: h.quantity * h.currentPrice,
+        color: isSelected ? CHART_COLORS[i % CHART_COLORS.length] : CHART_COLORS[i % CHART_COLORS.length] + "33",
+      };
+    });
+  }, [holdings, selectedClass]);
 
   if (isLoading) {
     return (
@@ -134,7 +139,9 @@ export default function DashboardScreen() {
                 const pct = totalPortfolioValue > 0 ? (val / totalPortfolioValue) * 100 : 0;
                 const gain = h.avg_cost_eur > 0 ? (h.currentPrice - h.avg_cost_eur) / h.avg_cost_eur * 100 : 0;
                 return (
-                  <View key={h.id} style={styles.legendItem}>
+                  <View key={h.id} style={[styles.legendItem, {
+                    opacity: selectedClass === null || getAssetClass(h.ticker, h.isin ?? "") === selectedClass ? 1 : 0.3
+                  }]}>
                     <View style={[styles.dot, { backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }]} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.legendTicker, { color: theme.text }]}>{h.ticker}</Text>
@@ -173,7 +180,14 @@ export default function DashboardScreen() {
           </View>
           <View style={styles.assetLegend}>
             {assetClasses.map((ac) => (
-              <View key={ac.class} style={styles.assetLegendItem}>
+              <TouchableOpacity
+                key={ac.class}
+                style={[styles.assetLegendItem, {
+                  opacity: selectedClass === null || selectedClass === ac.class ? 1 : 0.4,
+                }]}
+                onPress={() => setSelectedClass(selectedClass === ac.class ? null : ac.class)}
+                activeOpacity={0.7}
+              >
                 <View style={[styles.dot, { backgroundColor: CLASS_COLORS[ac.class] ?? "#6B7280" }]} />
                 <Text style={[styles.assetLabel, { color: theme.textSecondary }]}>
                   {ac.class}{" "}
@@ -185,7 +199,7 @@ export default function DashboardScreen() {
                     {formatEUR(ac.valueEUR, true)}
                   </Text>
                 </Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
@@ -226,11 +240,16 @@ export default function DashboardScreen() {
       {/* Stats Grid */}
       {holdings.length > 0 && (
         <View style={styles.statsGrid}>
-          <View style={[styles.statCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+          <TouchableOpacity
+            style={[styles.statCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}
+            onPress={() => router.push("/(tabs)/holdings")}
+            activeOpacity={0.75}
+          >
             <Feather name="layers" size={18} color={theme.tint} />
             <Text style={[styles.statValue, { color: theme.text }]}>{holdings.length}</Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Holdings</Text>
-          </View>
+            <Feather name="chevron-right" size={12} color={theme.textTertiary} style={{ position: "absolute", top: 12, right: 12 }} />
+          </TouchableOpacity>
           <View style={[styles.statCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
             <Feather name={totalGain >= 0 ? "arrow-up-right" : "arrow-down-right"} size={18} color={totalGain >= 0 ? theme.positive : theme.negative} />
             <Text style={[styles.statValue, { color: totalGain >= 0 ? theme.positive : theme.negative }]}>
