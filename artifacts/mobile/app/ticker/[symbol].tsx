@@ -164,14 +164,21 @@ export default function TickerDetailScreen() {
     setLoadingMeta(true);
     setMetaError(false);
     try {
-      const [m, yd] = await Promise.all([
+      const [m, yd, monthData] = await Promise.all([
         fetchTickerMeta(safeSymbol),
         fetchChartHistory(safeSymbol, "1Y"),
+        fetchChartHistory(safeSymbol, "1M"),
       ]);
       setMeta(m);
       setYearData(yd);
-      setChartData(yd);
+      setChartData(monthData);
       setFetchedAt(new Date());
+      if (monthData.length >= 2) {
+        const p = ((monthData[monthData.length - 1].priceEUR - monthData[0].priceEUR) / monthData[0].priceEUR) * 100;
+        const abs = monthData[monthData.length - 1].priceEUR - monthData[0].priceEUR;
+        setRangePerf(p);
+        setRangeChange({ abs, pct: p });
+      }
     } catch {
       setMetaError(true);
     } finally {
@@ -190,10 +197,19 @@ export default function TickerDetailScreen() {
 
   async function handleRangeChange(r: Range) {
     setRange(r);
+    if (r === "1Y") {
+      setChartData(yearData);
+      const p = yearData.length >= 2
+        ? ((yearData[yearData.length - 1].priceEUR - yearData[0].priceEUR) / yearData[0].priceEUR) * 100
+        : null;
+      const abs = yearData.length >= 2 ? yearData[yearData.length - 1].priceEUR - yearData[0].priceEUR : null;
+      setRangePerf(p);
+      setRangeChange(abs !== null && p !== null ? { abs, pct: p } : null);
+      return;
+    }
     setLoadingChart(true);
-    const d = r === "1Y" ? yearData : await fetchChartHistory(safeSymbol, r);
-    if (r !== "1Y") setChartData(d);
-    else setChartData(yearData);
+    const d = await fetchChartHistory(safeSymbol, r);
+    setChartData(d);
     const p = d.length >= 2
       ? ((d[d.length - 1].priceEUR - d[0].priceEUR) / d[0].priceEUR) * 100
       : null;
@@ -336,7 +352,7 @@ export default function TickerDetailScreen() {
             }]}>
               {rangeChange
                 ? `${rangeChange.pct >= 0 ? "+" : ""}${rangeChange.abs.toFixed(2)} (${rangeChange.pct >= 0 ? "+" : ""}${rangeChange.pct.toFixed(2)}%) ${range}`
-                : `${meta.regularMarketChange >= 0 ? "+" : ""}${meta.regularMarketChange.toFixed(2)} (${meta.regularMarketChangePercent >= 0 ? "+" : ""}${meta.regularMarketChangePercent.toFixed(2)}%) today`
+                : `${meta.regularMarketChange >= 0 ? "+" : ""}${meta.regularMarketChange.toFixed(2)} (${meta.regularMarketChangePercent >= 0 ? "+" : ""}${meta.regularMarketChangePercent.toFixed(2)}%) vs prev. close`
               }
             </Text>
           </View>
