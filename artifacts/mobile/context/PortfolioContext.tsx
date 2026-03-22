@@ -140,15 +140,16 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       // Auto-fetch dividend yields for holdings that don't have one set
       for (const row of rows) {
-        if (true) {
-          try {
-            const yld = await fetchDividendYield(row.ticker, row.exchange);
-            if (yld !== null && yld > 0) {
-              await dbUpdateHolding(row.id, { yield_pct: yld });
-            }
-          } catch {
-            // ignore
+        try {
+          console.log(`[yield] fetching for ${row.ticker}...`);
+          const yld = await fetchDividendYield(row.ticker, row.exchange);
+          console.log(`[yield] ${row.ticker} → ${yld}`);
+          if (yld !== null) {
+            await dbUpdateHolding(row.id, { yield_pct: yld });
+            console.log(`[yield] saved ${row.ticker} = ${yld}%`);
           }
+        } catch (e) {
+          console.log(`[yield] error for ${row.ticker}:`, e);
         }
       }
       // Reload after yield updates
