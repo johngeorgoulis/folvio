@@ -145,6 +145,7 @@ export default function TickerDetailScreen() {
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [now, setNow] = useState(Date.now());
   const [rangePerf, setRangePerf] = useState<number | null>(null);
+  const [rangeChange, setRangeChange] = useState<{ abs: number; pct: number } | null>(null);
 
   const safeSymbol = symbol ?? "";
 
@@ -186,21 +187,16 @@ export default function TickerDetailScreen() {
 
   async function handleRangeChange(r: Range) {
     setRange(r);
-    if (r === "1Y") {
-      setChartData(yearData);
-      const p = yearData.length >= 2
-        ? ((yearData[yearData.length - 1].priceEUR - yearData[0].priceEUR) / yearData[0].priceEUR) * 100
-        : null;
-      setRangePerf(p);
-      return;
-    }
     setLoadingChart(true);
-    const d = await fetchChartHistory(safeSymbol, r);
-    setChartData(d);
+    const d = r === "1Y" ? yearData : await fetchChartHistory(safeSymbol, r);
+    if (r !== "1Y") setChartData(d);
+    else setChartData(yearData);
     const p = d.length >= 2
       ? ((d[d.length - 1].priceEUR - d[0].priceEUR) / d[0].priceEUR) * 100
       : null;
+    const abs = d.length >= 2 ? d[d.length - 1].priceEUR - d[0].priceEUR : null;
     setRangePerf(p);
+    setRangeChange(abs !== null && p !== null ? { abs, pct: p } : null);
     setLoadingChart(false);
   }
 
@@ -320,15 +316,17 @@ export default function TickerDetailScreen() {
 
           <View style={styles.changeRow}>
             <Feather
-              name={changePositive ? "trending-up" : "trending-down"}
+              name={(rangeChange?.pct ?? meta.regularMarketChangePercent) >= 0 ? "trending-up" : "trending-down"}
               size={15}
-              color={changeColor}
+              color={(rangeChange?.pct ?? meta.regularMarketChangePercent) >= 0 ? theme.positive : theme.negative}
             />
-            <Text style={[styles.changeText, { color: changeColor }]}>
-              {changePositive ? "+" : ""}
-              {meta.regularMarketChange.toFixed(2)} (
-              {changePositive ? "+" : ""}
-              {meta.regularMarketChangePercent.toFixed(2)}%)
+            <Text style={[styles.changeText, {
+              color: (rangeChange?.pct ?? meta.regularMarketChangePercent) >= 0 ? theme.positive : theme.negative
+            }]}>
+              {rangeChange
+                ? `${rangeChange.pct >= 0 ? "+" : ""}${rangeChange.abs.toFixed(2)} (${rangeChange.pct >= 0 ? "+" : ""}${rangeChange.pct.toFixed(2)}%) ${range}`
+                : `${meta.regularMarketChange >= 0 ? "+" : ""}${meta.regularMarketChange.toFixed(2)} (${meta.regularMarketChangePercent >= 0 ? "+" : ""}${meta.regularMarketChangePercent.toFixed(2)}%) today`
+              }
             </Text>
           </View>
 
@@ -395,9 +393,7 @@ export default function TickerDetailScreen() {
             {knownYield !== undefined && knownYield > 0 && (
               <StatCell label="Div. Yield" value={`${knownYield.toFixed(1)}%`} />
             )}
-            {isETF ? (
-              <StatCell label="AUM" value={fmtLarge(meta.totalAssets)} />
-            ) : (
+            {!isETF && (
               <>
                 <StatCell label="Market Cap" value={fmtLarge(meta.marketCap)} />
                 <StatCell label="P/E Ratio" value={meta.trailingPE != null ? meta.trailingPE.toFixed(1) : "—"} />
