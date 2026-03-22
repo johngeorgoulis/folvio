@@ -140,7 +140,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       // Auto-fetch dividend yields for holdings that don't have one set
       for (const row of rows) {
-        if (row.yield_pct === null || row.yield_pct === undefined) {
+        if (true) {
           try {
             const yld = await fetchDividendYield(row.ticker, row.exchange);
             if (yld !== null && yld > 0) {
