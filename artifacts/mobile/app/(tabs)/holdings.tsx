@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Swipeable } from "react-native-gesture-handler";
 import Colors from "@/constants/colors";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import { formatEUR, formatPct } from "@/utils/format";
@@ -84,6 +85,27 @@ export default function HoldingsScreen() {
     );
   }
 
+  function renderRightActions(holdingId: string, ticker: string) {
+    return (
+      <TouchableOpacity
+        style={{
+          backgroundColor: theme.negative,
+          justifyContent: "center",
+          alignItems: "center",
+          width: 80,
+          borderRadius: 16,
+          marginLeft: 8,
+        }}
+        onPress={() => handleDeleteHolding(holdingId, ticker)}
+      >
+        <Feather name="trash-2" size={20} color="#fff" />
+        <Text style={{ color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold", marginTop: 4 }}>
+          Remove
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
@@ -147,8 +169,12 @@ export default function HoldingsScreen() {
           const isPositive = gain >= 0;
 
           return (
-            <Pressable
+            <Swipeable
               key={h.id}
+              renderRightActions={() => renderRightActions(h.id, h.ticker)}
+              overshootRight={false}
+            >
+            <Pressable
               style={[styles.holdingCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}
               onPress={() => router.push({ pathname: "/holding/[id]", params: { id: h.id } })}
             >
@@ -212,14 +238,8 @@ export default function HoldingsScreen() {
                 </View>
               </View>
 
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => handleDeleteHolding(h.id, h.ticker)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Feather name="trash-2" size={14} color={theme.textTertiary} />
-              </TouchableOpacity>
             </Pressable>
+            </Swipeable>
           );
         })}
       </ScrollView>
@@ -323,9 +343,4 @@ const styles = StyleSheet.create({
   detailItem: { alignItems: "center" },
   detailLabel: { fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 0.3 },
   detailValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginTop: 2 },
-  deleteBtn: {
-    position: "absolute",
-    top: 14,
-    right: 14,
-  },
 });
