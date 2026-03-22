@@ -449,6 +449,40 @@ export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null
   }
 }
 
+const KNOWN_YIELDS: Record<string, number> = {
+  // Vanguard
+  "VWCE": 0.0,   "VWRL": 1.6,   "VHYL": 3.4,   "VUSA": 1.2,
+  "VEUR": 2.8,   "VFEM": 2.9,   "VGOV": 2.1,   "VGWD": 2.5,
+  "VUAA": 0.0,   "VFEA": 0.0,   "VEVE": 0.0,   "VERX": 0.0,
+  // iShares
+  "IWDA": 0.0,   "SWRD": 0.0,   "EQQQ": 0.0,   "IQQQ": 0.0,
+  "CSPX": 0.0,   "CSP1": 0.0,   "IUSA": 1.2,   "IUES": 2.8,
+  "IEEM": 2.4,   "EMIM": 2.1,   "EGLN": 0.0,   "IGLN": 0.0,
+  "IEGE": 3.2,   "ERNE": 3.9,   "CSBGE7": 2.8, "IBGX": 2.4,
+  "EUNA": 2.2,   "IEGY": 3.1,   "IDVY": 3.8,   "IQQH": 0.0,
+  "SPPW": 0.0,   "SAWD": 0.0,   "SUSW": 0.0,
+  // VanEck
+  "TDIV": 3.8,   "TRET": 3.2,   "MVOL": 2.1,
+  // Amundi
+  "LCUW": 0.0,   "CW8":  0.0,   "PAEEM": 2.3,  "PANX": 0.0,
+  "LYP6": 0.0,   "LYPE": 0.0,   "AHYQ": 0.0,
+  // SPDR
+  "SPY5": 1.2,   "SPYY": 1.2,   "ZPRS": 0.0,   "SPXS": 0.0,
+  "ZPRV": 0.0,   "ZPRX": 0.0,
+  // Xtrackers
+  "XDWD": 0.0,   "XDEW": 0.0,   "XMAW": 0.0,   "X014": 0.0,
+  "DBXD": 0.0,   "XDWH": 0.0,
+  // WisdomTree
+  "WQDS": 0.0,   "WTEF": 2.9,
+  // Invesco
+  "MXWO": 0.0,   "QQQ3": 0.0,
+  // HANetf / other
+  "2B7S": 0.0,   "QDVW": 0.0,   "10AI": 0.0,
+  // Bonds / Fixed Income
+  "AGGH": 3.1,   "IEAG": 2.8,   "IBTM": 3.4,   "IBTS": 2.9,
+  "LQDE": 3.6,   "IHYG": 5.8,   "HYLD": 5.2,
+};
+
 export async function fetchDividendYield(ticker: string, exchange: string): Promise<number | null> {
   const symbol = buildYahooSymbol(ticker, exchange);
   const url = yahooChartUrl(symbol, "1d", "1y");
