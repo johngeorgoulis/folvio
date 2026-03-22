@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ScrollView, View, Text, TextInput, TouchableOpacity,
   StyleSheet, Platform, useWindowDimensions,
@@ -126,12 +126,35 @@ function ProjectionChart({
 export default function ProjectionsScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { totalPortfolioValue, totalInvested } = usePortfolio();
+  // Calculate annualized return from actual portfolio performance
+  const { totalPortfolioValue, totalInvested, totalGainPct, holdings } = usePortfolio();
+
+  const annualizedReturn = useMemo(() => {
+    const dates = holdings.map((h) => h.purchase_date).filter(Boolean).sort();
+    if (dates.length === 0 || totalInvested === 0) return 7;
+    const months = Math.max(1, Math.floor(
+      (Date.now() - new Date(dates[0]).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+    ));
+    const annualized = (totalGainPct / months) * 12;
+    // Clamp between 1% and 30% to avoid extreme values
+    return Math.round(Math.min(30, Math.max(1, annualized)) * 10) / 10;
+  }, [holdings, totalGainPct, totalInvested]);
 
   const [monthlyDCA, setMonthlyDCA] = useState("400");
   const [years, setYears] = useState(30);
   const [scenarioPcts, setScenarioPcts] = useState({ conservative: 4, base: 7, optimistic: 10 });
   const [editingScenario, setEditingScenario] = useState<string | null>(null);
+
+  // Sync base scenario with actual portfolio return on first load
+  useEffect(() => {
+    if (annualizedReturn > 0) {
+      setScenarioPcts({
+        conservative: Math.max(1, Math.round((annualizedReturn - 3) * 10) / 10),
+        base: annualizedReturn,
+        optimistic: Math.round((annualizedReturn + 3) * 10) / 10,
+      });
+    }
+  }, [annualizedReturn]);
 
   const startValue = totalPortfolioValue > 0 ? totalPortfolioValue : 0;
   const dca = parseFloat(monthlyDCA) || 0;
@@ -246,7 +269,9 @@ export default function ProjectionsScreen() {
       {/* Scenario rate editor */}
       <View style={[s.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
         <Text style={[s.cardTitle, { color: theme.text }]}>Annual Return Assumptions</Text>
-        <Text style={[s.cardSub, { color: theme.textSecondary }]}>Tap to edit</Text>
+        <Text style={[s.cardSub, { color: theme.textSecondary }]}>
+          Base scenario uses your actual annualized return ({annualizedReturn}%/yr)
+        </Text>
         {SCENARIOS.map((sc) => (
           <View key={sc.key} style={[s.inputRow, { marginTop: 10 }]}>
             <View style={[s.legendDot, { backgroundColor: sc.color, marginRight: 8 }]} />
