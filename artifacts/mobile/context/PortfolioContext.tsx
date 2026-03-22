@@ -21,6 +21,14 @@ import {
 import { refreshAllPrices, fetchDividendYield } from "@/services/priceService";
 import { takeSnapshot } from "@/services/snapshotService";
 
+const KNOWN_YIELDS: Record<string, number> = {
+  "VHYL": 3.4, "TDIV": 3.8, "VWRL": 1.6, "VWCE": 0.0,
+  "IWDA": 0.0, "EGLN": 0.0, "CSBGE7": 2.8, "ERNE": 3.9,
+  "IEGE": 3.2, "VUAA": 0.0, "EQQQ": 0.0, "VUSA": 1.2,
+  "VEUR": 2.8, "VFEM": 2.9, "VGOV": 2.1, "IDVY": 3.8,
+  "IHYG": 5.8, "AGGH": 3.1,
+};
+
 export const EXCHANGES = [
   "XETRA",
   "EURONEXT_AMS",
@@ -98,8 +106,11 @@ function mergeHoldingsWithPrices(
       ? Date.now() - new Date(cached.last_fetched).getTime()
       : Infinity;
     const isStale = cached?.source !== "manual" && age > CACHE_TTL_MS;
+    // Use stored yield, or fall back to known yields map
+    const effectiveYield = row.yield_pct ?? KNOWN_YIELDS[row.ticker.toUpperCase()] ?? null;
     return {
       ...row,
+      yield_pct: effectiveYield,
       currentPrice: cached?.price_eur ?? row.avg_cost_eur,
       priceSource: (cached?.source as "api" | "manual") ?? "manual",
       priceLastFetched: cached?.last_fetched ?? "",
