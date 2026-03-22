@@ -102,7 +102,7 @@ export default function DashboardScreen() {
         <View style={styles.heroRow}>
           <View style={[styles.gainBadge, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
             <Text style={[styles.gainText, { color: totalGain >= 0 ? "#6EE7B7" : "#FCA5A5" }]}>
-              {totalGain >= 0 ? "+" : ""}{formatPct(totalGainPct)} all time
+              {formatPct(totalGainPct)} all time
             </Text>
           </View>
           {annualizedReturn !== null && (
