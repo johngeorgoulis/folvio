@@ -44,7 +44,7 @@ export const EXCHANGES = [
 ] as const;
 export type Exchange = (typeof EXCHANGES)[number];
 
-export const FREE_TIER_LIMIT = 10;
+export const FREE_TIER_LIMIT = 3;
 
 export interface Holding extends HoldingRow {
   currentPrice: number;

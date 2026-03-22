@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import {
   Alert,
   ActivityIndicator,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -18,6 +19,7 @@ import { formatEUR, formatPct } from "@/utils/format";
 import { getExchangeLabel } from "@/components/ExchangePicker";
 import EditHoldingModal from "@/components/EditHoldingModal";
 import { fetchLivePrice } from "@/services/priceService";
+import { getAssetClass, getTER } from "@/services/assetClassService";
 import { upsertPrice } from "@/services/db";
 
 const theme = Colors.dark;
@@ -98,6 +100,8 @@ export default function HoldingDetailScreen() {
       : null;
 
   const exchangeLabel = getExchangeLabel(holding.exchange);
+  const assetClass = getAssetClass(holding.ticker, holding.isin ?? "");
+  const ter = getTER(holding.ticker);
 
   async function handleRefreshPrice() {
     setRefreshing(true);
@@ -149,6 +153,9 @@ export default function HoldingDetailScreen() {
             <Text style={styles.tickerText}>{holding.ticker}</Text>
             <View style={styles.exchangeBadge}>
               <Text style={styles.exchangeText}>{exchangeLabel.split(" (")[0]}</Text>
+            </View>
+            <View style={[styles.exchangeBadge, { backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.15)" }]}>
+              <Text style={[styles.exchangeText, { color: "rgba(255,255,255,0.7)" }]}>{assetClass}</Text>
             </View>
           </View>
           {!!holding.name && (
@@ -246,6 +253,14 @@ export default function HoldingDetailScreen() {
               </Text>
             </View>
           )}
+          {ter !== null && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>TER (Annual Fee)</Text>
+              <Text style={[styles.infoValue, { color: ter <= 0.10 ? theme.positive : ter <= 0.25 ? theme.tint : theme.negative }]}>
+                {ter.toFixed(2)}%/yr
+              </Text>
+            </View>
+          )}
           {!!holding.purchase_date && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Purchase Date</Text>
@@ -253,12 +268,24 @@ export default function HoldingDetailScreen() {
             </View>
           )}
           {!!holding.isin && (
-            <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+            <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>ISIN</Text>
               <Text style={[styles.infoValue, { letterSpacing: 0.5, fontFamily: "Inter_400Regular" }]}>
                 {holding.isin}
               </Text>
             </View>
+          )}
+          {!!holding.isin && (
+            <TouchableOpacity
+              style={[styles.infoRow, { borderBottomWidth: 0 }]}
+              onPress={() => Linking.openURL(`https://www.justetf.com/en/etf-profile.html?isin=${holding.isin}`)}
+            >
+              <Text style={styles.infoLabel}>View on JustETF</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Text style={[styles.infoValue, { color: theme.tint }]}>justetf.com</Text>
+                <Feather name="external-link" size={12} color={theme.tint} />
+              </View>
+            </TouchableOpacity>
           )}
           {holding.yield_pct == null && !holding.purchase_date && !holding.isin && (
             <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>

@@ -94,7 +94,10 @@ export default function HoldingsScreen() {
           <View>
             <Text style={[styles.pageTitle, { color: theme.text }]}>Holdings</Text>
             <Text style={[styles.pageSubtitle, { color: theme.textSecondary }]}>
-              {holdings.length} of {FREE_TIER_LIMIT} (free tier)
+              {holdings.length} holding{holdings.length !== 1 ? "s" : ""}
+              {holdings.length >= FREE_TIER_LIMIT && (
+                <Text style={{ color: theme.tint }}> · Upgrade for unlimited</Text>
+              )}
             </Text>
           </View>
           <View style={styles.headerActions}>
