@@ -9,6 +9,7 @@ import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { formatEUR, formatPct, currentMonthLabel } from "@/utils/format";
 import { DonutChart, CHART_COLORS } from "@/components/DonutChart";
+import { LinearGradient } from "expo-linear-gradient";
 import { classifyPortfolio, getAssetClass } from "@/services/assetClassService";
 import { router } from "expo-router";
 
@@ -37,7 +38,7 @@ export default function DashboardScreen() {
     totalGain, totalGainPct,
   } = usePortfolio();
 
-  const topPad = Platform.OS === "web" ? 24 : insets.top;
+  const topPad = Platform.OS === "web" ? 24 : insets.top + 8;
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
   // Annualized return
@@ -101,7 +102,12 @@ export default function DashboardScreen() {
       </View>
 
       {/* Hero Card */}
-      <View style={[styles.heroCard, { backgroundColor: theme.deepBlue }]}>
+      <LinearGradient
+        colors={["#1E3A5F", "#0A1628"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.heroCard}
+      >
         <Text style={styles.heroLabel}>TOTAL PORTFOLIO VALUE</Text>
         <Text style={styles.heroValue}>{formatEUR(totalPortfolioValue)}</Text>
         <View style={styles.heroRow}>
@@ -119,7 +125,7 @@ export default function DashboardScreen() {
           )}
         </View>
         <Text style={styles.investedText}>{formatEUR(totalInvested)} invested</Text>
-      </View>
+      </LinearGradient>
 
       {/* Allocation Donut */}
       {holdings.length > 0 && (
@@ -158,7 +164,11 @@ export default function DashboardScreen() {
                 );
               })}
               {holdings.length > 5 && (
-                <Text style={[styles.moreText, { color: theme.textSecondary }]}>+{holdings.length - 5} more</Text>
+                <TouchableOpacity onPress={() => router.push("/(tabs)/holdings")} activeOpacity={0.7}>
+                  <Text style={[styles.moreText, { color: theme.tint, textDecorationLine: "underline" }]}>
+                    +{holdings.length - 5} more →
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
           </View>
@@ -186,6 +196,10 @@ export default function DashboardScreen() {
                 key={ac.class}
                 style={[styles.assetLegendItem, {
                   opacity: selectedClass === null || selectedClass === ac.class ? 1 : 0.4,
+                  backgroundColor: selectedClass === ac.class ? (CLASS_COLORS[ac.class] + "22") : "transparent",
+                  paddingHorizontal: selectedClass === ac.class ? 8 : 0,
+                  paddingVertical: selectedClass === ac.class ? 4 : 0,
+                  borderRadius: 8,
                 }]}
                 onPress={() => setSelectedClass(selectedClass === ac.class ? null : ac.class)}
                 activeOpacity={0.7}
@@ -198,7 +212,9 @@ export default function DashboardScreen() {
                   </Text>
                   {" · "}
                   <Text style={{ color: theme.textTertiary, fontFamily: "Inter_400Regular" }}>
-                    {formatEUR(ac.valueEUR, true)}
+                    {ac.valueEUR >= 1000
+                    ? formatEUR(ac.valueEUR, true)
+                    : `€${Math.round(ac.valueEUR)}`}
                   </Text>
                 </Text>
               </TouchableOpacity>
@@ -287,7 +303,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 30, fontFamily: "Inter_700Bold", letterSpacing: -1 },
   badge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   badgeText: { color: "#C9A84C", fontSize: 12, fontFamily: "Inter_700Bold", letterSpacing: 1 },
-  heroCard: { borderRadius: 20, padding: 24, gap: 6 },
+  heroCard: { borderRadius: 20, padding: 24, gap: 6, overflow: "hidden" },
   heroLabel: { color: "rgba(255,255,255,0.55)", fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1 },
   heroValue: { color: "#FFFFFF", fontSize: 40, fontFamily: "Inter_700Bold", letterSpacing: -1.5 },
   heroRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
