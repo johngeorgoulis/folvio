@@ -19,6 +19,7 @@ import { usePortfolio } from "@/context/PortfolioContext";
 import PriceChart from "@/components/PriceChart";
 import {
   fetchChartHistory,
+  fetchTERFromServer,
   fetchTickerMeta,
   type ChartPoint,
   type TickerMeta,
@@ -146,6 +147,7 @@ export default function TickerDetailScreen() {
   const [now, setNow] = useState(Date.now());
   const [rangePerf, setRangePerf] = useState<number | null>(null);
   const [rangeChange, setRangeChange] = useState<{ abs: number; pct: number } | null>(null);
+  const [serverTER, setServerTER] = useState<number | null>(null);
 
   const safeSymbol = symbol ?? "";
 
@@ -223,6 +225,14 @@ export default function TickerDetailScreen() {
   const assetClass = getAssetClass(cleanTicker);
   const knownYield = KNOWN_YIELDS_MAP[cleanTicker.toUpperCase()];
   const isin = holdings.find(h => h.ticker.toUpperCase() === cleanTicker.toUpperCase())?.isin ?? "";
+  const effectiveTER = serverTER ?? ter;
+
+  useEffect(() => {
+    if (isin) {
+      fetchTERFromServer(isin).then(t => { if (t !== null) setServerTER(t); });
+    }
+  }, [isin]);
+
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const bottomPad = Platform.OS === "web" ? 24 : insets.bottom + 24;
 
@@ -387,8 +397,8 @@ export default function TickerDetailScreen() {
             <StatCell label="52W Low"  value={fmt(meta.fiftyTwoWeekLow)} />
             <StatCell label="Asset Class" value={assetClass} />
             <StatCell label="Currency" value={meta.currency || "—"} />
-            {ter !== null && (
-              <StatCell label="TER (Fee)" value={`${ter.toFixed(2)}%/yr`} />
+            {effectiveTER !== null && (
+              <StatCell label="TER (Fee)" value={`${effectiveTER.toFixed(2)}%/yr`} />
             )}
             {knownYield !== undefined && knownYield > 0 && (
               <StatCell label="Div. Yield" value={`${knownYield.toFixed(1)}%`} />

@@ -575,6 +575,20 @@ export async function fetchSymbolPrice(
   }
 }
 
+export async function fetchTERFromServer(isin: string): Promise<number | null> {
+  if (!isin || Platform.OS === "web") return null;
+  try {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+    if (!domain) return null;
+    const res = await fetch(`https://${domain}/api/etf/ter/${isin}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.ter === "number" ? data.ter : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function testPriceFetch(): Promise<void> {
   console.log("[testPriceFetch] Fetching VWCE.DE...");
   const result = await fetchLivePrice("VWCE", "XETRA");
