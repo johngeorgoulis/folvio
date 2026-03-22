@@ -64,9 +64,10 @@ async function fetchETFDataFromJustETF(isin: string): Promise<ETFData> {
     // Fund Size
     let fundSize: string | null = null;
     const sizePatterns = [
-      /Fund size[^<]*<[^>]+>\s*EUR\s*([\d,.]+\s*(?:million|billion|[MB])?)/i,
-      /Assets under management[^<]*<[^>]+>\s*EUR\s*([\d,.]+\s*(?:million|billion|[MB])?)/i,
-      /(\d+[.,]\d+)\s*(?:million|billion)\s*EUR/i,
+      /(\d[\d,. ]+)\s*(?:million|bn|billion|m|b)?\s*EUR/i,
+      /EUR\s*([\d,. ]+\s*(?:million|bn|billion)?)/i,
+      /fund[- ]size[^>]*>[^<]*([\d,.]+\s*(?:EUR|billion|million|bn|m)?)/i,
+      />\s*([\d,.]+)\s*(?:EUR\s*)?(?:million|billion|bn)\s*</i,
     ];
     for (const p of sizePatterns) {
       const m = html.match(p);
@@ -87,8 +88,9 @@ async function fetchETFDataFromJustETF(isin: string): Promise<ETFData> {
     // Number of holdings
     let numberOfHoldings: number | null = null;
     const holdPatterns = [
-      /Number of holdings[^<]*<[^>]+>\s*(\d+)/i,
-      /Holdings[^<]*<[^>]+>\s*(\d+)/i,
+      />(\d{1,5})\s*(?:holdings|constituents|components)</i,
+      /number[- ]of[- ]holdings[^>]*>[^<]*>(\d+)</i,
+      /(\d+)\s*positions/i,
     ];
     for (const p of holdPatterns) {
       const m = html.match(p);
@@ -98,8 +100,9 @@ async function fetchETFDataFromJustETF(isin: string): Promise<ETFData> {
     // Launch date
     let launchDate: string | null = null;
     const datePatterns = [
-      /Fund inception[^<]*<[^>]+>\s*(\d{1,2}[./]\d{1,2}[./]\d{4})/i,
-      /Launch date[^<]*<[^>]+>\s*(\d{1,2}[./]\d{1,2}[./]\d{4})/i,
+      /(\d{1,2}[.\-\/]\d{1,2}[.\-\/]\d{4})/,
+      /inception[^>]*>[^<]*>([^<]+\d{4}[^<]*)</i,
+      /(\w+ \d{4})/,
     ];
     for (const p of datePatterns) {
       const m = html.match(p);
@@ -109,8 +112,9 @@ async function fetchETFDataFromJustETF(isin: string): Promise<ETFData> {
     // Domicile
     let domicile: string | null = null;
     const domPatterns = [
-      /Domicile[^<]*<[^>]+>\s*(Ireland|Luxembourg|Germany|France|Switzerland|Netherlands)/i,
-      /Fund domicile[^<]*<[^>]+>\s*(\w+)/i,
+      /domicile[^>]*>[^<]*>\s*([A-Za-z ]+?)\s*</i,
+      /registered[^>]*>[^<]*>\s*(Ireland|Luxembourg|Germany|France|Switzerland|Netherlands)\s*</i,
+      /\b(Ireland|Luxembourg|Germany|France|Switzerland|Netherlands)\b/,
     ];
     for (const p of domPatterns) {
       const m = html.match(p);
@@ -128,10 +132,12 @@ async function fetchETFDataFromJustETF(isin: string): Promise<ETFData> {
       if (m && m[1]) { distributionPolicy = m[1]; break; }
     }
 
-    // Description — meta description tag
+    // Description — og:description first, then meta description
     let description: string | null = null;
-    const descMatch = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i)
-      || html.match(/<meta\s+content="([^"]+)"\s+name="description"/i);
+    const descMatch = html.match(/<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i)
+      || html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:description"/i)
+      || html.match(/<meta[^>]+name="description"[^>]+content="([^"]+)"/i)
+      || html.match(/<meta[^>]+content="([^"]+)"[^>]+name="description"/i);
     if (descMatch && descMatch[1]) {
       description = descMatch[1].replace(/&amp;/g, "&").replace(/&quot;/g, '"').trim();
       if (description.length > 300) description = description.substring(0, 300) + "…";
