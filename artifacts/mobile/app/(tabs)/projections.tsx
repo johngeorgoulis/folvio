@@ -3,6 +3,7 @@ import {
   ScrollView, View, Text, TextInput, TouchableOpacity,
   StyleSheet, Platform, useWindowDimensions,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Text as SvgText } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
@@ -54,10 +55,12 @@ function projectYearly(
 function ProjectionChart({
   width,
   scenarios,
+  investedPoints,
   years,
 }: {
   width: number;
   scenarios: { color: string; points: number[] }[];
+  investedPoints: number[];
   years: number;
 }) {
   const H = 200;
@@ -119,6 +122,16 @@ function ProjectionChart({
         <Path key={i} d={buildPath(s.points)} stroke={s.color}
           strokeWidth={2} fill="none" />
       ))}
+      {/* Invested line — white dashed */}
+      {investedPoints.length >= 2 && (
+        <Path
+          d={buildPath(investedPoints)}
+          stroke="rgba(255,255,255,0.3)"
+          strokeWidth={1.5}
+          strokeDasharray="4,3"
+          fill="none"
+        />
+      )}
     </Svg>
   );
 }
@@ -141,6 +154,16 @@ export default function ProjectionsScreen() {
   }, [holdings, totalGainPct, totalInvested]);
 
   const [monthlyDCA, setMonthlyDCA] = useState("400");
+
+  useEffect(() => {
+    AsyncStorage.getItem("fortis_forecast_dca").then(v => { if (v) setMonthlyDCA(v); });
+  }, []);
+
+  function handleDCAChange(v: string) {
+    setMonthlyDCA(v);
+    AsyncStorage.setItem("fortis_forecast_dca", v);
+  }
+
   const [years, setYears] = useState(30);
   const [scenarioPcts, setScenarioPcts] = useState({ conservative: 4, base: 7, optimistic: 10 });
   const [editingScenario, setEditingScenario] = useState<string | null>(null);
@@ -178,7 +201,17 @@ export default function ProjectionsScreen() {
     [startValue, dca, scenarioPcts]
   );
 
-  const topPad = Platform.OS === "web" ? 24 : insets.top;
+  const investedPoints = useMemo(() => {
+    const points: number[] = [startValue];
+    let total = startValue;
+    for (let y = 1; y <= years; y++) {
+      total += dca * 12;
+      points.push(total);
+    }
+    return points;
+  }, [startValue, dca, years]);
+
+  const topPad = Platform.OS === "web" ? 24 : insets.top + 8;
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
   return (
@@ -187,7 +220,7 @@ export default function ProjectionsScreen() {
       contentContainerStyle={{ paddingTop: topPad + 12, paddingBottom: bottomPad, paddingHorizontal: 16, gap: 16 }}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[s.title, { color: theme.text }]}>Projections</Text>
+      <Text style={[s.title, { color: theme.text }]}>Forecast</Text>
 
       {/* Inputs */}
       <View style={[s.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
@@ -198,7 +231,7 @@ export default function ProjectionsScreen() {
           <TextInput
             style={[s.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.backgroundElevated }]}
             value={monthlyDCA}
-            onChangeText={setMonthlyDCA}
+            onChangeText={handleDCAChange}
             keyboardType="numeric"
             placeholder="400"
             placeholderTextColor={theme.textTertiary}
@@ -225,12 +258,24 @@ export default function ProjectionsScreen() {
         </View>
       </View>
 
+      {/* Context card */}
+      <View style={[s.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+        <Text style={[s.cardTitle, { color: theme.text }]}>Over {years} years you will invest</Text>
+        <Text style={{ fontSize: 28, fontFamily: "Inter_700Bold", color: theme.tint, letterSpacing: -0.5 }}>
+          {formatEUR(dca * 12 * years + startValue)}
+        </Text>
+        <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary, marginTop: 4 }}>
+          {formatEUR(startValue)} starting value + {formatEUR(dca * 12 * years)} in contributions ({formatEUR(dca)}/month × {years * 12} months)
+        </Text>
+      </View>
+
       {/* Chart */}
       <View style={[s.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
         <Text style={[s.cardTitle, { color: theme.text }]}>Growth Projection</Text>
         <ProjectionChart
           width={chartWidth - 36}
           scenarios={scenarioData.map((sc) => ({ color: sc.color, points: sc.points }))}
+          investedPoints={investedPoints}
           years={years}
         />
         {/* Legend */}
@@ -241,6 +286,10 @@ export default function ProjectionsScreen() {
               <Text style={[s.legendLabel, { color: theme.textSecondary }]}>{sc.label} ({sc.pct}%)</Text>
             </View>
           ))}
+          <View style={s.legendItem}>
+            <View style={[s.legendDot, { backgroundColor: "rgba(255,255,255,0.3)" }]} />
+            <Text style={[s.legendLabel, { color: theme.textSecondary }]}>Total Invested</Text>
+          </View>
         </View>
       </View>
 
