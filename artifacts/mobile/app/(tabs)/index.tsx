@@ -180,12 +180,48 @@ export default function DashboardScreen() {
                   <Text style={{ color: theme.text, fontFamily: "Inter_600SemiBold" }}>
                     {ac.valuePct.toFixed(0)}%
                   </Text>
+                  {" · "}
+                  <Text style={{ color: theme.textTertiary, fontFamily: "Inter_400Regular" }}>
+                    {formatEUR(ac.valueEUR, true)}
+                  </Text>
                 </Text>
               </View>
             ))}
           </View>
         </View>
       )}
+
+      {/* Dividend Income Card */}
+      {holdings.length > 0 && (() => {
+        const annualDiv = holdings.reduce((sum, h) => {
+          const y = h.yield_pct ?? 0;
+          if (!y || !h.hasPrice) return sum;
+          return sum + h.quantity * h.currentPrice * (y / 100);
+        }, 0);
+        if (annualDiv === 0) return null;
+        return (
+          <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 2 }]}>
+                  Dividend Income
+                </Text>
+                <Text style={[{ fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary }]}>
+                  Estimated annual income
+                </Text>
+              </View>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={{ fontSize: 24, fontFamily: "Inter_700Bold", color: "#C9A84C", letterSpacing: -0.5 }}>
+                  {formatEUR(annualDiv)}
+                </Text>
+                <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: theme.textSecondary }}>
+                  {formatEUR(annualDiv / 12)}/month
+                </Text>
+              </View>
+            </View>
+          </View>
+        );
+      })()}
 
       {/* Stats Grid */}
       {holdings.length > 0 && (
@@ -246,7 +282,7 @@ const styles = StyleSheet.create({
   legendTicker: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   legendPct: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
   moreText: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  assetBarContainer: { flexDirection: "row", height: 10, borderRadius: 5, overflow: "hidden", marginBottom: 12, gap: 2 },
+  assetBarContainer: { flexDirection: "row", height: 14, borderRadius: 7, overflow: "hidden", marginBottom: 14, gap: 2 },
   assetBarSegment: { borderRadius: 3 },
   assetLegend: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   assetLegendItem: { flexDirection: "row", alignItems: "center", gap: 6 },

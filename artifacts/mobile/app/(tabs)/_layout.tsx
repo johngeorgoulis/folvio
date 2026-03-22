@@ -69,14 +69,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="performance"
         options={{
-          title: "Performance",
+          title: "Returns",
           tabBarIcon: ({ color }) => <Feather name="trending-up" size={21} color={color} />,
         }}
       />
       <Tabs.Screen
         name="projections"
         options={{
-          title: "Projections",
+          title: "Forecast",
           tabBarIcon: ({ color }) => <Feather name="trending-up" size={22} color={color} />,
         }}
       />
