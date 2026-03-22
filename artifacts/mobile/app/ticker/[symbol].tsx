@@ -401,21 +401,42 @@ export default function TickerDetailScreen() {
             {effectiveTER !== null && (
               <StatCell label="TER (Fee)" value={`${effectiveTER.toFixed(2)}%/yr`} />
             )}
+            {/* Distance from 52W High/Low */}
+            {meta.fiftyTwoWeekHigh > 0 && meta.regularMarketPrice > 0 && (
+              <StatCell
+                label="From 52W High"
+                value={`${(((meta.regularMarketPrice - meta.fiftyTwoWeekHigh) / meta.fiftyTwoWeekHigh) * 100).toFixed(1)}%`}
+              />
+            )}
+            {meta.fiftyTwoWeekLow > 0 && meta.regularMarketPrice > 0 && (
+              <StatCell
+                label="From 52W Low"
+                value={`+${(((meta.regularMarketPrice - meta.fiftyTwoWeekLow) / meta.fiftyTwoWeekLow) * 100).toFixed(1)}%`}
+              />
+            )}
+            {/* Dividend Yield from known map */}
             {knownYield !== undefined && knownYield > 0 && (
               <StatCell label="Div. Yield" value={`${knownYield.toFixed(1)}%`} />
             )}
-            {!isETF && (
-              <>
-                <StatCell label="Market Cap" value={fmtLarge(meta.marketCap)} />
-                <StatCell label="P/E Ratio" value={meta.trailingPE != null ? meta.trailingPE.toFixed(1) : "—"} />
-              </>
+            {/* From JustETF server data */}
+            {etfData?.replicationMethod && (
+              <StatCell label="Replication" value={etfData.replicationMethod} />
             )}
-            {etfData?.fundSize && <StatCell label="Fund Size" value={etfData.fundSize} />}
-            {etfData?.replicationMethod && <StatCell label="Replication" value={etfData.replicationMethod} />}
-            {etfData?.numberOfHoldings && <StatCell label="# Holdings" value={etfData.numberOfHoldings.toString()} />}
-            {etfData?.domicile && <StatCell label="Domicile" value={etfData.domicile} />}
-            {etfData?.distributionPolicy && <StatCell label="Distribution" value={etfData.distributionPolicy} />}
-            {etfData?.launchDate && <StatCell label="Launch Date" value={etfData.launchDate} />}
+            {etfData?.distributionPolicy && (
+              <StatCell label="Distribution" value={etfData.distributionPolicy} />
+            )}
+            {etfData?.fundSize && (
+              <StatCell label="Fund Size" value={etfData.fundSize} />
+            )}
+            {etfData?.numberOfHoldings && (
+              <StatCell label="# Holdings" value={etfData.numberOfHoldings.toString()} />
+            )}
+            {etfData?.domicile && (
+              <StatCell label="Domicile" value={etfData.domicile} />
+            )}
+            {etfData?.launchDate && (
+              <StatCell label="Inception" value={etfData.launchDate} />
+            )}
           </View>
         </View>
 
