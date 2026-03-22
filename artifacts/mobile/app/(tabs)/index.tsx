@@ -126,13 +126,15 @@ export default function DashboardScreen() {
         <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Allocation</Text>
           <View style={styles.donutRow}>
-            <DonutChart
-              segments={donutSegments}
-              size={140}
-              strokeWidth={20}
-              centerLabel={formatEUR(totalPortfolioValue, true)}
-              centerSublabel={`${holdings.length} holding${holdings.length !== 1 ? "s" : ""}`}
-            />
+            <TouchableOpacity onPress={() => setSelectedClass(null)} activeOpacity={0.8}>
+              <DonutChart
+                segments={donutSegments}
+                size={140}
+                strokeWidth={20}
+                centerLabel={formatEUR(totalPortfolioValue, true)}
+                centerSublabel={selectedClass ? selectedClass : `${holdings.length} holding${holdings.length !== 1 ? "s" : ""}`}
+              />
+            </TouchableOpacity>
             <View style={styles.legend}>
               {holdings.slice(0, 5).map((h, i) => {
                 const val = h.quantity * h.currentPrice;
