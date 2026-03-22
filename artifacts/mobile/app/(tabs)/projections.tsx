@@ -17,7 +17,7 @@ const SCENARIOS = [
   { label: "Optimistic",   key: "optimistic",   pct: 10, color: "#34D399" },
 ] as const;
 
-const HORIZONS = [10, 20, 30];
+const HORIZONS = [10, 15, 20, 25, 30];
 
 function projectValue(
   startValue: number,
