@@ -19,9 +19,10 @@ import { usePortfolio } from "@/context/PortfolioContext";
 import PriceChart from "@/components/PriceChart";
 import {
   fetchChartHistory,
-  fetchTERFromServer,
+  fetchETFDataFromServer,
   fetchTickerMeta,
   type ChartPoint,
+  type ServerETFData,
   type TickerMeta,
 } from "@/services/priceService";
 import { getAssetClass, getTER } from "@/services/assetClassService";
@@ -147,7 +148,7 @@ export default function TickerDetailScreen() {
   const [now, setNow] = useState(Date.now());
   const [rangePerf, setRangePerf] = useState<number | null>(null);
   const [rangeChange, setRangeChange] = useState<{ abs: number; pct: number } | null>(null);
-  const [serverTER, setServerTER] = useState<number | null>(null);
+  const [etfData, setEtfData] = useState<ServerETFData | null>(null);
 
   const safeSymbol = symbol ?? "";
 
@@ -225,11 +226,11 @@ export default function TickerDetailScreen() {
   const assetClass = getAssetClass(cleanTicker);
   const knownYield = KNOWN_YIELDS_MAP[cleanTicker.toUpperCase()];
   const isin = holdings.find(h => h.ticker.toUpperCase() === cleanTicker.toUpperCase())?.isin ?? "";
-  const effectiveTER = serverTER ?? ter;
+  const effectiveTER = etfData?.ter ?? ter;
 
   useEffect(() => {
     if (isin) {
-      fetchTERFromServer(isin).then(t => { if (t !== null) setServerTER(t); });
+      fetchETFDataFromServer(isin).then(d => { if (d) setEtfData(d); });
     }
   }, [isin]);
 
@@ -409,6 +410,12 @@ export default function TickerDetailScreen() {
                 <StatCell label="P/E Ratio" value={meta.trailingPE != null ? meta.trailingPE.toFixed(1) : "—"} />
               </>
             )}
+            {etfData?.fundSize && <StatCell label="Fund Size" value={etfData.fundSize} />}
+            {etfData?.replicationMethod && <StatCell label="Replication" value={etfData.replicationMethod} />}
+            {etfData?.numberOfHoldings && <StatCell label="# Holdings" value={etfData.numberOfHoldings.toString()} />}
+            {etfData?.domicile && <StatCell label="Domicile" value={etfData.domicile} />}
+            {etfData?.distributionPolicy && <StatCell label="Distribution" value={etfData.distributionPolicy} />}
+            {etfData?.launchDate && <StatCell label="Launch Date" value={etfData.launchDate} />}
           </View>
         </View>
 
@@ -422,6 +429,15 @@ export default function TickerDetailScreen() {
             <PerfCard label="1Y" changePct={perf1Y} />
           </View>
         </View>
+
+        {etfData?.description && (
+          <View style={[styles.sectionCard, { gap: 6 }]}>
+            <Text style={[styles.sectionTitle, { fontSize: 13 }]}>About</Text>
+            <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary, lineHeight: 18 }}>
+              {etfData.description}
+            </Text>
+          </View>
+        )}
 
         {!!isin && (
           <TouchableOpacity

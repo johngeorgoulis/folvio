@@ -575,15 +575,25 @@ export async function fetchSymbolPrice(
   }
 }
 
-export async function fetchTERFromServer(isin: string): Promise<number | null> {
+export interface ServerETFData {
+  ter: number | null;
+  fundSize: string | null;
+  replicationMethod: string | null;
+  numberOfHoldings: number | null;
+  launchDate: string | null;
+  domicile: string | null;
+  distributionPolicy: string | null;
+  description: string | null;
+}
+
+export async function fetchETFDataFromServer(isin: string): Promise<ServerETFData | null> {
   if (!isin || Platform.OS === "web") return null;
   try {
     const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
     if (!domain) return null;
     const res = await fetch(`https://${domain}/api/etf/ter/${isin}`);
     if (!res.ok) return null;
-    const data = await res.json();
-    return typeof data.ter === "number" ? data.ter : null;
+    return await res.json();
   } catch {
     return null;
   }
