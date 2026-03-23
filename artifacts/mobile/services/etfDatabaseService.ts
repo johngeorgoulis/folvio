@@ -164,10 +164,24 @@ async function _backgroundUpdate() {
     if (!remote?.version || !Array.isArray(remote.etfs)) return;
 
     const currentVersion = _db?.version || BUNDLED_DB.version;
-    const currentVer = parseInt(currentVersion.replace(/\D/g, ""), 10) || 0;
-    const remoteVer  = parseInt(remote.version.replace(/\D/g, ""), 10) || 0;
 
-    if (remoteVer <= currentVer) return; // already up to date
+    // Compare using proper semver so "1.12" is never treated as > "2.0".
+    // Trigger a download whenever the remote version differs from what we have
+    // (either direction triggers; this is intentional — Gist is source of truth).
+    if (remote.version === currentVersion) return; // already up to date
+
+    // Only install if remote is strictly newer (prevents accidental downgrade).
+    function semverGt(a: string, b: string): boolean {
+      const pa = a.split(".").map(s => parseInt(s, 10) || 0);
+      const pb = b.split(".").map(s => parseInt(s, 10) || 0);
+      for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        const na = pa[i] ?? 0, nb = pb[i] ?? 0;
+        if (na > nb) return true;
+        if (na < nb) return false;
+      }
+      return false;
+    }
+    if (!semverGt(remote.version, currentVersion)) return;
 
     // Apply update
     await Promise.all([
