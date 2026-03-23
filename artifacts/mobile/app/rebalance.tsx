@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -115,6 +116,12 @@ export default function RebalanceScreen() {
   const [result, setResult] = useState<RebalanceResult | null>(null);
   const [calculating, setCalculating] = useState(false);
 
+  useEffect(() => {
+    AsyncStorage.getItem("fortis_forecast_dca").then((val) => {
+      if (val && parseFloat(val) > 0) setCashInput(val);
+    });
+  }, []);
+
   const totalEUR = useMemo(() => getPortfolioTotalEUR(holdings), [holdings]);
 
   const allocations = useMemo(
@@ -123,6 +130,11 @@ export default function RebalanceScreen() {
   );
 
   const validation = useMemo(() => validateTargets(targets), [targets]);
+
+  const worstOverweight = useMemo(() => {
+    const hits = allocations.filter((r) => r.drift > 5).sort((a, b) => b.drift - a.drift);
+    return hits[0] ?? null;
+  }, [allocations]);
 
   function handleCalculate() {
     if (!validation.valid) {
@@ -304,6 +316,16 @@ export default function RebalanceScreen() {
               <Feather name="alert-circle" size={14} color="#F87171" />
               <Text style={styles.fullRebalanceNoteText}>
                 Selling may trigger capital gains tax. Consult a tax advisor.
+              </Text>
+            </View>
+          )}
+
+          {mode === "dca" && worstOverweight && (
+            <View style={[styles.overweightBanner, { backgroundColor: "#F39C1211", borderColor: "#F39C1244" }]}>
+              <Feather name="alert-triangle" size={13} color="#F39C12" style={{ marginTop: 1 }} />
+              <Text style={styles.overweightBannerText}>
+                <Text style={{ fontFamily: "Inter_600SemiBold" }}>{worstOverweight.ticker}</Text>
+                {" "}is significantly overweight ({worstOverweight.drift > 0 ? "+" : ""}{worstOverweight.drift.toFixed(1)}%). DCA mode will skip it, but consider a Full Rebalance to restore your target allocation.
               </Text>
             </View>
           )}
@@ -505,6 +527,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   fullRebalanceNoteText: { flex: 1, fontSize: 12, color: "#F87171", fontFamily: "Inter_400Regular", lineHeight: 17 },
+  overweightBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  overweightBannerText: { flex: 1, fontSize: 12, color: "#F39C12", fontFamily: "Inter_400Regular", lineHeight: 17 },
   calcBtn: {
     borderRadius: 12,
     height: 48,
