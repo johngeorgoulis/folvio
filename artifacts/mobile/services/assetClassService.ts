@@ -1,7 +1,50 @@
+import {
+  getAllAssetClassOverrides,
+  upsertAssetClassOverride,
+  deleteAssetClassOverride,
+} from "@/services/db";
 import { lookupByTicker, lookupByISIN } from "@/services/etfDatabaseService";
 
 export type AssetClass = "Equity" | "Bond" | "Commodity" | "Real Estate" | "Cash" | "Other";
 
+export const ASSET_CLASS_OPTIONS: AssetClass[] = [
+  "Equity",
+  "Bond",
+  "Commodity",
+  "Real Estate",
+  "Cash",
+  "Other",
+];
+
+// ── Override cache (populated at startup, updated on every user save) ──────────
+let _overrideCache = new Map<string, AssetClass>();
+
+/** Load (or reload) all user overrides from SQLite into memory. */
+export async function loadAssetClassOverrides(): Promise<void> {
+  try {
+    const rows = await getAllAssetClassOverrides();
+    _overrideCache.clear();
+    for (const row of rows) {
+      _overrideCache.set(row.ticker.toUpperCase(), row.asset_class as AssetClass);
+    }
+  } catch {
+    // Non-fatal — cache stays empty
+  }
+}
+
+/** Save a user override for a specific ticker and update the in-memory cache. */
+export async function saveAssetClassOverride(ticker: string, assetClass: AssetClass): Promise<void> {
+  await upsertAssetClassOverride(ticker, assetClass);
+  _overrideCache.set(ticker.toUpperCase(), assetClass);
+}
+
+/** Remove a user override (revert to automatic classification). */
+export async function clearAssetClassOverride(ticker: string): Promise<void> {
+  await deleteAssetClassOverride(ticker);
+  _overrideCache.delete(ticker.toUpperCase());
+}
+
+// ── TER lookup ────────────────────────────────────────────────────────────────
 
 const KNOWN_TER: Record<string, number> = {
   "VWCE": 0.19, "VWRL": 0.22, "VHYL": 0.29, "TDIV": 0.38,
@@ -18,30 +61,62 @@ export function getTER(ticker: string): number | null {
   return KNOWN_TER[ticker.toUpperCase()] ?? null;
 }
 
+// ── Known bond ETFs hardcoded as final safety net ─────────────────────────────
+// These are confirmed fixed-income instruments regardless of DB data.
+const KNOWN_BOND_TICKERS = new Set([
+  "CSBGE7", "AGGH", "IEAG", "IBTM", "IBTS", "LQDE",
+  "IHYG", "HYLD", "VGOV", "IBGX", "EUNA", "JPST",
+  // iShares Ultra Short Bond (EM corporate bonds)
+  "ERNE",
+  // iShares Euro Government Bond 0-1yr
+  "IEGE",
+]);
+
+const KNOWN_COMMODITY_TICKERS = new Set([
+  "EGLN", "IGLN", "SGLN", "PHAU", "VZLD",
+]);
+
+const KNOWN_REAL_ESTATE_TICKERS = new Set([
+  "IWDP", "IPRP", "TRET",
+]);
+
+// ── Main classification function (synchronous) ─────────────────────────────────
+
+/**
+ * Returns the asset class for a ticker.
+ * Priority order:
+ *  1. User override (SQLite, loaded into memory at startup)
+ *  2. ETF database (justETF local DB, 671 ETFs)
+ *  3. Known ticker lists (hardcoded safety net)
+ *  4. Default → Equity
+ */
 export function getAssetClass(ticker: string, isin?: string): AssetClass {
-  // 1. Check the live ETF database (synchronous once initialized)
-  const entry = lookupByTicker(ticker) ?? (isin ? lookupByISIN(isin) : null);
+  const upper = ticker.toUpperCase();
+
+  // 1. User override takes highest priority
+  if (_overrideCache.has(upper)) return _overrideCache.get(upper)!;
+
+  // 2. ETF database (synchronous once initialized)
+  const entry = lookupByTicker(upper) ?? (isin ? lookupByISIN(isin) : null);
   if (entry) {
     const ac = entry.assetClass;
-    if (ac === "Bonds")       return "Bond";
-    if (ac === "Commodities") return "Commodity";
-    if (ac === "Real Estate") return "Real Estate";
+    if (ac === "Bonds")        return "Bond";
+    if (ac === "Commodities")  return "Commodity";
+    if (ac === "Real Estate")  return "Real Estate";
     if (ac === "Money Market") return "Cash";
-    if (ac === "Equity")      return "Equity";
+    if (ac === "Equity")       return "Equity";
+    // If DB value is something else (e.g. unexpected), fall through
   }
 
-  // 2. Simple ticker fallback (user-specified)
-  const upper = ticker.toUpperCase();
-  if (upper === "CSBGE7" || upper === "AGGH" || upper === "IEAG" ||
-      upper === "IBTM"   || upper === "IBTS" || upper === "LQDE" ||
-      upper === "IHYG"   || upper === "HYLD" || upper === "VGOV" ||
-      upper === "IBGX"   || upper === "EUNA" || upper === "JPST") return "Bond";
-  if (upper === "EGLN" || upper === "IGLN" || upper === "SGLN" ||
-      upper === "PHAU"  || upper === "VZLD") return "Commodity";
-  if (upper === "IWDP" || upper === "IPRP" || upper === "TRET") return "Real Estate";
+  // 3. Hardcoded safety net
+  if (KNOWN_BOND_TICKERS.has(upper))      return "Bond";
+  if (KNOWN_COMMODITY_TICKERS.has(upper)) return "Commodity";
+  if (KNOWN_REAL_ESTATE_TICKERS.has(upper)) return "Real Estate";
 
   return "Equity";
 }
+
+// ── Portfolio classification (uses getAssetClass, weights by market value) ─────
 
 export function classifyPortfolio(
   holdings: { ticker: string; isin?: string; quantity: number; currentPrice: number; hasPrice: boolean }[]

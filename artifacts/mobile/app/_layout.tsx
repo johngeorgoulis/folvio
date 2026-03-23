@@ -19,6 +19,7 @@ import NotificationManager from "@/components/NotificationManager";
 import { PortfolioProvider } from "@/context/PortfolioContext";
 import { AllocationProvider } from "@/context/AllocationContext";
 import { configureNotificationHandler } from "@/services/notificationService";
+import { loadAssetClassOverrides } from "@/services/assetClassService";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,6 +39,8 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
+      // Pre-load user asset-class overrides into in-memory cache
+      loadAssetClassOverrides().catch(() => {});
     }
   }, [fontsLoaded, fontError]);
 

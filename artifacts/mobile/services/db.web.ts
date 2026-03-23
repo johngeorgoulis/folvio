@@ -241,6 +241,36 @@ export async function upsertPortfolioHistory(
   await writeJSON(KEYS.portfolioHistory, Array.from(map.values()));
 }
 
+// ─── Asset Class Overrides ────────────────────────────────────────────────────
+
+export type AssetClassOverrideRow = {
+  ticker: string;
+  asset_class: string;
+  updated_at: string;
+};
+
+const OVERRIDE_KEY = "fortis_v2_asset_class_overrides";
+
+export async function getAllAssetClassOverrides(): Promise<AssetClassOverrideRow[]> {
+  return readJSON<AssetClassOverrideRow>(OVERRIDE_KEY);
+}
+
+export async function upsertAssetClassOverride(ticker: string, assetClass: string): Promise<void> {
+  const rows = await readJSON<AssetClassOverrideRow>(OVERRIDE_KEY);
+  const now = new Date().toISOString();
+  const upper = ticker.toUpperCase();
+  const idx = rows.findIndex((r) => r.ticker === upper);
+  const entry: AssetClassOverrideRow = { ticker: upper, asset_class: assetClass, updated_at: now };
+  if (idx >= 0) rows[idx] = entry;
+  else rows.push(entry);
+  await writeJSON(OVERRIDE_KEY, rows);
+}
+
+export async function deleteAssetClassOverride(ticker: string): Promise<void> {
+  const rows = await readJSON<AssetClassOverrideRow>(OVERRIDE_KEY);
+  await writeJSON(OVERRIDE_KEY, rows.filter((r) => r.ticker !== ticker.toUpperCase()));
+}
+
 export async function getPortfolioHistoryByRange(days: number): Promise<PortfolioHistoryRow[]> {
   const cutoff = days >= 36000
     ? "1900-01-01"

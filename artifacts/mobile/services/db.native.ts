@@ -102,6 +102,11 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
       total_invested_eur REAL NOT NULL,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS holding_asset_class_overrides (
+      ticker TEXT PRIMARY KEY,
+      asset_class TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
   // Migration: add yield_pct to existing holdings tables
   try {
@@ -291,6 +296,40 @@ export async function getLatestEtfPriceDate(ticker: string): Promise<string | nu
     [ticker]
   );
   return row?.date ?? null;
+}
+
+// ─── Asset Class Overrides ────────────────────────────────────────────────────
+
+export type AssetClassOverrideRow = {
+  ticker: string;
+  asset_class: string;
+  updated_at: string;
+};
+
+export async function getAllAssetClassOverrides(): Promise<AssetClassOverrideRow[]> {
+  const database = await getDb();
+  return database.getAllAsync<AssetClassOverrideRow>(
+    "SELECT * FROM holding_asset_class_overrides"
+  );
+}
+
+export async function upsertAssetClassOverride(ticker: string, assetClass: string): Promise<void> {
+  const now = new Date().toISOString();
+  const database = await getDb();
+  await database.runAsync(
+    `INSERT INTO holding_asset_class_overrides (ticker, asset_class, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(ticker) DO UPDATE SET asset_class = excluded.asset_class, updated_at = excluded.updated_at`,
+    [ticker.toUpperCase(), assetClass, now]
+  );
+}
+
+export async function deleteAssetClassOverride(ticker: string): Promise<void> {
+  const database = await getDb();
+  await database.runAsync(
+    "DELETE FROM holding_asset_class_overrides WHERE ticker = ?",
+    [ticker.toUpperCase()]
+  );
 }
 
 // ─── Portfolio History ────────────────────────────────────────────────────────

@@ -19,7 +19,13 @@ import { formatEUR, formatPct } from "@/utils/format";
 import { getExchangeLabel } from "@/components/ExchangePicker";
 import EditHoldingModal from "@/components/EditHoldingModal";
 import { fetchLivePrice } from "@/services/priceService";
-import { getAssetClass, getTER } from "@/services/assetClassService";
+import {
+  getAssetClass,
+  getTER,
+  saveAssetClassOverride,
+  ASSET_CLASS_OPTIONS,
+  type AssetClass,
+} from "@/services/assetClassService";
 import { upsertPrice } from "@/services/db";
 
 const theme = Colors.dark;
@@ -72,6 +78,9 @@ export default function HoldingDetailScreen() {
   const holding = holdings.find((h) => h.id === id);
   const [showEdit, setShowEdit] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [localAssetClass, setLocalAssetClass] = useState<AssetClass>(
+    () => getAssetClass(holding?.ticker ?? "", holding?.isin ?? "")
+  );
 
   if (!holding) {
     return (
@@ -100,8 +109,24 @@ export default function HoldingDetailScreen() {
       : null;
 
   const exchangeLabel = getExchangeLabel(holding.exchange);
-  const assetClass = getAssetClass(holding.ticker, holding.isin ?? "");
   const ter = getTER(holding.ticker);
+
+  function handleEditAssetClass() {
+    Alert.alert(
+      "Set Asset Class",
+      `Current: ${localAssetClass}\n\nChoose the correct class for ${holding!.ticker}:`,
+      [
+        ...ASSET_CLASS_OPTIONS.map((cls) => ({
+          text: cls === localAssetClass ? `✓ ${cls}` : cls,
+          onPress: async () => {
+            await saveAssetClassOverride(holding!.ticker, cls);
+            setLocalAssetClass(cls);
+          },
+        })),
+        { text: "Cancel", style: "cancel" as const },
+      ]
+    );
+  }
 
   async function handleRefreshPrice() {
     setRefreshing(true);
@@ -154,9 +179,14 @@ export default function HoldingDetailScreen() {
             <View style={styles.exchangeBadge}>
               <Text style={styles.exchangeText}>{exchangeLabel.split(" (")[0]}</Text>
             </View>
-            <View style={[styles.exchangeBadge, { backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.15)" }]}>
-              <Text style={[styles.exchangeText, { color: "rgba(255,255,255,0.7)" }]}>{assetClass}</Text>
-            </View>
+            <TouchableOpacity
+              style={[styles.exchangeBadge, { backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.15)" }]}
+              onPress={handleEditAssetClass}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Text style={[styles.exchangeText, { color: "rgba(255,255,255,0.7)" }]}>{localAssetClass}</Text>
+              <Feather name="edit-2" size={9} color="rgba(255,255,255,0.45)" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
           </View>
           {!!holding.name && (
             <Text style={styles.nameText} numberOfLines={1}>{holding.name}</Text>
@@ -341,6 +371,8 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   exchangeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "rgba(201,168,76,0.18)",
     borderRadius: 8,
     paddingHorizontal: 8,
