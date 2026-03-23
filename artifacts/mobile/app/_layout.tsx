@@ -6,24 +6,24 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import NotificationManager from "@/components/NotificationManager";
+import OnboardingFlow, { ONBOARDING_KEY } from "@/components/OnboardingFlow";
 import { PortfolioProvider } from "@/context/PortfolioContext";
 import { AllocationProvider } from "@/context/AllocationContext";
 import { configureNotificationHandler } from "@/services/notificationService";
 import { loadAssetClassOverrides } from "@/services/assetClassService";
 
 SplashScreen.preventAutoHideAsync();
-
-// Configure how notifications appear when the app is foregrounded
 configureNotificationHandler();
 
 const queryClient = new QueryClient();
@@ -36,16 +36,51 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+  // null = still checking, false = show onboarding, true = go straight to app
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+  // When onboarding finishes with "Add My First Holding", navigate to search
+  const pendingSearch = useRef(false);
+
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if (!fontsLoaded && !fontError) return;
+    loadAssetClassOverrides().catch(() => {});
+    AsyncStorage.getItem(ONBOARDING_KEY).then((v) => {
+      setOnboardingDone(v === "true");
       SplashScreen.hideAsync();
-      // Pre-load user asset-class overrides into in-memory cache
-      loadAssetClassOverrides().catch(() => {});
-    }
+    });
   }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError) return null;
+  // Fire search navigation once the Stack is mounted
+  useEffect(() => {
+    if (onboardingDone && pendingSearch.current) {
+      pendingSearch.current = false;
+      const t = setTimeout(() => {
+        router.replace("/(tabs)/search" as never);
+      }, 80);
+      return () => clearTimeout(t);
+    }
+  }, [onboardingDone]);
 
+  function handleOnboardingComplete(goToSearch: boolean) {
+    pendingSearch.current = goToSearch;
+    setOnboardingDone(true);
+  }
+
+  // Keep splash visible while fonts or AsyncStorage check is in progress
+  if (!fontsLoaded && !fontError) return null;
+  if (onboardingDone === null) return null;
+
+  // ── Onboarding ─────────────────────────────────────────────────────────────
+  if (!onboardingDone) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <OnboardingFlow onComplete={handleOnboardingComplete} />
+      </SafeAreaProvider>
+    );
+  }
+
+  // ── Main app ────────────────────────────────────────────────────────────────
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
@@ -72,7 +107,11 @@ export default function RootLayout() {
                     />
                     <Stack.Screen
                       name="import"
-                      options={{ headerShown: true, animation: "slide_from_bottom", presentation: "modal" }}
+                      options={{
+                        headerShown: true,
+                        animation: "slide_from_bottom",
+                        presentation: "modal",
+                      }}
                     />
                   </Stack>
                 </AllocationProvider>
