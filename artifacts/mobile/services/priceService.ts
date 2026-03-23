@@ -612,6 +612,7 @@ export async function fetchSymbolPrice(
 }
 
 export interface ServerETFData {
+  isin?: string;
   ter: number | null;
   fundSize: string | null;
   replicationMethod: string | null;
@@ -622,12 +623,49 @@ export interface ServerETFData {
   description: string | null;
 }
 
+export interface ISINResolveResult {
+  isin: string;
+  ticker: string | null;
+  candidates: string[];
+  etfData: ServerETFData | null;
+}
+
 export async function fetchETFDataFromServer(isin: string): Promise<ServerETFData | null> {
   if (!isin || Platform.OS === "web") return null;
   try {
     const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
     if (!domain) return null;
     const res = await fetch(`https://${domain}/api/etf/ter/${isin}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchETFDataBySymbol(symbol: string): Promise<ServerETFData | null> {
+  if (!symbol || Platform.OS === "web") return null;
+  try {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+    if (!domain) return null;
+    const res = await fetch(
+      `https://${domain}/api/etf/by-symbol?symbol=${encodeURIComponent(symbol)}`
+    );
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveISIN(isin: string): Promise<ISINResolveResult | null> {
+  if (!isin || Platform.OS === "web") return null;
+  try {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+    if (!domain) return null;
+    const res = await fetch(
+      `https://${domain}/api/etf/isin-resolve?isin=${encodeURIComponent(isin.toUpperCase())}`
+    );
     if (!res.ok) return null;
     return await res.json();
   } catch {

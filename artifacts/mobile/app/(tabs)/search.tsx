@@ -17,7 +17,9 @@ import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
 import {
   fetchSymbolPrice,
+  resolveISIN,
   searchTickers,
+  type ISINResolveResult,
   type SearchResult,
 } from "@/services/priceService";
 
@@ -46,6 +48,12 @@ const POPULAR_STOCKS = [
   { symbol: "NESN.SW",  ticker: "NESN",   name: "Nestlé S.A." },
   { symbol: "MC.PA",    ticker: "MC",     name: "LVMH Moët Hennessy" },
 ];
+
+const ISIN_REGEX = /^[A-Z]{2}[A-Z0-9]{10}$/;
+
+function isISIN(q: string): boolean {
+  return ISIN_REGEX.test(q.trim().toUpperCase());
+}
 
 type Filter = "All" | "ETF" | "Stock" | "Fund";
 
@@ -164,6 +172,9 @@ export default function SearchScreen() {
   const [popularPrices, setPopularPrices] = useState<
     Record<string, PopularPrice | null>
   >({});
+  const [isinResolving, setIsinResolving] = useState(false);
+  const [isinResult, setIsinResult] = useState<ISINResolveResult | null>(null);
+  const [isinError, setIsinError] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
 
@@ -216,10 +227,36 @@ export default function SearchScreen() {
     setIsSearching(false);
   }, []);
 
+  async function handleISINResolve(isin: string) {
+    setIsinResolving(true);
+    setIsinResult(null);
+    setIsinError(false);
+    try {
+      const result = await resolveISIN(isin.toUpperCase());
+      if (result && result.candidates.length > 0) {
+        setIsinResult(result);
+      } else {
+        setIsinError(true);
+      }
+    } catch {
+      setIsinError(true);
+    } finally {
+      setIsinResolving(false);
+    }
+  }
+
   function handleQueryChange(text: string) {
     setQuery(text);
+    setIsinResult(null);
+    setIsinError(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => runSearch(text.trim()), 300);
+    const trimmed = text.trim();
+    if (isISIN(trimmed)) {
+      // Detected a full ISIN — resolve it directly without a generic search
+      debounceRef.current = setTimeout(() => handleISINResolve(trimmed), 400);
+    } else {
+      debounceRef.current = setTimeout(() => runSearch(trimmed), 300);
+    }
   }
 
   const filteredResults = results.filter((r) => {
@@ -230,7 +267,9 @@ export default function SearchScreen() {
     return true;
   });
 
-  const showHome = query.length < 2;
+  const queryTrimmed = query.trim();
+  const queryIsISIN = isISIN(queryTrimmed);
+  const showHome = queryTrimmed.length < 2;
   const FILTERS: Filter[] = ["All", "ETF", "Stock", "Fund"];
 
   return (
@@ -254,7 +293,7 @@ export default function SearchScreen() {
             style={styles.searchInput}
             value={query}
             onChangeText={handleQueryChange}
-            placeholder="Search ticker or name..."
+            placeholder="Ticker, name or ISIN..."
             placeholderTextColor={theme.textTertiary}
             returnKeyType="search"
             autoCorrect={false}
@@ -263,7 +302,7 @@ export default function SearchScreen() {
           />
           {query.length > 0 && (
             <TouchableOpacity
-              onPress={() => { setQuery(""); setResults([]); }}
+              onPress={() => { setQuery(""); setResults([]); setIsinResult(null); setIsinError(false); }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Feather name="x" size={16} color={theme.textSecondary} />
@@ -323,34 +362,99 @@ export default function SearchScreen() {
         {/* ── Search Results ────────────────────────────────────────────── */}
         {!showHome && (
           <>
-            {/* Filter tabs */}
-            <View style={styles.filterRow}>
-              {FILTERS.map((f) => (
-                <TouchableOpacity
-                  key={f}
-                  style={[
-                    styles.filterChip,
-                    {
-                      backgroundColor: filter === f ? theme.tint : theme.backgroundCard,
-                      borderColor: filter === f ? theme.tint : theme.border,
-                    },
-                  ]}
-                  onPress={() => setFilter(f)}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      { color: filter === f ? "#0A0F1A" : theme.textSecondary },
-                    ]}
-                  >
-                    {f}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {/* ISIN badge */}
+            {queryIsISIN && (
+              <View style={styles.isinBadgeRow}>
+                <Feather name="hash" size={13} color={theme.tint} />
+                <Text style={styles.isinBadgeText}>ISIN detected</Text>
+              </View>
+            )}
 
-            {/* Loading */}
-            {isSearching && (
+            {/* Filter tabs — hidden when searching by ISIN */}
+            {!queryIsISIN && (
+              <View style={styles.filterRow}>
+                {FILTERS.map((f) => (
+                  <TouchableOpacity
+                    key={f}
+                    style={[
+                      styles.filterChip,
+                      {
+                        backgroundColor: filter === f ? theme.tint : theme.backgroundCard,
+                        borderColor: filter === f ? theme.tint : theme.border,
+                      },
+                    ]}
+                    onPress={() => setFilter(f)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        { color: filter === f ? "#0A0F1A" : theme.textSecondary },
+                      ]}
+                    >
+                      {f}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* ISIN: resolving spinner */}
+            {queryIsISIN && isinResolving && (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color={theme.tint} />
+                <Text style={{ color: theme.textSecondary, marginLeft: 10, fontSize: 14 }}>
+                  Looking up ISIN…
+                </Text>
+              </View>
+            )}
+
+            {/* ISIN: resolved candidates */}
+            {queryIsISIN && !isinResolving && isinResult && (
+              <View style={{ gap: 8, marginTop: 8 }}>
+                <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: "Inter_400Regular" }}>
+                  Select an exchange listing:
+                </Text>
+                {isinResult.candidates.map((sym) => (
+                  <TouchableOpacity
+                    key={sym}
+                    style={styles.resultRow}
+                    onPress={() => router.push({ pathname: "/ticker/[symbol]", params: { symbol: sym } })}
+                    activeOpacity={0.75}
+                  >
+                    <View style={styles.resultLeft}>
+                      <View style={styles.resultTickerRow}>
+                        <Text style={styles.resultSymbol}>{sym}</Text>
+                        <View style={[styles.typeBadge, { backgroundColor: theme.tint + "22", borderColor: theme.tint + "55" }]}>
+                          <Text style={[styles.typeBadgeText, { color: theme.tint }]}>ETF</Text>
+                        </View>
+                      </View>
+                      {isinResult.etfData?.description ? (
+                        <Text style={styles.resultName} numberOfLines={1}>
+                          {isinResult.etfData.description.substring(0, 60)}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Feather name="chevron-right" size={16} color={theme.textTertiary} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* ISIN: not found */}
+            {queryIsISIN && !isinResolving && isinError && (
+              <View style={styles.emptyResults}>
+                <Feather name="alert-circle" size={28} color={theme.textTertiary} />
+                <Text style={{ color: theme.textSecondary, marginTop: 10, fontSize: 14 }}>
+                  Could not resolve ISIN
+                </Text>
+                <Text style={{ color: theme.textTertiary, marginTop: 4, fontSize: 12, textAlign: "center", paddingHorizontal: 24 }}>
+                  This ISIN is not listed on JustETF or is not available.
+                </Text>
+              </View>
+            )}
+
+            {/* Loading — regular search */}
+            {!queryIsISIN && isSearching && (
               <View style={styles.loadingRow}>
                 <ActivityIndicator color={theme.tint} />
                 <Text style={{ color: theme.textSecondary, marginLeft: 10, fontSize: 14 }}>
@@ -359,8 +463,8 @@ export default function SearchScreen() {
               </View>
             )}
 
-            {/* No results */}
-            {!isSearching && filteredResults.length === 0 && query.length >= 2 && (
+            {/* No results — regular search */}
+            {!queryIsISIN && !isSearching && filteredResults.length === 0 && queryTrimmed.length >= 2 && (
               <View style={styles.emptyResults}>
                 <Feather name="search" size={28} color={theme.textTertiary} />
                 <Text style={{ color: theme.textSecondary, marginTop: 10, fontSize: 14 }}>
@@ -536,5 +640,19 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     color: theme.textTertiary,
     marginLeft: 8,
+  },
+  isinBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 4,
+  },
+  isinBadgeText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    color: theme.tint,
+    letterSpacing: 0.2,
   },
 });

@@ -19,6 +19,7 @@ import { usePortfolio } from "@/context/PortfolioContext";
 import PriceChart from "@/components/PriceChart";
 import {
   fetchChartHistory,
+  fetchETFDataBySymbol,
   fetchETFDataFromServer,
   fetchTickerMeta,
   type ChartPoint,
@@ -78,6 +79,11 @@ function staleBadge(ageMs: number): string {
 
 function symbolToTicker(symbol: string): string {
   return symbol.split(".")[0];
+}
+
+function capitalize(s: string | null | undefined): string {
+  if (!s) return "—";
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
 
 function symbolToExchange(symbol: string): string {
@@ -241,14 +247,24 @@ export default function TickerDetailScreen() {
   const ter = getTER(cleanTicker);
   const assetClass = getAssetClass(cleanTicker);
   const knownYield = KNOWN_YIELDS_MAP[cleanTicker.toUpperCase()];
-  const isin = holdings.find(h => h.ticker.toUpperCase() === cleanTicker.toUpperCase())?.isin ?? "";
+  const portfolioISIN = holdings.find(h => h.ticker.toUpperCase() === cleanTicker.toUpperCase())?.isin ?? "";
   const effectiveTER = etfData?.ter ?? ter;
+  // The ISIN to use for the JustETF link: prefer portfolio (exact), fall back to what the server resolved
+  const displayISIN = portfolioISIN || etfData?.isin || "";
 
+  // Always fetch ETF enrichment data for any ETF, regardless of portfolio membership.
+  // For portfolio holdings with a known ISIN, the direct lookup is used;
+  // otherwise the server resolves ticker → ISIN via JustETF search.
   useEffect(() => {
-    if (isin) {
-      fetchETFDataFromServer(isin).then(d => { if (d) setEtfData(d); });
+    if (!safeSymbol) return;
+    if (portfolioISIN) {
+      // Fast path: exact ISIN already known from portfolio
+      fetchETFDataFromServer(portfolioISIN).then(d => { if (d) setEtfData(d); });
+    } else {
+      // Slow path: server searches JustETF by ticker to find ISIN first
+      fetchETFDataBySymbol(safeSymbol).then(d => { if (d) setEtfData(d); });
     }
-  }, [isin]);
+  }, [safeSymbol, portfolioISIN]);
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const bottomPad = Platform.OS === "web" ? 24 : insets.bottom + 24;
@@ -436,10 +452,10 @@ export default function TickerDetailScreen() {
             )}
             {/* From JustETF server data */}
             {etfData?.replicationMethod && (
-              <StatCell label="Replication" value={etfData.replicationMethod} />
+              <StatCell label="Replication" value={capitalize(etfData.replicationMethod)} />
             )}
             {etfData?.distributionPolicy && (
-              <StatCell label="Distribution" value={etfData.distributionPolicy} />
+              <StatCell label="Distribution" value={capitalize(etfData.distributionPolicy)} />
             )}
             {etfData?.fundSize && (
               <StatCell label="Fund Size" value={etfData.fundSize} />
@@ -448,7 +464,7 @@ export default function TickerDetailScreen() {
               <StatCell label="# Holdings" value={etfData.numberOfHoldings.toString()} />
             )}
             {etfData?.domicile && (
-              <StatCell label="Domicile" value={etfData.domicile} />
+              <StatCell label="Domicile" value={capitalize(etfData.domicile)} />
             )}
             {etfData?.launchDate && (
               <StatCell label="Inception" value={etfData.launchDate} />
@@ -476,10 +492,10 @@ export default function TickerDetailScreen() {
           </View>
         )}
 
-        {!!isin && (
+        {!!displayISIN && (
           <TouchableOpacity
             style={[styles.sectionCard, { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
-            onPress={() => Linking.openURL(`https://www.justetf.com/en/etf-profile.html?isin=${isin}`)}
+            onPress={() => Linking.openURL(`https://www.justetf.com/en/etf-profile.html?isin=${displayISIN}`)}
           >
             <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: theme.textSecondary }}>View on JustETF</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
