@@ -540,10 +540,22 @@ export async function fetchChartHistory(symbol: string, range: string): Promise<
   }
 }
 
+export interface BenchmarkFetchResult {
+  returnPct: number;
+  url: string;
+  period1: number;
+  period2: number;
+  firstClose: number;
+  lastClose: number;
+  firstDate: string;
+  lastDate: string;
+  datapoints: number;
+}
+
 export async function fetchBenchmarkReturn(
   ticker: string,
   startDateString: string
-): Promise<number | null> {
+): Promise<BenchmarkFetchResult | null> {
   const period1 = Math.floor(new Date(startDateString).getTime() / 1000);
   const period2 = Math.floor(Date.now() / 1000);
 
@@ -555,21 +567,33 @@ export async function fetchBenchmarkReturn(
     const res = await fetch(url, { headers: YAHOO_HEADERS });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const closes: (number | null)[] =
-      data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+    const result = data?.chart?.result?.[0];
+    const closes: (number | null)[] = result?.indicators?.quote?.[0]?.close ?? [];
+    const timestamps: number[] = result?.timestamp ?? [];
 
     let firstClose: number | null = null;
-    for (const c of closes) {
-      if (c != null && c > 0) { firstClose = c; break; }
+    let firstDate = startDateString;
+    for (let i = 0; i < closes.length; i++) {
+      if (closes[i] != null && closes[i]! > 0) {
+        firstClose = closes[i];
+        if (timestamps[i]) firstDate = new Date(timestamps[i] * 1000).toISOString().split("T")[0];
+        break;
+      }
     }
 
     let lastClose: number | null = null;
+    let lastDate = "";
     for (let i = closes.length - 1; i >= 0; i--) {
-      if (closes[i] != null && closes[i]! > 0) { lastClose = closes[i]; break; }
+      if (closes[i] != null && closes[i]! > 0) {
+        lastClose = closes[i];
+        if (timestamps[i]) lastDate = new Date(timestamps[i] * 1000).toISOString().split("T")[0];
+        break;
+      }
     }
 
     if (firstClose == null || lastClose == null) return null;
-    return ((lastClose - firstClose) / firstClose) * 100;
+    const returnPct = ((lastClose - firstClose) / firstClose) * 100;
+    return { returnPct, url, period1, period2, firstClose, lastClose, firstDate, lastDate, datapoints: closes.length };
   } catch (err) {
     console.warn(`[fetchBenchmarkReturn] ${ticker}:`, err);
     return null;

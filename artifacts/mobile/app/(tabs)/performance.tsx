@@ -20,7 +20,7 @@ import { useAllocation } from "@/context/AllocationContext";
 import { formatEUR, formatPct } from "@/utils/format";
 import { calculateAllocations, validateTargets } from "@/services/allocationService";
 import { getSnapshots, type PortfolioSnapshot } from "@/services/snapshotService";
-import { fetchBenchmarkReturn } from "@/services/priceService";
+import { fetchBenchmarkReturn, type BenchmarkFetchResult } from "@/services/priceService";
 
 // ─── Benchmark definitions ─────────────────────────────────────────────────────
 
@@ -506,7 +506,7 @@ function BenchmarkComparisonSection({
   const theme = Colors.dark;
   const { holdings, totalInvested, totalPortfolioValue } = usePortfolio();
   const [activeBench, setActiveBench] = useState<BenchmarkItem>(defaultBenchmark);
-  const [benchReturn, setBenchReturn] = useState<number | null>(null);
+  const [benchResult, setBenchResult] = useState<BenchmarkFetchResult | null>(null);
   const [loading, setLoading] = useState(false);
   const hasFetchedRef = useRef(false);
 
@@ -519,12 +519,12 @@ function BenchmarkComparisonSection({
   async function loadBench(bench: BenchmarkItem, date: string) {
     if (!isPremium) return;
     setLoading(true);
-    setBenchReturn(null);
+    setBenchResult(null);
     try {
-      const pct = await fetchBenchmarkReturn(bench.symbol, date);
-      setBenchReturn(pct);
+      const result = await fetchBenchmarkReturn(bench.symbol, date);
+      setBenchResult(result);
     } catch {
-      setBenchReturn(null);
+      setBenchResult(null);
     } finally {
       setLoading(false);
     }
@@ -539,9 +539,14 @@ function BenchmarkComparisonSection({
 
   function handleChipTap(bm: BenchmarkItem) {
     setActiveBench(bm);
-    if (earliestDate) loadBench(bm, earliestDate);
+    hasFetchedRef.current = false;
+    if (earliestDate) {
+      hasFetchedRef.current = true;
+      loadBench(bm, earliestDate);
+    }
   }
 
+  const benchReturn = benchResult?.returnPct ?? null;
   const portfolioReturn = totalInvested > 0
     ? ((totalPortfolioValue - totalInvested) / totalInvested) * 100
     : 0;
@@ -626,6 +631,35 @@ function BenchmarkComparisonSection({
               <Text style={[dStyles.summaryValue, { color: theme.textTertiary }]}>—</Text>
             )}
           </View>
+        </View>
+      )}
+
+      {benchResult && (
+        <View style={{ marginTop: 14, padding: 10, backgroundColor: "#0a1520", borderRadius: 8, borderWidth: 1, borderColor: "#C9A84C44" }}>
+          <Text style={{ color: "#C9A84C", fontSize: 11, fontFamily: "Inter_600SemiBold", marginBottom: 4 }}>
+            🔍 DEBUG — BENCHMARK FETCH
+          </Text>
+          <Text style={{ color: "#8A9BB0", fontSize: 10, fontFamily: "Inter_400Regular", lineHeight: 16 }}>
+            {"URL: " + benchResult.url}
+          </Text>
+          <Text style={{ color: "#8A9BB0", fontSize: 10, fontFamily: "Inter_400Regular", lineHeight: 16 }}>
+            {"period1: " + benchResult.period1 + " → " + benchResult.firstDate}
+          </Text>
+          <Text style={{ color: "#8A9BB0", fontSize: 10, fontFamily: "Inter_400Regular", lineHeight: 16 }}>
+            {"period2: " + benchResult.period2 + " → " + benchResult.lastDate}
+          </Text>
+          <Text style={{ color: "#8A9BB0", fontSize: 10, fontFamily: "Inter_400Regular", lineHeight: 16 }}>
+            {"firstClose: " + benchResult.firstClose.toFixed(4)}
+          </Text>
+          <Text style={{ color: "#8A9BB0", fontSize: 10, fontFamily: "Inter_400Regular", lineHeight: 16 }}>
+            {"lastClose: " + benchResult.lastClose.toFixed(4)}
+          </Text>
+          <Text style={{ color: "#8A9BB0", fontSize: 10, fontFamily: "Inter_400Regular", lineHeight: 16 }}>
+            {"datapoints: " + benchResult.datapoints}
+          </Text>
+          <Text style={{ color: "#22C55E", fontSize: 10, fontFamily: "Inter_600SemiBold", lineHeight: 16 }}>
+            {"return: (("+benchResult.lastClose.toFixed(2)+" - "+benchResult.firstClose.toFixed(2)+") / "+benchResult.firstClose.toFixed(2)+") × 100 = "+benchResult.returnPct.toFixed(4)+"%"}
+          </Text>
         </View>
       )}
 
