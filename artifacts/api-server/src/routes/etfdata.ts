@@ -142,19 +142,21 @@ async function fetchETFDataFromJustETF(isin: string): Promise<ETFData> {
       }
     }
 
-    // ── Launch Date ──────────────────────────────────────────────────────────
+    // ── Launch Date — only search near the inception/launch label ───────────
+    // The first date in the page is always the NAV date (recent), NOT the
+    // fund launch date. We must anchor the search near the label.
     let launchDate: string | null = null;
-    const datePatterns = [
-      /(\d{1,2}[.\-\/]\d{1,2}[.\-\/]\d{4})/,
-      /inception[^>]*>[^<]*>([^<]+\d{4}[^<]*)</i,
-      /(\w+ \d{4})/,
-    ];
-    for (const p of datePatterns) {
-      const m = html.match(p);
-      if (m && m[1]) {
-        launchDate = m[1];
-        break;
-      }
+    const inceptionSection =
+      html.match(/(?:Fund\s+inception|inception\s+date|launch\s+date|fund\s+launch)[\s\S]{0,400}/i);
+    if (inceptionSection) {
+      const dateInSection = inceptionSection[0].match(/\b(\d{1,2}[./]\d{1,2}[./]\d{4})\b/);
+      if (dateInSection) launchDate = dateInSection[1];
+    }
+    if (!launchDate) {
+      const m = html.match(
+        /(?:inception|launch\s+date)[^<]*<\/[^>]+>[^<]*<[^>]+>\s*(\d{1,2}[./]\d{1,2}[./]\d{4})\s*</i
+      );
+      if (m && m[1]) launchDate = m[1];
     }
 
     // ── Domicile — targeted: only look within ~200 chars of the label ────────

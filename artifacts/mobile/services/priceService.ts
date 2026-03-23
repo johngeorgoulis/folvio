@@ -278,6 +278,7 @@ export interface TickerMeta {
   trailingAnnualDividendYield?: number;
   marketCap?: number;
   trailingPE?: number;
+  isin?: string | null;
 }
 
 export interface ChartPoint {
@@ -442,6 +443,7 @@ export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null
       trailingAnnualDividendYield: undefined,
       marketCap: undefined,
       trailingPE: undefined,
+      isin: (typeof meta.isin === "string" && meta.isin.length === 12) ? meta.isin : null,
     };
   } catch (err) {
     console.warn(`[fetchTickerMeta] failed for ${symbol}:`, err);

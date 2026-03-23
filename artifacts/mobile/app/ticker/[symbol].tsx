@@ -249,22 +249,25 @@ export default function TickerDetailScreen() {
   const knownYield = KNOWN_YIELDS_MAP[cleanTicker.toUpperCase()];
   const portfolioISIN = holdings.find(h => h.ticker.toUpperCase() === cleanTicker.toUpperCase())?.isin ?? "";
   const effectiveTER = etfData?.ter ?? ter;
-  // The ISIN to use for the JustETF link: prefer portfolio (exact), fall back to what the server resolved
-  const displayISIN = portfolioISIN || etfData?.isin || "";
+  // ISIN priority: portfolio (exact) > Yahoo Finance meta > server-resolved from JustETF search
+  const displayISIN = portfolioISIN || (meta?.isin ?? "") || etfData?.isin || "";
 
-  // Always fetch ETF enrichment data for any ETF, regardless of portfolio membership.
-  // For portfolio holdings with a known ISIN, the direct lookup is used;
-  // otherwise the server resolves ticker → ISIN via JustETF search.
+  // Three-tier ISIN resolution for JustETF enrichment — runs for ALL ETFs.
+  // Waits for meta to finish loading so the Yahoo Finance ISIN (tier 2) can
+  // be used before falling back to the slower JustETF ticker search (tier 3).
+  //   1. Portfolio ISIN  — exact, fastest
+  //   2. Yahoo Finance meta.isin — exact, fast (Yahoo returns ISIN for UCITS ETFs)
+  //   3. JustETF ticker search via /etf/by-symbol — searches by ticker name, slowest
   useEffect(() => {
-    if (!safeSymbol) return;
+    if (!safeSymbol || loadingMeta) return;
     if (portfolioISIN) {
-      // Fast path: exact ISIN already known from portfolio
       fetchETFDataFromServer(portfolioISIN).then(d => { if (d) setEtfData(d); });
+    } else if (meta?.isin) {
+      fetchETFDataFromServer(meta.isin).then(d => { if (d) setEtfData(d); });
     } else {
-      // Slow path: server searches JustETF by ticker to find ISIN first
       fetchETFDataBySymbol(safeSymbol).then(d => { if (d) setEtfData(d); });
     }
-  }, [safeSymbol, portfolioISIN]);
+  }, [safeSymbol, portfolioISIN, meta?.isin, loadingMeta]);
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const bottomPad = Platform.OS === "web" ? 24 : insets.bottom + 24;
