@@ -651,7 +651,7 @@ function BenchmarkComparisonSection({
 // ─── Portfolio Value Chart ─────────────────────────────────────────────────────
 
 const CHART_H = 160;
-const PAD = { top: 10, bottom: 28, left: 56, right: 16 };
+const PAD = { top: 10, bottom: 28, left: 56, right: 20 };
 
 interface ChartPt { x: number; y: number }
 
@@ -715,7 +715,7 @@ function PortfolioChart({
   }
 
   return (
-    <View style={{ width, height: CHART_H, position: "relative" }}>
+    <View style={{ width, height: CHART_H, position: "relative", overflow: "hidden" }}>
       {yLabels.map((lbl, i) => (
         <View key={i} style={[styles.gridLine, { top: lbl.y, left: PAD.left, right: PAD.right, borderColor: theme.border }]} />
       ))}
