@@ -1043,6 +1043,871 @@
       ],
       "primaryTicker": "CEBL.L",
       "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B6TLBW47"
+    },
+    "IE00B6R52259": {
+      "isin": "IE00B6R52259",
+      "ticker": "MVOL",
+      "name": "iShares MSCI ACWI UCITS ETF USD (Acc)",
+      "shortName": "iShares MSCI ACWI (Acc)",
+      "assetClass": "Equity",
+      "ter": 0.2,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-10-21",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "MVOL.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B6R52259"
+    },
+    "IE00B4L5YC18": {
+      "isin": "IE00B4L5YC18",
+      "ticker": "IBGX",
+      "name": "iShares MSCI EM UCITS ETF (Acc)",
+      "shortName": "iShares MSCI EM (Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.18,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2009-09-25",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "IBGX.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B4L5YC18"
+    },
+    "IE00B3ZW0K18": {
+      "isin": "IE00B3ZW0K18",
+      "ticker": "IEAG",
+      "name": "iShares S&P 500 EUR Hedged UCITS ETF (Acc)",
+      "shortName": "iShares S&P 500 Hdg(Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.2,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-09-30",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "IEAG.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3ZW0K18"
+    },
+    "IE00B3YLTY66": {
+      "isin": "IE00B3YLTY66",
+      "ticker": "IGLS",
+      "name": "State Street SPDR MSCI All Country World Investable Market UCITS ETF USD Unhedged (Acc)",
+      "shortName": "State Street SPDR MSCI All Country World Investable Market Unhedged (Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.17,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-05-13",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IGLS.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3YLTY66"
+    },
+    "IE00B5L01S80": {
+      "isin": "IE00B5L01S80",
+      "ticker": "IGLT",
+      "name": "HSBC FTSE EPRA NAREIT Developed UCITS ETF USD",
+      "shortName": "HSBC FTSE EPRA NAREIT Developed USD",
+      "assetClass": "Bonds",
+      "ter": 0.24,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-06-20",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IGLT.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B5L01S80"
+    },
+    "IE00B52MJD48": {
+      "isin": "IE00B52MJD48",
+      "ticker": "CBU7",
+      "name": "iShares Nikkei 225 UCITS ETF (Acc)",
+      "shortName": "iShares Nikkei 225 (Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.48,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-01-25",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "CBU7.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B52MJD48"
+    },
+    "IE00B3F81409": {
+      "isin": "IE00B3F81409",
+      "ticker": "IEAC",
+      "name": "iShares Core Global Aggregate Bond UCITS ETF USD (Dist)",
+      "shortName": "iShares Core Global Aggregate Bond (Dist)",
+      "assetClass": "Bonds",
+      "ter": 0.1,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2017-11-21",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA",
+        "Amsterdam"
+      ],
+      "primaryTicker": "IEAC.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3F81409"
+    },
+    "IE00BYMS5W68": {
+      "isin": "IE00BYMS5W68",
+      "ticker": "IBCS",
+      "name": "Invesco KBW NASDAQ Fintech UCITS ETF Acc",
+      "shortName": "Invesco KBW NASDAQ Fintech Acc",
+      "assetClass": "Bonds",
+      "ter": 0.49,
+      "distribution": "Accumulating",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2017-03-08",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBCS.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BYMS5W68"
+    },
+    "IE00B1W57M07": {
+      "isin": "IE00B1W57M07",
+      "ticker": "IBCX",
+      "name": "iShares BIC 50 UCITS ETF USD (Dist)",
+      "shortName": "iShares BIC 50 (Dist)",
+      "assetClass": "Bonds",
+      "ter": 0.74,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2007-04-20",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBCX.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B1W57M07"
+    },
+    "IE00B42Z5J44": {
+      "isin": "IE00B42Z5J44",
+      "ticker": "GHYS",
+      "name": "iShares MSCI Japan EUR Hedged UCITS ETF (Acc)",
+      "shortName": "iShares MSCI Japan Hdg(Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.64,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-09-30",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "GHYS.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B42Z5J44"
+    },
+    "IE00B0M63177": {
+      "isin": "IE00B0M63177",
+      "ticker": "IQEM",
+      "name": "iShares MSCI EM UCITS ETF (Dist)",
+      "shortName": "iShares MSCI EM (Dist)",
+      "assetClass": "Equity",
+      "ter": 0.18,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2005-11-18",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "IQEM.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B0M63177"
+    },
+    "IE00B14X4M10": {
+      "isin": "IE00B14X4M10",
+      "ticker": "IEMS",
+      "name": "iShares MSCI North America UCITS ETF",
+      "shortName": "iShares MSCI North America",
+      "assetClass": "Equity",
+      "ter": 0.4,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2006-06-02",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IEMS.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B14X4M10"
+    },
+    "IE00B0M62X26": {
+      "isin": "IE00B0M62X26",
+      "ticker": "INAA",
+      "name": "iShares Euro Inflation Linked Government Bond UCITS ETF",
+      "shortName": "iShares Euro Inflation Linked Government Bond",
+      "assetClass": "Equity",
+      "ter": 0.09,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2005-11-18",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "INAA.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B0M62X26"
+    },
+    "IE00B3VVMM84": {
+      "isin": "IE00B3VVMM84",
+      "ticker": "CUKX",
+      "name": "Vanguard FTSE Emerging Markets UCITS ETF (USD) Distributing",
+      "shortName": "Vanguard FTSE Emerging Markets Dist",
+      "assetClass": "Equity",
+      "ter": 0.17,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2012-05-22",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "CUKX.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3VVMM84"
+    },
+    "IE00BFY0GT14": {
+      "isin": "IE00BFY0GT14",
+      "ticker": "PAWD",
+      "name": "State Street SPDR MSCI World UCITS ETF USD Unhedged",
+      "shortName": "State Street SPDR MSCI World Unhedged",
+      "assetClass": "Equity",
+      "ter": 0.12,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2019-02-28",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "PAWD.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BFY0GT14"
+    },
+    "IE00BFNM3P36": {
+      "isin": "IE00BFNM3P36",
+      "ticker": "IBTN",
+      "name": "iShares MSCI EM IMI Screened UCITS ETF USD (Acc)",
+      "shortName": "iShares MSCI EM IMI Screened (Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.18,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2018-10-19",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBTN.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BFNM3P36"
+    },
+    "IE00BD45KH83": {
+      "isin": "IE00BD45KH83",
+      "ticker": "IBHB",
+      "name": "iShares Core MSCI Emerging Markets IMI UCITS ETF",
+      "shortName": "iShares Core MSCI Emerging Markets IMI",
+      "assetClass": "Bonds",
+      "ter": 0.18,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2018-03-05",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBHB.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BD45KH83"
+    },
+    "IE00BMVB5P51": {
+      "isin": "IE00BMVB5P51",
+      "ticker": "IMVB",
+      "name": "Vanguard LifeStrategy 60% Equity UCITS ETF Accumulating",
+      "shortName": "Vanguard LifeStrategy 60% Equity Acc",
+      "assetClass": "Equity",
+      "ter": 0.25,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2020-12-08",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IMVB.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BMVB5P51"
+    },
+    "IE00BFZXGZ54": {
+      "isin": "IE00BFZXGZ54",
+      "ticker": "IBZX",
+      "name": "Invesco EQQQ Nasdaq-100 UCITS ETF Acc",
+      "shortName": "Invesco EQQQ Nasdaq-100 Acc",
+      "assetClass": "Bonds",
+      "ter": 0.3,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2018-09-24",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBZX.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BFZXGZ54"
+    },
+    "IE00BGBN6P67": {
+      "isin": "IE00BGBN6P67",
+      "ticker": "IBGP",
+      "name": "Invesco CoinShares Global Blockchain UCITS ETF Acc",
+      "shortName": "Invesco CoinShares Global Blockchain Acc",
+      "assetClass": "Bonds",
+      "ter": 0.65,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2019-03-11",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBGP.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BGBN6P67"
+    },
+    "IE00BKX55T58": {
+      "isin": "IE00BKX55T58",
+      "ticker": "IBKX",
+      "name": "Vanguard FTSE Developed World UCITS ETF Distributing",
+      "shortName": "Vanguard FTSE Developed World Dist",
+      "assetClass": "Equity",
+      "ter": 0.12,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2014-09-30",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBKX.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BKX55T58"
+    },
+    "IE00B52SF786": {
+      "isin": "IE00B52SF786",
+      "ticker": "IB5S",
+      "name": "iShares MSCI Canada UCITS ETF (Acc)",
+      "shortName": "iShares MSCI Canada (Acc)",
+      "assetClass": "Equity",
+      "ter": 0.48,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-01-12",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB5S.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B52SF786"
+    },
+    "IE00B441G979": {
+      "isin": "IE00B441G979",
+      "ticker": "IB4G",
+      "name": "iShares MSCI World EUR Hedged UCITS ETF (Acc)",
+      "shortName": "iShares MSCI World Hdg(Acc)",
+      "assetClass": "Equity",
+      "ter": 0.55,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-09-30",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB4G.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B441G979"
+    },
+    "IE00B3BPCH51": {
+      "isin": "IE00B3BPCH51",
+      "ticker": "IB3B",
+      "name": "Invesco Euro Cash 3 Months UCITS ETF Acc",
+      "shortName": "Invesco Euro Cash 3 Months Acc",
+      "assetClass": "Equity",
+      "ter": 0.09,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2008-10-08",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB3B.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3BPCH51"
+    },
+    "IE00B6YX5D40": {
+      "isin": "IE00B6YX5D40",
+      "ticker": "IB6Y",
+      "name": "State Street SPDR S&P U.S. Dividend Aristocrats UCITS ETF USD Unhedged (Dist)",
+      "shortName": "State Street SPDR S&P U.S. Dividend Aristocrats Unhedged (Dist)",
+      "assetClass": "Equity",
+      "ter": 0.35,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-10-14",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB6Y.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B6YX5D40"
+    },
+    "IE00B7Y34M31": {
+      "isin": "IE00B7Y34M31",
+      "ticker": "IB7Y",
+      "name": "WisdomTree S&P 500 3x Daily Leveraged",
+      "shortName": "WisdomTree S&P 500 3x Daily Leveraged",
+      "assetClass": "Equity",
+      "ter": 0.75,
+      "distribution": "Accumulating",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2012-12-13",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB7Y.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B7Y34M31"
+    },
+    "IE00B8KGV557": {
+      "isin": "IE00B8KGV557",
+      "ticker": "IB8K",
+      "name": "iShares Edge MSCI EM Minimum Volatility UCITS ETF",
+      "shortName": "iShares Edge MSCI EM Minimum Volatility",
+      "assetClass": "Equity",
+      "ter": 0.4,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2012-11-30",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB8K.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B8KGV557"
+    },
+    "IE00BCBJG560": {
+      "isin": "IE00BCBJG560",
+      "ticker": "IBCJ",
+      "name": "State Street SPDR MSCI World Small Cap UCITS ETF USD Unhedged (Acc)",
+      "shortName": "State Street SPDR MSCI World Small Cap Unhedged (Acc)",
+      "assetClass": "Equity",
+      "ter": 0.45,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2013-11-25",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBCJ.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BCBJG560"
+    },
+    "IE00BG0J4C88": {
+      "isin": "IE00BG0J4C88",
+      "ticker": "IBG4",
+      "name": "iShares Digital Security UCITS ETF USD (Acc)",
+      "shortName": "iShares Digital Security (Acc)",
+      "assetClass": "Equity",
+      "ter": 0.4,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2018-09-07",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBG4.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BG0J4C88"
+    },
+    "IE00BL25JP72": {
+      "isin": "IE00BL25JP72",
+      "ticker": "IBL2",
+      "name": "Xtrackers MSCI World Momentum UCITS ETF 1C",
+      "shortName": "Xtrackers MSCI World Momentum 1C",
+      "assetClass": "Equity",
+      "ter": 0.25,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2014-09-05",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBL2.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BL25JP72"
+    },
+    "IE00BMTX1Y45": {
+      "isin": "IE00BMTX1Y45",
+      "ticker": "IBMT",
+      "name": "iShares S&P 500 Swap UCITS ETF USD (Acc)",
+      "shortName": "iShares S&P 500 Swap (Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.05,
+      "distribution": "Accumulating",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2020-09-24",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBMT.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BMTX1Y45"
+    },
+    "IE00BP3QZB59": {
+      "isin": "IE00BP3QZB59",
+      "ticker": "IBP3",
+      "name": "iShares Edge MSCI World Value Factor UCITS ETF",
+      "shortName": "iShares Edge MSCI World Value Factor",
+      "assetClass": "Bonds",
+      "ter": 0.25,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2014-10-03",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBP3.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BP3QZB59"
+    },
+    "IE00BQN1K901": {
+      "isin": "IE00BQN1K901",
+      "ticker": "IBQN",
+      "name": "iShares Edge MSCI Europe Value Factor UCITS ETF",
+      "shortName": "iShares Edge MSCI Europe Value Factor",
+      "assetClass": "Equity",
+      "ter": 0.25,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2015-01-16",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBQN.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BQN1K901"
+    },
+    "IE00BZ163L38": {
+      "isin": "IE00BZ163L38",
+      "ticker": "IBBZ",
+      "name": "Vanguard USD Emerging Markets Government Bond UCITS ETF Distributing",
+      "shortName": "Vanguard Emerging Markets Government Bond Dist",
+      "assetClass": "Bonds",
+      "ter": 0.23,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2016-12-06",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBBZ.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BZ163L38"
+    },
+    "IE00BWBXM492": {
+      "isin": "IE00BWBXM492",
+      "ticker": "IBBW",
+      "name": "State Street SPDR S&P U.S. Energy Select Sector UCITS ETF USD",
+      "shortName": "State Street SPDR S&P U.S. Energy Select Sector USD",
+      "assetClass": "Equity",
+      "ter": 0.15,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2015-07-07",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBBW.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BWBXM492"
+    },
+    "LU0292096186": {
+      "isin": "LU0292096186",
+      "ticker": "DXET",
+      "name": "Xtrackers STOXX Global Select Dividend 100 Swap UCITS ETF 1D",
+      "shortName": "Xtrackers STOXX Global Select Dividend 100 Swap 1D",
+      "assetClass": "Equity",
+      "ter": 0.5,
+      "distribution": "Distributing",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2007-06-01",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA",
+        "Milan"
+      ],
+      "primaryTicker": "DXET.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0292096186"
+    },
+    "LU0378434236": {
+      "isin": "LU0378434236",
+      "ticker": "XBSS",
+      "name": "Lyxor EURO STOXX Select Dividend 30 (DR) UCITS ETF I D",
+      "shortName": "Lyxor EURO STOXX Select Dividend 30 (DR) I D",
+      "assetClass": "Bonds",
+      "ter": 0.25,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2008-09-01",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XBSS.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0378434236"
+    },
+    "LU0496786574": {
+      "isin": "LU0496786574",
+      "ticker": "XDAX",
+      "name": "Amundi Core S&P 500 Swap UCITS ETF EUR Dist",
+      "shortName": "Amundi Core S&P 500 Swap Dist",
+      "assetClass": "Equity",
+      "ter": 0.05,
+      "distribution": "Distributing",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-03-26",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XDAX.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0496786574"
+    },
+    "LU0629459743": {
+      "isin": "LU0629459743",
+      "ticker": "DXME",
+      "name": "UBS MSCI World Socially Responsible UCITS ETF USD dis",
+      "shortName": "UBS MSCI World Socially Responsible dis",
+      "assetClass": "Equity",
+      "ter": 0.22,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-08-19",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "DXME.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0629459743"
+    },
+    "LU0659579220": {
+      "isin": "LU0659579220",
+      "ticker": "XTRC",
+      "name": "Xtrackers MSCI Bangladesh IM Index Swap UCITS ETF 1C",
+      "shortName": "Xtrackers MSCI Bangladesh IM Index Swap 1C",
+      "assetClass": "Equity",
+      "ter": 0.85,
+      "distribution": "Accumulating",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-09-19",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XTRC.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0659579220"
+    },
+    "LU0675401409": {
+      "isin": "LU0675401409",
+      "ticker": "XTRJ",
+      "name": "Lyxor MSCI Emerging Markets Daily (2x) Leverage UCITS ETF",
+      "shortName": "Lyxor MSCI Emerging Markets Daily (2x) Leverage",
+      "assetClass": "Equity",
+      "ter": 0.75,
+      "distribution": "Distributing",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2012-02-01",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XTRJ.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0675401409"
+    },
+    "LU0839027447": {
+      "isin": "LU0839027447",
+      "ticker": "XTRM",
+      "name": "Xtrackers Nikkei 225 UCITS ETF 1D",
+      "shortName": "Xtrackers Nikkei 225 1D",
+      "assetClass": "Equity",
+      "ter": 0.09,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2013-01-25",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XTRM.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0839027447"
+    },
+    "LU0908500753": {
+      "isin": "LU0908500753",
+      "ticker": "XTRN",
+      "name": "Amundi Core Stoxx Europe 600 UCITS ETF Acc",
+      "shortName": "Amundi Core Stoxx Europe 600 Acc",
+      "assetClass": "Equity",
+      "ter": 0.07,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2013-04-03",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XTRN.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0908500753"
+    },
+    "LU1287023003": {
+      "isin": "LU1287023003",
+      "ticker": "XTRP",
+      "name": "Amundi Euro Government Bond 5-7Y UCITS ETF Acc",
+      "shortName": "Amundi Euro Government Bond 5-7Y Acc",
+      "assetClass": "Equity",
+      "ter": 0.15,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2007-01-18",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XTRP.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU1287023003"
+    },
+    "LU1650490474": {
+      "isin": "LU1650490474",
+      "ticker": "AMUI",
+      "name": "Amundi Euro Government Bond II UCITS ETF Acc",
+      "shortName": "Amundi Euro Government Bond II Acc",
+      "assetClass": "Equity",
+      "ter": 0.14,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2003-12-08",
+      "fundSize": null,
+      "exchanges": [
+        "Paris",
+        "XETRA"
+      ],
+      "primaryTicker": "AMUI.PA",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU1650490474"
     }
   },
   "tickerIndex": {
@@ -2089,6 +2954,871 @@
       ],
       "primaryTicker": "CEBL.L",
       "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B6TLBW47"
+    },
+    "MVOL": {
+      "isin": "IE00B6R52259",
+      "ticker": "MVOL",
+      "name": "iShares MSCI ACWI UCITS ETF USD (Acc)",
+      "shortName": "iShares MSCI ACWI (Acc)",
+      "assetClass": "Equity",
+      "ter": 0.2,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-10-21",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "MVOL.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B6R52259"
+    },
+    "IBGX": {
+      "isin": "IE00B4L5YC18",
+      "ticker": "IBGX",
+      "name": "iShares MSCI EM UCITS ETF (Acc)",
+      "shortName": "iShares MSCI EM (Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.18,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2009-09-25",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "IBGX.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B4L5YC18"
+    },
+    "IEAG": {
+      "isin": "IE00B3ZW0K18",
+      "ticker": "IEAG",
+      "name": "iShares S&P 500 EUR Hedged UCITS ETF (Acc)",
+      "shortName": "iShares S&P 500 Hdg(Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.2,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-09-30",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "IEAG.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3ZW0K18"
+    },
+    "IGLS": {
+      "isin": "IE00B3YLTY66",
+      "ticker": "IGLS",
+      "name": "State Street SPDR MSCI All Country World Investable Market UCITS ETF USD Unhedged (Acc)",
+      "shortName": "State Street SPDR MSCI All Country World Investable Market Unhedged (Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.17,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-05-13",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IGLS.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3YLTY66"
+    },
+    "IGLT": {
+      "isin": "IE00B5L01S80",
+      "ticker": "IGLT",
+      "name": "HSBC FTSE EPRA NAREIT Developed UCITS ETF USD",
+      "shortName": "HSBC FTSE EPRA NAREIT Developed USD",
+      "assetClass": "Bonds",
+      "ter": 0.24,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-06-20",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IGLT.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B5L01S80"
+    },
+    "CBU7": {
+      "isin": "IE00B52MJD48",
+      "ticker": "CBU7",
+      "name": "iShares Nikkei 225 UCITS ETF (Acc)",
+      "shortName": "iShares Nikkei 225 (Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.48,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-01-25",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "CBU7.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B52MJD48"
+    },
+    "IEAC": {
+      "isin": "IE00B3F81409",
+      "ticker": "IEAC",
+      "name": "iShares Core Global Aggregate Bond UCITS ETF USD (Dist)",
+      "shortName": "iShares Core Global Aggregate Bond (Dist)",
+      "assetClass": "Bonds",
+      "ter": 0.1,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2017-11-21",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA",
+        "Amsterdam"
+      ],
+      "primaryTicker": "IEAC.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3F81409"
+    },
+    "IBCS": {
+      "isin": "IE00BYMS5W68",
+      "ticker": "IBCS",
+      "name": "Invesco KBW NASDAQ Fintech UCITS ETF Acc",
+      "shortName": "Invesco KBW NASDAQ Fintech Acc",
+      "assetClass": "Bonds",
+      "ter": 0.49,
+      "distribution": "Accumulating",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2017-03-08",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBCS.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BYMS5W68"
+    },
+    "IBCX": {
+      "isin": "IE00B1W57M07",
+      "ticker": "IBCX",
+      "name": "iShares BIC 50 UCITS ETF USD (Dist)",
+      "shortName": "iShares BIC 50 (Dist)",
+      "assetClass": "Bonds",
+      "ter": 0.74,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2007-04-20",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBCX.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B1W57M07"
+    },
+    "GHYS": {
+      "isin": "IE00B42Z5J44",
+      "ticker": "GHYS",
+      "name": "iShares MSCI Japan EUR Hedged UCITS ETF (Acc)",
+      "shortName": "iShares MSCI Japan Hdg(Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.64,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-09-30",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "GHYS.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B42Z5J44"
+    },
+    "IQEM": {
+      "isin": "IE00B0M63177",
+      "ticker": "IQEM",
+      "name": "iShares MSCI EM UCITS ETF (Dist)",
+      "shortName": "iShares MSCI EM (Dist)",
+      "assetClass": "Equity",
+      "ter": 0.18,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2005-11-18",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "IQEM.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B0M63177"
+    },
+    "IEMS": {
+      "isin": "IE00B14X4M10",
+      "ticker": "IEMS",
+      "name": "iShares MSCI North America UCITS ETF",
+      "shortName": "iShares MSCI North America",
+      "assetClass": "Equity",
+      "ter": 0.4,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2006-06-02",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IEMS.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B14X4M10"
+    },
+    "INAA": {
+      "isin": "IE00B0M62X26",
+      "ticker": "INAA",
+      "name": "iShares Euro Inflation Linked Government Bond UCITS ETF",
+      "shortName": "iShares Euro Inflation Linked Government Bond",
+      "assetClass": "Equity",
+      "ter": 0.09,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2005-11-18",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "INAA.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B0M62X26"
+    },
+    "CUKX": {
+      "isin": "IE00B3VVMM84",
+      "ticker": "CUKX",
+      "name": "Vanguard FTSE Emerging Markets UCITS ETF (USD) Distributing",
+      "shortName": "Vanguard FTSE Emerging Markets Dist",
+      "assetClass": "Equity",
+      "ter": 0.17,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2012-05-22",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "CUKX.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3VVMM84"
+    },
+    "PAWD": {
+      "isin": "IE00BFY0GT14",
+      "ticker": "PAWD",
+      "name": "State Street SPDR MSCI World UCITS ETF USD Unhedged",
+      "shortName": "State Street SPDR MSCI World Unhedged",
+      "assetClass": "Equity",
+      "ter": 0.12,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2019-02-28",
+      "fundSize": null,
+      "exchanges": [
+        "London",
+        "XETRA"
+      ],
+      "primaryTicker": "PAWD.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BFY0GT14"
+    },
+    "IBTN": {
+      "isin": "IE00BFNM3P36",
+      "ticker": "IBTN",
+      "name": "iShares MSCI EM IMI Screened UCITS ETF USD (Acc)",
+      "shortName": "iShares MSCI EM IMI Screened (Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.18,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2018-10-19",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBTN.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BFNM3P36"
+    },
+    "IBHB": {
+      "isin": "IE00BD45KH83",
+      "ticker": "IBHB",
+      "name": "iShares Core MSCI Emerging Markets IMI UCITS ETF",
+      "shortName": "iShares Core MSCI Emerging Markets IMI",
+      "assetClass": "Bonds",
+      "ter": 0.18,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2018-03-05",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBHB.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BD45KH83"
+    },
+    "IMVB": {
+      "isin": "IE00BMVB5P51",
+      "ticker": "IMVB",
+      "name": "Vanguard LifeStrategy 60% Equity UCITS ETF Accumulating",
+      "shortName": "Vanguard LifeStrategy 60% Equity Acc",
+      "assetClass": "Equity",
+      "ter": 0.25,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2020-12-08",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IMVB.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BMVB5P51"
+    },
+    "IBZX": {
+      "isin": "IE00BFZXGZ54",
+      "ticker": "IBZX",
+      "name": "Invesco EQQQ Nasdaq-100 UCITS ETF Acc",
+      "shortName": "Invesco EQQQ Nasdaq-100 Acc",
+      "assetClass": "Bonds",
+      "ter": 0.3,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2018-09-24",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBZX.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BFZXGZ54"
+    },
+    "IBGP": {
+      "isin": "IE00BGBN6P67",
+      "ticker": "IBGP",
+      "name": "Invesco CoinShares Global Blockchain UCITS ETF Acc",
+      "shortName": "Invesco CoinShares Global Blockchain Acc",
+      "assetClass": "Bonds",
+      "ter": 0.65,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2019-03-11",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBGP.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BGBN6P67"
+    },
+    "IBKX": {
+      "isin": "IE00BKX55T58",
+      "ticker": "IBKX",
+      "name": "Vanguard FTSE Developed World UCITS ETF Distributing",
+      "shortName": "Vanguard FTSE Developed World Dist",
+      "assetClass": "Equity",
+      "ter": 0.12,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2014-09-30",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBKX.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BKX55T58"
+    },
+    "IB5S": {
+      "isin": "IE00B52SF786",
+      "ticker": "IB5S",
+      "name": "iShares MSCI Canada UCITS ETF (Acc)",
+      "shortName": "iShares MSCI Canada (Acc)",
+      "assetClass": "Equity",
+      "ter": 0.48,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-01-12",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB5S.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B52SF786"
+    },
+    "IB4G": {
+      "isin": "IE00B441G979",
+      "ticker": "IB4G",
+      "name": "iShares MSCI World EUR Hedged UCITS ETF (Acc)",
+      "shortName": "iShares MSCI World Hdg(Acc)",
+      "assetClass": "Equity",
+      "ter": 0.55,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-09-30",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB4G.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B441G979"
+    },
+    "IB3B": {
+      "isin": "IE00B3BPCH51",
+      "ticker": "IB3B",
+      "name": "Invesco Euro Cash 3 Months UCITS ETF Acc",
+      "shortName": "Invesco Euro Cash 3 Months Acc",
+      "assetClass": "Equity",
+      "ter": 0.09,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2008-10-08",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB3B.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3BPCH51"
+    },
+    "IB6Y": {
+      "isin": "IE00B6YX5D40",
+      "ticker": "IB6Y",
+      "name": "State Street SPDR S&P U.S. Dividend Aristocrats UCITS ETF USD Unhedged (Dist)",
+      "shortName": "State Street SPDR S&P U.S. Dividend Aristocrats Unhedged (Dist)",
+      "assetClass": "Equity",
+      "ter": 0.35,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-10-14",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB6Y.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B6YX5D40"
+    },
+    "IB7Y": {
+      "isin": "IE00B7Y34M31",
+      "ticker": "IB7Y",
+      "name": "WisdomTree S&P 500 3x Daily Leveraged",
+      "shortName": "WisdomTree S&P 500 3x Daily Leveraged",
+      "assetClass": "Equity",
+      "ter": 0.75,
+      "distribution": "Accumulating",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2012-12-13",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB7Y.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B7Y34M31"
+    },
+    "IB8K": {
+      "isin": "IE00B8KGV557",
+      "ticker": "IB8K",
+      "name": "iShares Edge MSCI EM Minimum Volatility UCITS ETF",
+      "shortName": "iShares Edge MSCI EM Minimum Volatility",
+      "assetClass": "Equity",
+      "ter": 0.4,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2012-11-30",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IB8K.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00B8KGV557"
+    },
+    "IBCJ": {
+      "isin": "IE00BCBJG560",
+      "ticker": "IBCJ",
+      "name": "State Street SPDR MSCI World Small Cap UCITS ETF USD Unhedged (Acc)",
+      "shortName": "State Street SPDR MSCI World Small Cap Unhedged (Acc)",
+      "assetClass": "Equity",
+      "ter": 0.45,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2013-11-25",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBCJ.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BCBJG560"
+    },
+    "IBG4": {
+      "isin": "IE00BG0J4C88",
+      "ticker": "IBG4",
+      "name": "iShares Digital Security UCITS ETF USD (Acc)",
+      "shortName": "iShares Digital Security (Acc)",
+      "assetClass": "Equity",
+      "ter": 0.4,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2018-09-07",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBG4.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BG0J4C88"
+    },
+    "IBL2": {
+      "isin": "IE00BL25JP72",
+      "ticker": "IBL2",
+      "name": "Xtrackers MSCI World Momentum UCITS ETF 1C",
+      "shortName": "Xtrackers MSCI World Momentum 1C",
+      "assetClass": "Equity",
+      "ter": 0.25,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2014-09-05",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBL2.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BL25JP72"
+    },
+    "IBMT": {
+      "isin": "IE00BMTX1Y45",
+      "ticker": "IBMT",
+      "name": "iShares S&P 500 Swap UCITS ETF USD (Acc)",
+      "shortName": "iShares S&P 500 Swap (Acc)",
+      "assetClass": "Bonds",
+      "ter": 0.05,
+      "distribution": "Accumulating",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2020-09-24",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBMT.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BMTX1Y45"
+    },
+    "IBP3": {
+      "isin": "IE00BP3QZB59",
+      "ticker": "IBP3",
+      "name": "iShares Edge MSCI World Value Factor UCITS ETF",
+      "shortName": "iShares Edge MSCI World Value Factor",
+      "assetClass": "Bonds",
+      "ter": 0.25,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2014-10-03",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBP3.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BP3QZB59"
+    },
+    "IBQN": {
+      "isin": "IE00BQN1K901",
+      "ticker": "IBQN",
+      "name": "iShares Edge MSCI Europe Value Factor UCITS ETF",
+      "shortName": "iShares Edge MSCI Europe Value Factor",
+      "assetClass": "Equity",
+      "ter": 0.25,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2015-01-16",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBQN.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BQN1K901"
+    },
+    "IBBZ": {
+      "isin": "IE00BZ163L38",
+      "ticker": "IBBZ",
+      "name": "Vanguard USD Emerging Markets Government Bond UCITS ETF Distributing",
+      "shortName": "Vanguard Emerging Markets Government Bond Dist",
+      "assetClass": "Bonds",
+      "ter": 0.23,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2016-12-06",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBBZ.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BZ163L38"
+    },
+    "IBBW": {
+      "isin": "IE00BWBXM492",
+      "ticker": "IBBW",
+      "name": "State Street SPDR S&P U.S. Energy Select Sector UCITS ETF USD",
+      "shortName": "State Street SPDR S&P U.S. Energy Select Sector USD",
+      "assetClass": "Equity",
+      "ter": 0.15,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2015-07-07",
+      "fundSize": null,
+      "exchanges": [
+        "London"
+      ],
+      "primaryTicker": "IBBW.L",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=IE00BWBXM492"
+    },
+    "DXET": {
+      "isin": "LU0292096186",
+      "ticker": "DXET",
+      "name": "Xtrackers STOXX Global Select Dividend 100 Swap UCITS ETF 1D",
+      "shortName": "Xtrackers STOXX Global Select Dividend 100 Swap 1D",
+      "assetClass": "Equity",
+      "ter": 0.5,
+      "distribution": "Distributing",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2007-06-01",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA",
+        "Milan"
+      ],
+      "primaryTicker": "DXET.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0292096186"
+    },
+    "XBSS": {
+      "isin": "LU0378434236",
+      "ticker": "XBSS",
+      "name": "Lyxor EURO STOXX Select Dividend 30 (DR) UCITS ETF I D",
+      "shortName": "Lyxor EURO STOXX Select Dividend 30 (DR) I D",
+      "assetClass": "Bonds",
+      "ter": 0.25,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2008-09-01",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XBSS.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0378434236"
+    },
+    "XDAX": {
+      "isin": "LU0496786574",
+      "ticker": "XDAX",
+      "name": "Amundi Core S&P 500 Swap UCITS ETF EUR Dist",
+      "shortName": "Amundi Core S&P 500 Swap Dist",
+      "assetClass": "Equity",
+      "ter": 0.05,
+      "distribution": "Distributing",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2010-03-26",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XDAX.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0496786574"
+    },
+    "DXME": {
+      "isin": "LU0629459743",
+      "ticker": "DXME",
+      "name": "UBS MSCI World Socially Responsible UCITS ETF USD dis",
+      "shortName": "UBS MSCI World Socially Responsible dis",
+      "assetClass": "Equity",
+      "ter": 0.22,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-08-19",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "DXME.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0629459743"
+    },
+    "XTRC": {
+      "isin": "LU0659579220",
+      "ticker": "XTRC",
+      "name": "Xtrackers MSCI Bangladesh IM Index Swap UCITS ETF 1C",
+      "shortName": "Xtrackers MSCI Bangladesh IM Index Swap 1C",
+      "assetClass": "Equity",
+      "ter": 0.85,
+      "distribution": "Accumulating",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2011-09-19",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XTRC.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0659579220"
+    },
+    "XTRJ": {
+      "isin": "LU0675401409",
+      "ticker": "XTRJ",
+      "name": "Lyxor MSCI Emerging Markets Daily (2x) Leverage UCITS ETF",
+      "shortName": "Lyxor MSCI Emerging Markets Daily (2x) Leverage",
+      "assetClass": "Equity",
+      "ter": 0.75,
+      "distribution": "Distributing",
+      "replication": "Synthetic",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2012-02-01",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XTRJ.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0675401409"
+    },
+    "XTRM": {
+      "isin": "LU0839027447",
+      "ticker": "XTRM",
+      "name": "Xtrackers Nikkei 225 UCITS ETF 1D",
+      "shortName": "Xtrackers Nikkei 225 1D",
+      "assetClass": "Equity",
+      "ter": 0.09,
+      "distribution": "Distributing",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2013-01-25",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XTRM.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0839027447"
+    },
+    "XTRN": {
+      "isin": "LU0908500753",
+      "ticker": "XTRN",
+      "name": "Amundi Core Stoxx Europe 600 UCITS ETF Acc",
+      "shortName": "Amundi Core Stoxx Europe 600 Acc",
+      "assetClass": "Equity",
+      "ter": 0.07,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2013-04-03",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XTRN.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU0908500753"
+    },
+    "XTRP": {
+      "isin": "LU1287023003",
+      "ticker": "XTRP",
+      "name": "Amundi Euro Government Bond 5-7Y UCITS ETF Acc",
+      "shortName": "Amundi Euro Government Bond 5-7Y Acc",
+      "assetClass": "Equity",
+      "ter": 0.15,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2007-01-18",
+      "fundSize": null,
+      "exchanges": [
+        "XETRA"
+      ],
+      "primaryTicker": "XTRP.DE",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU1287023003"
+    },
+    "AMUI": {
+      "isin": "LU1650490474",
+      "ticker": "AMUI",
+      "name": "Amundi Euro Government Bond II UCITS ETF Acc",
+      "shortName": "Amundi Euro Government Bond II Acc",
+      "assetClass": "Equity",
+      "ter": 0.14,
+      "distribution": "Accumulating",
+      "replication": "Physical",
+      "currency": "EUR",
+      "domicile": null,
+      "inceptionDate": "2003-12-08",
+      "fundSize": null,
+      "exchanges": [
+        "Paris",
+        "XETRA"
+      ],
+      "primaryTicker": "AMUI.PA",
+      "justETFUrl": "https://www.justetf.com/en/etf-profile.html?isin=LU1650490474"
     }
   },
   "nameIndex": [
@@ -2733,6 +4463,581 @@
         "(dist)"
       ],
       "isin": "IE00B6TLBW47"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "msci",
+        "acwi",
+        "ucits",
+        "etf",
+        "usd",
+        "(acc)"
+      ],
+      "isin": "IE00B6R52259"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "msci",
+        "ucits",
+        "etf",
+        "(acc)"
+      ],
+      "isin": "IE00B4L5YC18"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "s&p",
+        "500",
+        "eur",
+        "hedged",
+        "ucits",
+        "etf",
+        "(acc)"
+      ],
+      "isin": "IE00B3ZW0K18"
+    },
+    {
+      "keywords": [
+        "state",
+        "street",
+        "spdr",
+        "msci",
+        "all",
+        "country",
+        "world",
+        "investable",
+        "market",
+        "ucits",
+        "etf",
+        "usd",
+        "unhedged",
+        "(acc)"
+      ],
+      "isin": "IE00B3YLTY66"
+    },
+    {
+      "keywords": [
+        "hsbc",
+        "ftse",
+        "epra",
+        "nareit",
+        "developed",
+        "ucits",
+        "etf",
+        "usd"
+      ],
+      "isin": "IE00B5L01S80"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "nikkei",
+        "225",
+        "ucits",
+        "etf",
+        "(acc)"
+      ],
+      "isin": "IE00B52MJD48"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "core",
+        "global",
+        "aggregate",
+        "bond",
+        "ucits",
+        "etf",
+        "usd",
+        "(dist)"
+      ],
+      "isin": "IE00B3F81409"
+    },
+    {
+      "keywords": [
+        "invesco",
+        "kbw",
+        "nasdaq",
+        "fintech",
+        "ucits",
+        "etf",
+        "acc"
+      ],
+      "isin": "IE00BYMS5W68"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "bic",
+        "ucits",
+        "etf",
+        "usd",
+        "(dist)"
+      ],
+      "isin": "IE00B1W57M07"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "msci",
+        "japan",
+        "eur",
+        "hedged",
+        "ucits",
+        "etf",
+        "(acc)"
+      ],
+      "isin": "IE00B42Z5J44"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "msci",
+        "ucits",
+        "etf",
+        "(dist)"
+      ],
+      "isin": "IE00B0M63177"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "msci",
+        "north",
+        "america",
+        "ucits",
+        "etf"
+      ],
+      "isin": "IE00B14X4M10"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "euro",
+        "inflation",
+        "linked",
+        "government",
+        "bond",
+        "ucits",
+        "etf"
+      ],
+      "isin": "IE00B0M62X26"
+    },
+    {
+      "keywords": [
+        "vanguard",
+        "ftse",
+        "emerging",
+        "markets",
+        "ucits",
+        "etf",
+        "(usd)",
+        "distributing"
+      ],
+      "isin": "IE00B3VVMM84"
+    },
+    {
+      "keywords": [
+        "state",
+        "street",
+        "spdr",
+        "msci",
+        "world",
+        "ucits",
+        "etf",
+        "usd",
+        "unhedged"
+      ],
+      "isin": "IE00BFY0GT14"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "msci",
+        "imi",
+        "screened",
+        "ucits",
+        "etf",
+        "usd",
+        "(acc)"
+      ],
+      "isin": "IE00BFNM3P36"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "core",
+        "msci",
+        "emerging",
+        "markets",
+        "imi",
+        "ucits",
+        "etf"
+      ],
+      "isin": "IE00BD45KH83"
+    },
+    {
+      "keywords": [
+        "vanguard",
+        "lifestrategy",
+        "60%",
+        "equity",
+        "ucits",
+        "etf",
+        "accumulating"
+      ],
+      "isin": "IE00BMVB5P51"
+    },
+    {
+      "keywords": [
+        "invesco",
+        "eqqq",
+        "nasdaq-100",
+        "ucits",
+        "etf",
+        "acc"
+      ],
+      "isin": "IE00BFZXGZ54"
+    },
+    {
+      "keywords": [
+        "invesco",
+        "coinshares",
+        "global",
+        "blockchain",
+        "ucits",
+        "etf",
+        "acc"
+      ],
+      "isin": "IE00BGBN6P67"
+    },
+    {
+      "keywords": [
+        "vanguard",
+        "ftse",
+        "developed",
+        "world",
+        "ucits",
+        "etf",
+        "distributing"
+      ],
+      "isin": "IE00BKX55T58"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "msci",
+        "canada",
+        "ucits",
+        "etf",
+        "(acc)"
+      ],
+      "isin": "IE00B52SF786"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "msci",
+        "world",
+        "eur",
+        "hedged",
+        "ucits",
+        "etf",
+        "(acc)"
+      ],
+      "isin": "IE00B441G979"
+    },
+    {
+      "keywords": [
+        "invesco",
+        "euro",
+        "cash",
+        "months",
+        "ucits",
+        "etf",
+        "acc"
+      ],
+      "isin": "IE00B3BPCH51"
+    },
+    {
+      "keywords": [
+        "state",
+        "street",
+        "spdr",
+        "s&p",
+        "u.s.",
+        "dividend",
+        "aristocrats",
+        "ucits",
+        "etf",
+        "usd",
+        "unhedged",
+        "(dist)"
+      ],
+      "isin": "IE00B6YX5D40"
+    },
+    {
+      "keywords": [
+        "wisdomtree",
+        "s&p",
+        "500",
+        "daily",
+        "leveraged"
+      ],
+      "isin": "IE00B7Y34M31"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "edge",
+        "msci",
+        "minimum",
+        "volatility",
+        "ucits",
+        "etf"
+      ],
+      "isin": "IE00B8KGV557"
+    },
+    {
+      "keywords": [
+        "state",
+        "street",
+        "spdr",
+        "msci",
+        "world",
+        "small",
+        "cap",
+        "ucits",
+        "etf",
+        "usd",
+        "unhedged",
+        "(acc)"
+      ],
+      "isin": "IE00BCBJG560"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "digital",
+        "security",
+        "ucits",
+        "etf",
+        "usd",
+        "(acc)"
+      ],
+      "isin": "IE00BG0J4C88"
+    },
+    {
+      "keywords": [
+        "xtrackers",
+        "msci",
+        "world",
+        "momentum",
+        "ucits",
+        "etf"
+      ],
+      "isin": "IE00BL25JP72"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "s&p",
+        "500",
+        "swap",
+        "ucits",
+        "etf",
+        "usd",
+        "(acc)"
+      ],
+      "isin": "IE00BMTX1Y45"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "edge",
+        "msci",
+        "world",
+        "value",
+        "factor",
+        "ucits",
+        "etf"
+      ],
+      "isin": "IE00BP3QZB59"
+    },
+    {
+      "keywords": [
+        "ishares",
+        "edge",
+        "msci",
+        "europe",
+        "value",
+        "factor",
+        "ucits",
+        "etf"
+      ],
+      "isin": "IE00BQN1K901"
+    },
+    {
+      "keywords": [
+        "vanguard",
+        "usd",
+        "emerging",
+        "markets",
+        "government",
+        "bond",
+        "ucits",
+        "etf",
+        "distributing"
+      ],
+      "isin": "IE00BZ163L38"
+    },
+    {
+      "keywords": [
+        "state",
+        "street",
+        "spdr",
+        "s&p",
+        "u.s.",
+        "energy",
+        "select",
+        "sector",
+        "ucits",
+        "etf",
+        "usd"
+      ],
+      "isin": "IE00BWBXM492"
+    },
+    {
+      "keywords": [
+        "xtrackers",
+        "stoxx",
+        "global",
+        "select",
+        "dividend",
+        "100",
+        "swap",
+        "ucits",
+        "etf"
+      ],
+      "isin": "LU0292096186"
+    },
+    {
+      "keywords": [
+        "lyxor",
+        "euro",
+        "stoxx",
+        "select",
+        "dividend",
+        "(dr)",
+        "ucits",
+        "etf"
+      ],
+      "isin": "LU0378434236"
+    },
+    {
+      "keywords": [
+        "amundi",
+        "core",
+        "s&p",
+        "500",
+        "swap",
+        "ucits",
+        "etf",
+        "eur",
+        "dist"
+      ],
+      "isin": "LU0496786574"
+    },
+    {
+      "keywords": [
+        "ubs",
+        "msci",
+        "world",
+        "socially",
+        "responsible",
+        "ucits",
+        "etf",
+        "usd",
+        "dis"
+      ],
+      "isin": "LU0629459743"
+    },
+    {
+      "keywords": [
+        "xtrackers",
+        "msci",
+        "bangladesh",
+        "index",
+        "swap",
+        "ucits",
+        "etf"
+      ],
+      "isin": "LU0659579220"
+    },
+    {
+      "keywords": [
+        "lyxor",
+        "msci",
+        "emerging",
+        "markets",
+        "daily",
+        "(2x)",
+        "leverage",
+        "ucits",
+        "etf"
+      ],
+      "isin": "LU0675401409"
+    },
+    {
+      "keywords": [
+        "xtrackers",
+        "nikkei",
+        "225",
+        "ucits",
+        "etf"
+      ],
+      "isin": "LU0839027447"
+    },
+    {
+      "keywords": [
+        "amundi",
+        "core",
+        "stoxx",
+        "europe",
+        "600",
+        "ucits",
+        "etf",
+        "acc"
+      ],
+      "isin": "LU0908500753"
+    },
+    {
+      "keywords": [
+        "amundi",
+        "euro",
+        "government",
+        "bond",
+        "5-7y",
+        "ucits",
+        "etf",
+        "acc"
+      ],
+      "isin": "LU1287023003"
+    },
+    {
+      "keywords": [
+        "amundi",
+        "euro",
+        "government",
+        "bond",
+        "ucits",
+        "etf",
+        "acc"
+      ],
+      "isin": "LU1650490474"
     }
   ]
 }

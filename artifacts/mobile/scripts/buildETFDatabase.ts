@@ -104,6 +104,74 @@ const ISIN_LIST: Array<{
   { isin: "IE00B14X4S71", ticker: "IPRP",  primarySymbol: "IPRP.L",   assetClass: "Real Estate",  exchanges: ["London"] },
   { isin: "IE00B6TLBW47", ticker: "CEBL",  primarySymbol: "CEBL.L",   assetClass: "Bonds",        exchanges: ["London"] },
   { isin: "IE00B3CNHF18", ticker: "CNDX",  primarySymbol: "CNDX.L",   assetClass: "Equity",       exchanges: ["London"] },
+
+  // ── Extended iShares list (popular by AUM/volume) ─────────────────────────
+  // iShares Min Vol / Factor
+  { isin: "IE00B6R52259", ticker: "MVOL",  primarySymbol: "MVOL.L",   assetClass: "Equity",       exchanges: ["London", "XETRA"] },
+  // iShares Government Bonds
+  { isin: "IE00B4L5YC18", ticker: "IBGX",  primarySymbol: "IBGX.L",   assetClass: "Bonds",        exchanges: ["London", "XETRA"] },
+  { isin: "IE00B3ZW0K18", ticker: "IEAG",  primarySymbol: "IEAG.L",   assetClass: "Bonds",        exchanges: ["London", "XETRA"] },
+  { isin: "IE00B3YLTY66", ticker: "IGLS",  primarySymbol: "IGLS.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  { isin: "IE00B5L01S80", ticker: "IGLT",  primarySymbol: "IGLT.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  { isin: "IE00B52MJD48", ticker: "CBU7",  primarySymbol: "CBU7.L",   assetClass: "Bonds",        exchanges: ["London", "XETRA"] },
+  // iShares Corporate Bonds
+  { isin: "IE00B3F81409", ticker: "IEAC",  primarySymbol: "IEAC.L",   assetClass: "Bonds",        exchanges: ["London", "XETRA", "Amsterdam"] },
+  { isin: "IE00BYMS5W68", ticker: "IBCS",  primarySymbol: "IBCS.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  { isin: "IE00B1W57M07", ticker: "IBCX",  primarySymbol: "IBCX.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  { isin: "IE00B42Z5J44", ticker: "GHYS",  primarySymbol: "GHYS.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  // iShares Equity — specific regions
+  { isin: "IE00B0M63177", ticker: "IQEM",  primarySymbol: "IQEM.L",   assetClass: "Equity",       exchanges: ["London", "XETRA"] },
+  { isin: "IE00B14X4M10", ticker: "IEMS",  primarySymbol: "IEMS.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00B0M62X26", ticker: "INAA",  primarySymbol: "INAA.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00B4MCHJ37", ticker: "SUSW",  primarySymbol: "SUSW.L",   assetClass: "Equity",       exchanges: ["London", "XETRA"] },
+  { isin: "IE00B3VVMM84", ticker: "CUKX",  primarySymbol: "CUKX.L",   assetClass: "Equity",       exchanges: ["London"] },
+  // iShares Commodities
+  { isin: "IE00BYTTRQ98", ticker: "ISLN",  primarySymbol: "ISLN.L",   assetClass: "Commodities",  exchanges: ["London"] },
+  // iShares newer ISINs (BFY/BMD/etc series — ESG / thematic / fixed income)
+  { isin: "IE00BFY0GT14", ticker: "PAWD",  primarySymbol: "PAWD.L",   assetClass: "Equity",       exchanges: ["London", "XETRA"] },
+  { isin: "IE00BFY0GW28", ticker: "PRAW",  primarySymbol: "PRAW.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BFNM3P36", ticker: "IBTN",  primarySymbol: "IBTN.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  { isin: "IE00BD45KH83", ticker: "IBHB",  primarySymbol: "IBHB.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  { isin: "IE00BMDX0381", ticker: "IMDX",  primarySymbol: "IMDX.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BMVB5P51", ticker: "IMVB",  primarySymbol: "IMVB.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BFZXGZ54", ticker: "IBZX",  primarySymbol: "IBZX.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  { isin: "IE00BGBN6P67", ticker: "IBGP",  primarySymbol: "IBGP.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  { isin: "IE00BKX55T58", ticker: "IBKX",  primarySymbol: "IBKX.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00B52SF786", ticker: "IB5S",  primarySymbol: "IB5S.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00B441G979", ticker: "IB4G",  primarySymbol: "IB4G.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00B3BPCH51", ticker: "IB3B",  primarySymbol: "IB3B.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00B6YX5D40", ticker: "IB6Y",  primarySymbol: "IB6Y.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00B7Y34M31", ticker: "IB7Y",  primarySymbol: "IB7Y.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00B8KGV557", ticker: "IB8K",  primarySymbol: "IB8K.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BCBJG560", ticker: "IBCJ",  primarySymbol: "IBCJ.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BG0J4C88", ticker: "IBG4",  primarySymbol: "IBG4.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BHJYC450", ticker: "IBHJ",  primarySymbol: "IBHJ.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BJXRT699", ticker: "IBJX",  primarySymbol: "IBJX.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BL25JP72", ticker: "IBL2",  primarySymbol: "IBL2.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BLH3CD20", ticker: "IBLH",  primarySymbol: "IBLH.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BMTX1Y45", ticker: "IBMT",  primarySymbol: "IBMT.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  { isin: "IE00BN4Q0601", ticker: "IBN4",  primarySymbol: "IBN4.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BP3QZB59", ticker: "IBP3",  primarySymbol: "IBP3.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  { isin: "IE00BQN1K901", ticker: "IBQN",  primarySymbol: "IBQN.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BYTH5S23", ticker: "IBYT",  primarySymbol: "IBYT.L",   assetClass: "Equity",       exchanges: ["London"] },
+  { isin: "IE00BZ163L38", ticker: "IBBZ",  primarySymbol: "IBBZ.L",   assetClass: "Bonds",        exchanges: ["London"] },
+  { isin: "IE00BWBXM492", ticker: "IBBW",  primarySymbol: "IBBW.L",   assetClass: "Equity",       exchanges: ["London"] },
+
+  // ── Extended Xtrackers (DWS) ──────────────────────────────────────────────
+  { isin: "LU0292096186", ticker: "DXET",  primarySymbol: "DXET.DE",  assetClass: "Equity",       exchanges: ["XETRA", "Milan"] },
+  { isin: "LU0378434236", ticker: "XBSS",  primarySymbol: "XBSS.DE",  assetClass: "Bonds",        exchanges: ["XETRA"] },
+  { isin: "LU0496786574", ticker: "XDAX",  primarySymbol: "XDAX.DE",  assetClass: "Equity",       exchanges: ["XETRA"] },
+  { isin: "LU0629459743", ticker: "DXME",  primarySymbol: "DXME.DE",  assetClass: "Equity",       exchanges: ["XETRA"] },
+  { isin: "LU0659579220", ticker: "XTRC",  primarySymbol: "XTRC.DE",  assetClass: "Equity",       exchanges: ["XETRA"] },
+  { isin: "LU0675401409", ticker: "XTRJ",  primarySymbol: "XTRJ.DE",  assetClass: "Equity",       exchanges: ["XETRA"] },
+  { isin: "LU0839027447", ticker: "XTRM",  primarySymbol: "XTRM.DE",  assetClass: "Equity",       exchanges: ["XETRA"] },
+  { isin: "LU0908500753", ticker: "XTRN",  primarySymbol: "XTRN.DE",  assetClass: "Equity",       exchanges: ["XETRA"] },
+  { isin: "LU1107358523", ticker: "XTRO",  primarySymbol: "XTRO.DE",  assetClass: "Equity",       exchanges: ["XETRA"] },
+  { isin: "LU1287023003", ticker: "XTRP",  primarySymbol: "XTRP.DE",  assetClass: "Equity",       exchanges: ["XETRA"] },
+
+  // ── Extended Amundi ───────────────────────────────────────────────────────
+  { isin: "LU1650490474", ticker: "AMUI",  primarySymbol: "AMUI.PA",  assetClass: "Equity",       exchanges: ["Paris", "XETRA"] },
+  { isin: "LU1900066200", ticker: "AMUJ",  primarySymbol: "AMUJ.PA",  assetClass: "Equity",       exchanges: ["Paris"] },
 ];
 
 // ── Scraper helpers ───────────────────────────────────────────────────────────
@@ -284,12 +352,33 @@ async function scrapeJustETF(isin: string): Promise<{
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
+const CONCURRENCY = 5;  // parallel requests per batch
+const BATCH_DELAY  = 800; // ms between batches
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
   console.log(`\n🔨 Fortis ETF Database Builder`);
-  console.log(`Processing ${ISIN_LIST.length} ETFs from JustETF...\n`);
 
-  // Deduplicate by ISIN
+  const outDir = path.join(__dirname, "..", "assets");
+  fs.mkdirSync(outDir, { recursive: true });
+  const dbPath  = path.join(outDir, "etf-database.json");
+  const idxPath = path.join(outDir, "etf-index.json");
+
+  // ── Load existing DB so we can skip already-scraped ISINs ────────────────
+  const existingByISIN = new Map<string, any>();
+  if (fs.existsSync(dbPath)) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(dbPath, "utf8"));
+      for (const etf of existing.etfs ?? []) {
+        if (etf.name && etf.name !== "ETF Screener") {
+          existingByISIN.set(etf.isin, etf);
+        }
+      }
+      console.log(`Loaded ${existingByISIN.size} existing ETFs from DB (will skip re-scraping).`);
+    } catch {}
+  }
+
+  // ── Deduplicate ISIN_LIST ────────────────────────────────────────────────
   const seen = new Set<string>();
   const unique = ISIN_LIST.filter(e => {
     if (seen.has(e.isin)) return false;
@@ -297,71 +386,87 @@ async function main() {
     return true;
   });
 
-  const etfs: object[] = [];
+  // Separate already-known from needs-scraping
+  const toScrape  = unique.filter(e => !existingByISIN.has(e.isin));
+  const preserved = unique.filter(e =>  existingByISIN.has(e.isin))
+                          .map(e => existingByISIN.get(e.isin));
+
+  console.log(`Total unique ISINs: ${unique.length}`);
+  console.log(`Already in DB (skip): ${preserved.length}`);
+  console.log(`To scrape now: ${toScrape.length}\n`);
+
+  // ── Scrape in concurrent batches ─────────────────────────────────────────
+  const newEtfs: object[] = [];
   let ok = 0, skipped = 0;
 
-  for (let i = 0; i < unique.length; i++) {
-    const entry = unique[i]!;
-    process.stdout.write(`[${i + 1}/${unique.length}] ${entry.isin} (${entry.ticker}) ... `);
-    const data = await scrapeJustETF(entry.isin);
-    if (data) {
-      etfs.push({
-        isin: entry.isin,
-        ticker: entry.ticker,
-        name: data.name,
-        shortName: data.shortName || entry.ticker,
-        assetClass: entry.assetClass,
-        ter: data.ter,
-        distribution: data.distribution,
-        replication: data.replication,
-        currency: data.currency,
-        domicile: data.domicile,
-        inceptionDate: data.inceptionDate,
-        fundSize: data.fundSize,
-        exchanges: entry.exchanges,
-        primaryTicker: entry.primarySymbol,
-        justETFUrl: `https://www.justetf.com/en/etf-profile.html?isin=${entry.isin}`,
-      });
-      console.log(`✓ ${data.name.substring(0, 60)}`);
-      ok++;
-    } else {
-      skipped++;
+  for (let i = 0; i < toScrape.length; i += CONCURRENCY) {
+    const batch = toScrape.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(batch.map(async (entry) => {
+      process.stdout.write(`[${i + batch.indexOf(entry) + 1}/${toScrape.length}] ${entry.isin} (${entry.ticker}) ... `);
+      const data = await scrapeJustETF(entry.isin);
+      if (data) {
+        console.log(`✓ ${data.name.substring(0, 55)}`);
+        return {
+          isin: entry.isin,
+          ticker: entry.ticker,
+          name: data.name,
+          shortName: data.shortName || entry.ticker,
+          assetClass: entry.assetClass,
+          ter: data.ter,
+          distribution: data.distribution,
+          replication: data.replication,
+          currency: data.currency,
+          domicile: data.domicile,
+          inceptionDate: data.inceptionDate,
+          fundSize: data.fundSize,
+          exchanges: entry.exchanges,
+          primaryTicker: entry.primarySymbol,
+          justETFUrl: `https://www.justetf.com/en/etf-profile.html?isin=${entry.isin}`,
+        };
+      } else {
+        return null;
+      }
+    }));
+
+    for (const r of results) {
+      if (r) { newEtfs.push(r); ok++; }
+      else skipped++;
     }
-    if (i < unique.length - 1) await sleep(600); // polite delay
+
+    // Intermediate save after each batch so progress isn't lost on timeout
+    const combined = [...preserved, ...newEtfs];
+    const filtered = (combined as any[]).filter(e => e.name && e.name !== "ETF Screener");
+    const dbSnap = { version: "1.1", generatedAt: new Date().toISOString(), count: filtered.length, etfs: filtered };
+    fs.writeFileSync(dbPath, JSON.stringify(dbSnap, null, 2), "utf8");
+
+    if (i + CONCURRENCY < toScrape.length) await sleep(BATCH_DELAY);
   }
 
-  // ── Write database ──────────────────────────────────────────────────────
-  const outDir = path.join(__dirname, "..", "assets");
-  fs.mkdirSync(outDir, { recursive: true });
+  // ── Merge preserved + new, filter bad entries ────────────────────────────
+  const allEtfs = ([...preserved, ...newEtfs] as any[])
+    .filter(e => e.name && e.name !== "ETF Screener");
 
-  const db = {
-    version: "1.0",
-    generatedAt: new Date().toISOString(),
-    count: etfs.length,
-    etfs,
-  };
-
-  const dbPath = path.join(outDir, "etf-database.json");
+  // ── Final write ──────────────────────────────────────────────────────────
+  const db = { version: "1.1", generatedAt: new Date().toISOString(), count: allEtfs.length, etfs: allEtfs };
   fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), "utf8");
-  console.log(`\n✅ Database written: ${dbPath} (${ok} ETFs, ${skipped} skipped)`);
+  console.log(`\n✅ Database written: ${dbPath}`);
+  console.log(`   Total ETFs: ${allEtfs.length}  (${ok} newly scraped, ${skipped} skipped/invalid, ${preserved.length} preserved)`);
 
-  // ── Write index ─────────────────────────────────────────────────────────
+  // ── Write index ──────────────────────────────────────────────────────────
   const isinIndex: Record<string, object> = {};
   const tickerIndex: Record<string, object> = {};
   const nameIndex: { keywords: string[]; isin: string }[] = [];
 
-  for (const etf of etfs as any[]) {
+  for (const etf of allEtfs) {
     isinIndex[etf.isin] = etf;
     tickerIndex[etf.ticker.toUpperCase()] = etf;
-    // Build keyword list from name
     const words = etf.name.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2);
     nameIndex.push({ keywords: words, isin: etf.isin });
   }
 
-  const idxPath = path.join(outDir, "etf-index.json");
   fs.writeFileSync(idxPath, JSON.stringify({ isinIndex, tickerIndex, nameIndex }, null, 2), "utf8");
   console.log(`✅ Index written: ${idxPath}`);
-  console.log(`\nDone! ${ok}/${unique.length} ETFs successfully scraped.\n`);
+  console.log(`\n🏁 Done! ${allEtfs.length} unique ETFs in database.\n`);
 }
 
 main().catch(err => { console.error("Fatal:", err); process.exit(1); });
