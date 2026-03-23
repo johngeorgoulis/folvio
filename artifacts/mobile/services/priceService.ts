@@ -543,7 +543,7 @@ export async function fetchChartHistory(symbol: string, range: string): Promise<
 export async function fetchBenchmarkReturn(
   symbol: string,
   sinceDate: string
-): Promise<{ returnPct: number; startDate: string } | null> {
+): Promise<{ returnPct: number; startDate: string; firstClose: number; lastClose: number; currency: string } | null> {
   const startDate = new Date(sinceDate);
   const endDate = new Date();
 
@@ -617,7 +617,7 @@ export async function fetchBenchmarkReturn(
 
     const returnPct = ((toEUR(lastClose) - toEUR(firstClose)) / toEUR(firstClose)) * 100;
     console.log(`[fetchBenchmarkReturn] ${symbol} returnPct=${returnPct.toFixed(2)}%`);
-    return { returnPct, startDate: firstDate };
+    return { returnPct, startDate: firstDate, firstClose, lastClose, currency };
   } catch (err) {
     console.warn(`[fetchBenchmarkReturn] failed for ${symbol}:`, err);
     return null;
