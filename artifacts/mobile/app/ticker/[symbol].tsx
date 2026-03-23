@@ -102,18 +102,54 @@ function symbolToExchange(symbol: string): string {
   return "XETRA";
 }
 
-function computePerf(data: ChartPoint[], daysBack: number): number | null {
-  if (data.length < 2) return null;
-  const now = data[data.length - 1];
-  const targetTs = now.timestamp - daysBack * 86_400_000;
-  let nearest = data[0];
-  for (const pt of data) {
-    if (Math.abs(pt.timestamp - targetTs) < Math.abs(nearest.timestamp - targetTs)) {
-      nearest = pt;
-    }
+/**
+ * Compute the target calendar date for a given period relative to today.
+ * e.g. "1M" on March 23 → February 23.
+ * Returns a timestamp representing end-of-day on the target date.
+ */
+function targetDateForPeriod(period: "1W" | "1M" | "3M" | "6M" | "1Y"): number {
+  const d = new Date();
+  switch (period) {
+    case "1W": d.setDate(d.getDate() - 7); break;
+    case "1M": d.setMonth(d.getMonth() - 1); break;
+    case "3M": d.setMonth(d.getMonth() - 3); break;
+    case "6M": d.setMonth(d.getMonth() - 6); break;
+    case "1Y": d.setFullYear(d.getFullYear() - 1); break;
   }
-  if (nearest.priceEUR === 0 || nearest === now) return null;
-  return ((now.priceEUR - nearest.priceEUR) / nearest.priceEUR) * 100;
+  // End-of-day so we include the full trading day
+  d.setHours(23, 59, 59, 999);
+  return d.getTime();
+}
+
+/**
+ * Find the latest data point whose timestamp is ≤ targetTs.
+ * This gives us the closing price on or before the target calendar date,
+ * which correctly handles weekends and market holidays (roll back, not forward).
+ */
+function startPriceAtOrBefore(data: ChartPoint[], targetTs: number): ChartPoint | null {
+  let found: ChartPoint | null = null;
+  for (const pt of data) {
+    if (pt.timestamp <= targetTs) found = pt;
+  }
+  return found;
+}
+
+/**
+ * Compute the percentage change from the calendar-correct start date to the
+ * last data point. Returns null if not enough data.
+ */
+function computePerfCalendar(
+  data: ChartPoint[],
+  period: "1W" | "1M" | "3M" | "6M" | "1Y"
+): { changePct: number; changeAbs: number } | null {
+  if (data.length < 2) return null;
+  const endPt = data[data.length - 1];
+  const targetTs = targetDateForPeriod(period);
+  const startPt = startPriceAtOrBefore(data, targetTs);
+  if (!startPt || startPt.priceEUR === 0 || startPt === endPt) return null;
+  const changePct = ((endPt.priceEUR - startPt.priceEUR) / startPt.priceEUR) * 100;
+  const changeAbs = endPt.priceEUR - startPt.priceEUR;
+  return { changePct, changeAbs };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -201,12 +237,10 @@ export default function TickerDetailScreen() {
       setYearData(yd);
       setChartData(monthData);
       setFetchedAt(new Date());
-      if (monthData.length >= 2) {
-        const p = ((monthData[monthData.length - 1].priceEUR - monthData[0].priceEUR) / monthData[0].priceEUR) * 100;
-        const abs = monthData[monthData.length - 1].priceEUR - monthData[0].priceEUR;
-        setRangePerf(p);
-        setRangeChange({ abs, pct: p });
-      }
+      // Use yearData (yd) + calendar-correct 1M start for accurate initial 1M display
+      const initPerf = computePerfCalendar(yd, "1M");
+      setRangePerf(initPerf?.changePct ?? null);
+      setRangeChange(initPerf ? { abs: initPerf.changeAbs, pct: initPerf.changePct } : null);
     } catch {
       setMetaError(true);
     } finally {
@@ -225,16 +259,28 @@ export default function TickerDetailScreen() {
 
   async function handleRangeChange(r: Range) {
     setRange(r);
-    if (r === "1Y") {
-      setChartData(yearData);
-      const p = yearData.length >= 2
-        ? ((yearData[yearData.length - 1].priceEUR - yearData[0].priceEUR) / yearData[0].priceEUR) * 100
-        : null;
-      const abs = yearData.length >= 2 ? yearData[yearData.length - 1].priceEUR - yearData[0].priceEUR : null;
-      setRangePerf(p);
-      setRangeChange(abs !== null && p !== null ? { abs, pct: p } : null);
+
+    // For calendar-based ranges, use yearData as the price source so the
+    // start price is the closing price on the exact calendar date (or the
+    // last available trading day before it), not the first bucket in the API
+    // response which may not land on the same calendar day.
+    if (r === "1W" || r === "1M" || r === "3M" || r === "6M" || r === "1Y") {
+      // Fetch chart data for visual display in parallel
+      if (r !== "1Y") {
+        setLoadingChart(true);
+        const d = await fetchChartHistory(safeSymbol, r);
+        setChartData(d);
+        setLoadingChart(false);
+      } else {
+        setChartData(yearData);
+      }
+      const result = computePerfCalendar(yearData, r);
+      setRangePerf(result?.changePct ?? null);
+      setRangeChange(result ? { abs: result.changeAbs, pct: result.changePct } : null);
       return;
     }
+
+    // "1D" and "All" — just use the raw chart data first-to-last
     setLoadingChart(true);
     const d = await fetchChartHistory(safeSymbol, r);
     setChartData(d);
@@ -303,12 +349,10 @@ export default function TickerDetailScreen() {
 
   const ageMs = fetchedAt ? now - fetchedAt.getTime() : null;
 
-  const perf1W = computePerf(yearData, 7);
-  const perf1M = computePerf(yearData, 30);
-  const perf3M = computePerf(yearData, 91);
-  const perf1Y = yearData.length >= 2
-    ? ((yearData[yearData.length - 1].priceEUR - yearData[0].priceEUR) / yearData[0].priceEUR) * 100
-    : null;
+  const perf1W = computePerfCalendar(yearData, "1W")?.changePct ?? null;
+  const perf1M = computePerfCalendar(yearData, "1M")?.changePct ?? null;
+  const perf3M = computePerfCalendar(yearData, "3M")?.changePct ?? null;
+  const perf1Y = computePerfCalendar(yearData, "1Y")?.changePct ?? null;
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loadingMeta) {
