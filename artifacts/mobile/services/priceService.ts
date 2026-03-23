@@ -540,6 +540,61 @@ export async function fetchChartHistory(symbol: string, range: string): Promise<
   }
 }
 
+export async function fetchBenchmarkReturn(
+  symbol: string,
+  sinceDate: string
+): Promise<{ returnPct: number; startDate: string } | null> {
+  const url = yahooChartUrl(symbol, "1wk", "10y");
+  try {
+    const res = await fetch(url, { headers: YAHOO_HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    if (!result) return null;
+
+    const timestamps: number[] = result.timestamp ?? [];
+    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+    const currency: string = result.meta?.currency ?? "USD";
+
+    let fxRate = 1;
+    if (currency !== "EUR") {
+      const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+        try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+      }
+    }
+
+    const toEUR = (p: number) =>
+      currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
+
+    const sinceDateMs = new Date(sinceDate).getTime();
+
+    const points: { dateMs: number; date: string; priceEUR: number }[] = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      const price = closes[i];
+      if (price == null || isNaN(price)) continue;
+      const dateMs = timestamps[i] * 1000;
+      const date = new Date(dateMs).toISOString().split("T")[0];
+      points.push({ dateMs, date, priceEUR: toEUR(price) });
+    }
+
+    if (points.length < 2) return null;
+
+    const startIdx = points.findIndex(p => p.dateMs >= sinceDateMs);
+    if (startIdx === -1) return null;
+
+    const start = points[startIdx];
+    const end = points[points.length - 1];
+    if (start.priceEUR <= 0) return null;
+
+    const returnPct = ((end.priceEUR - start.priceEUR) / start.priceEUR) * 100;
+    return { returnPct, startDate: start.date };
+  } catch (err) {
+    console.warn(`[fetchBenchmarkReturn] failed for ${symbol}:`, err);
+    return null;
+  }
+}
+
 export async function fetchSymbolPrice(
   fullSymbol: string
 ): Promise<{ price: number; changePct: number } | null> {

@@ -27,9 +27,9 @@ const APP_VERSION = "1.0.0";
 
 const BENCHMARKS = [
   { label: "S&P 500",        symbol: "^GSPC" },
-  { label: "MSCI World",     symbol: "IWDA.AS" },
+  { label: "MSCI World",     symbol: "URTH" },
   { label: "Euro Stoxx 50",  symbol: "^STOXX50E" },
-  { label: "FTSE All-World", symbol: "VWRL.AS" },
+  { label: "FTSE All-World", symbol: "VWRL.L" },
   { label: "DAX",            symbol: "^GDAXI" },
 ] as const;
 type BenchmarkSymbol = typeof BENCHMARKS[number]["symbol"];

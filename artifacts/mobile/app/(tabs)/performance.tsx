@@ -20,15 +20,15 @@ import { useAllocation } from "@/context/AllocationContext";
 import { formatEUR, formatPct } from "@/utils/format";
 import { calculateAllocations, validateTargets } from "@/services/allocationService";
 import { getSnapshots, type PortfolioSnapshot } from "@/services/snapshotService";
-import { fetchChartHistory, type ChartPoint } from "@/services/priceService";
+import { fetchBenchmarkReturn } from "@/services/priceService";
 
 // ─── Benchmark definitions ─────────────────────────────────────────────────────
 
 export const BENCHMARKS = [
   { label: "S&P 500",       symbol: "^GSPC",     description: "US large cap 500 companies" },
-  { label: "MSCI World",    symbol: "IWDA.AS",   description: "Developed markets ~1,500 companies" },
+  { label: "MSCI World",    symbol: "URTH",      description: "Developed markets ~1,500 companies" },
   { label: "Euro Stoxx 50", symbol: "^STOXX50E", description: "50 largest Eurozone companies" },
-  { label: "FTSE All-World",symbol: "VWRL.AS",   description: "Global all-cap index" },
+  { label: "FTSE All-World",symbol: "VWRL.L",    description: "Global all-cap index" },
   { label: "DAX",           symbol: "^GDAXI",    description: "30 largest German companies" },
 ] as const;
 export type BenchmarkItem = typeof BENCHMARKS[number];
@@ -219,6 +219,296 @@ const dStyles = StyleSheet.create({
   },
 });
 
+// ─── Crisis Backtest Section ───────────────────────────────────────────────────
+
+const CRISES = [
+  {
+    id: "dotcom" as const,
+    name: "Dot-com",
+    dateRange: "Mar 2000 – Oct 2002",
+    durationMonths: 31,
+    drawdowns: { equity: -48, bond: 8, gold: 12 },
+    msciDrawdown: -49,
+    msciRecoveryMonths: 56,
+  },
+  {
+    id: "financial" as const,
+    name: "Financial Crisis",
+    dateRange: "Oct 2007 – Mar 2009",
+    durationMonths: 17,
+    drawdowns: { equity: -52, bond: 6, gold: 25 },
+    msciDrawdown: -54,
+    msciRecoveryMonths: 49,
+  },
+  {
+    id: "covid" as const,
+    name: "COVID Crash",
+    dateRange: "Feb 2020 – Mar 2020",
+    durationMonths: 2,
+    drawdowns: { equity: -32, bond: 3, gold: 5 },
+    msciDrawdown: -34,
+    msciRecoveryMonths: 5,
+  },
+  {
+    id: "rate2022" as const,
+    name: "2022 Rate Hike",
+    dateRange: "Jan 2022 – Oct 2022",
+    durationMonths: 9,
+    drawdowns: { equity: -24, bond: -18, gold: -3 },
+    msciDrawdown: -25,
+    msciRecoveryMonths: 18,
+  },
+];
+type CrisisId = typeof CRISES[number]["id"];
+
+function classifyETF(ticker: string): "equity" | "bond" | "gold" | null {
+  const t = ticker.toUpperCase();
+  if (["VWCE", "TDIV", "VHYL", "ERNE", "IEGE"].includes(t)) return "equity";
+  if (["CSBGE7"].includes(t)) return "bond";
+  if (["EGLN"].includes(t)) return "gold";
+  return null;
+}
+
+function CrisisBacktestSection() {
+  const theme = Colors.dark;
+  const { holdings } = usePortfolio();
+  const [selectedId, setSelectedId] = useState<CrisisId>("financial");
+  const [dca, setDca] = useState(400);
+
+  useEffect(() => {
+    AsyncStorage.getItem("fortis_forecast_dca").then(v => {
+      if (v) setDca(parseFloat(v) || 400);
+    });
+  }, []);
+
+  const crisis = CRISES.find(c => c.id === selectedId)!;
+
+  const analysis = useMemo(() => {
+    const priced = holdings.filter(h => h.hasPrice && h.currentPrice > 0 && h.quantity > 0);
+    if (priced.length === 0) return null;
+
+    const totalValue = priced.reduce((s, h) => s + h.quantity * h.currentPrice, 0);
+    if (totalValue <= 0) return null;
+
+    const classified = priced.map(h => ({
+      ticker: h.ticker,
+      weight: (h.quantity * h.currentPrice) / totalValue,
+      type: classifyETF(h.ticker),
+    }));
+
+    const unknownTickers = classified.filter(w => w.type === null).map(w => w.ticker);
+    const known = classified.filter(w => w.type !== null) as { ticker: string; weight: number; type: "equity" | "bond" | "gold" }[];
+
+    const knownTotalWeight = known.reduce((s, w) => s + w.weight, 0);
+    if (knownTotalWeight <= 0) {
+      return { unknownTickers, portfolioDrawdown: 0, defensiveWeight: 0, recoveryMonths: 0, dcaAdvantage: 0, capital: 0, lumpSumFinal: 0, dcaFinal: 0, pctDiff: 0, drawdownDiff: 0 };
+    }
+
+    const normalized = known.map(w => ({ ...w, normWeight: w.weight / knownTotalWeight }));
+
+    let portfolioDrawdown = 0;
+    let defensiveWeight = 0;
+    for (const w of normalized) {
+      const dd = w.type === "equity" ? crisis.drawdowns.equity
+        : w.type === "bond" ? crisis.drawdowns.bond
+        : crisis.drawdowns.gold;
+      portfolioDrawdown += w.normWeight * dd;
+      if (w.type === "bond" || w.type === "gold") defensiveWeight += w.normWeight;
+    }
+
+    const defensiveAdj = 1 - defensiveWeight * 0.3;
+    const recoveryMonths = portfolioDrawdown === 0
+      ? crisis.msciRecoveryMonths
+      : Math.max(1, Math.round(
+          crisis.msciRecoveryMonths
+          * (Math.abs(portfolioDrawdown) / Math.abs(crisis.msciDrawdown))
+          * defensiveAdj
+        ));
+
+    const depressedFactor = 1 + portfolioDrawdown / 100;
+    const dcaAdvantage = depressedFactor > 0 && depressedFactor < 1
+      ? (1 / depressedFactor - 1) * 100
+      : 0;
+
+    const capital = dca * crisis.durationMonths;
+    const drawdownFraction = portfolioDrawdown / 100;
+    const lumpSumFinal = capital * (1 + drawdownFraction) * (1 - drawdownFraction);
+    const avgPriceFactor = 1 + drawdownFraction * 0.5;
+    const dcaFinal = avgPriceFactor > 0 ? capital / avgPriceFactor : capital;
+    const pctDiff = lumpSumFinal > 0 ? ((dcaFinal - lumpSumFinal) / Math.abs(lumpSumFinal)) * 100 : 0;
+
+    const drawdownDiff = Math.abs(portfolioDrawdown) - Math.abs(crisis.msciDrawdown);
+
+    return { unknownTickers, portfolioDrawdown, defensiveWeight, recoveryMonths, dcaAdvantage, capital, lumpSumFinal, dcaFinal, pctDiff, drawdownDiff };
+  }, [holdings, crisis, dca]);
+
+  if (holdings.length === 0) {
+    return (
+      <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Crisis Backtest</Text>
+        <Text style={[crisisStyles.emptyHint, { color: theme.textSecondary }]}>
+          Add holdings to your portfolio to see crisis analysis.
+        </Text>
+      </View>
+    );
+  }
+
+  const pDrawdown = analysis?.portfolioDrawdown ?? 0;
+  const cushioned = analysis ? analysis.drawdownDiff <= 0 : false;
+  const diffAbs = Math.abs(analysis?.drawdownDiff ?? 0);
+
+  return (
+    <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>Crisis Backtest</Text>
+      <Text style={[crisisStyles.subtitle, { color: theme.textSecondary }]}>
+        How would your portfolio have behaved during major market crises?
+      </Text>
+
+      {/* Crisis selector */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={crisisStyles.selectorScroll}>
+        <View style={crisisStyles.selectorRow}>
+          {CRISES.map(c => (
+            <TouchableOpacity
+              key={c.id}
+              style={[
+                crisisStyles.crisisChip,
+                {
+                  backgroundColor: selectedId === c.id ? theme.tint + "22" : theme.backgroundElevated,
+                  borderColor: selectedId === c.id ? theme.tint : theme.border,
+                },
+              ]}
+              onPress={() => setSelectedId(c.id)}
+            >
+              <Text style={[crisisStyles.crisisName, { color: selectedId === c.id ? theme.tint : theme.text }]}>
+                {c.name}
+              </Text>
+              <Text style={[crisisStyles.crisisDate, { color: selectedId === c.id ? theme.tint + "BB" : theme.textTertiary }]}>
+                {c.dateRange}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+
+      {analysis === null ? (
+        <Text style={[crisisStyles.emptyHint, { color: theme.textSecondary }]}>
+          No classifiable ETFs found. Add VWCE, TDIV, VHYL, ERNE, IEGE, CSBGE7, or EGLN.
+        </Text>
+      ) : (
+        <>
+          {analysis.unknownTickers.length > 0 && (
+            <View style={[crisisStyles.warningBox, { backgroundColor: "#FBBF2411", borderColor: "#FBBF2433" }]}>
+              <Feather name="alert-triangle" size={12} color="#FBBF24" />
+              <Text style={[crisisStyles.warningText, { color: "#FBBF24" }]}>
+                {analysis.unknownTickers.join(", ")} not classified — excluded from calculations.
+              </Text>
+            </View>
+          )}
+
+          {/* Block 1 — Drawdown */}
+          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.backgroundElevated }]}>
+            <Text style={[crisisStyles.metricTitle, { color: theme.textSecondary }]}>Estimated Max Drawdown</Text>
+            <View style={crisisStyles.metricRow}>
+              <View style={crisisStyles.metricHalf}>
+                <Text style={[crisisStyles.metricBig, { color: pDrawdown < 0 ? theme.negative : theme.positive }]}>
+                  {pDrawdown >= 0 ? "+" : ""}{pDrawdown.toFixed(1)}%
+                </Text>
+                <Text style={[crisisStyles.metricSmall, { color: theme.textTertiary }]}>Your Portfolio</Text>
+              </View>
+              <View style={[crisisStyles.metricDivider, { backgroundColor: theme.border }]} />
+              <View style={crisisStyles.metricHalf}>
+                <Text style={[crisisStyles.metricBig, { color: theme.negative }]}>
+                  {crisis.msciDrawdown.toFixed(1)}%
+                </Text>
+                <Text style={[crisisStyles.metricSmall, { color: theme.textTertiary }]}>MSCI World</Text>
+              </View>
+            </View>
+            <Text style={[crisisStyles.metricNote, { color: cushioned ? theme.positive : theme.negative }]}>
+              {cushioned
+                ? `Your allocation cushioned the drawdown by ${diffAbs.toFixed(1)}%`
+                : `Your allocation amplified the drawdown by ${diffAbs.toFixed(1)}%`}
+            </Text>
+          </View>
+
+          {/* Block 2 — Recovery Time */}
+          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.backgroundElevated }]}>
+            <Text style={[crisisStyles.metricTitle, { color: theme.textSecondary }]}>Estimated Recovery</Text>
+            <Text style={[crisisStyles.metricBig, { color: theme.positive, textAlign: "center" }]}>
+              ~{analysis.recoveryMonths} months
+            </Text>
+            <Text style={[crisisStyles.metricNote, { color: theme.textTertiary, textAlign: "center" }]}>
+              Based on {(analysis.defensiveWeight * 100).toFixed(0)}% defensive allocation
+              {" "}(MSCI World: {crisis.msciRecoveryMonths} months)
+            </Text>
+          </View>
+
+          {/* Block 3 — DCA Effect */}
+          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.backgroundElevated }]}>
+            <Text style={[crisisStyles.metricTitle, { color: theme.textSecondary }]}>DCA Effect</Text>
+            <Text style={[crisisStyles.metricBig, { color: theme.positive, textAlign: "center" }]}>
+              +{analysis.dcaAdvantage.toFixed(1)}% more units
+            </Text>
+            <Text style={[crisisStyles.metricNote, { color: theme.textTertiary, textAlign: "center" }]}>
+              Continuing {formatEUR(dca)}/month DCA during this crisis would have bought ~{analysis.dcaAdvantage.toFixed(1)}% more units at depressed prices
+            </Text>
+          </View>
+
+          {/* Block 4 — Lump Sum vs DCA */}
+          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.backgroundElevated }]}>
+            <Text style={[crisisStyles.metricTitle, { color: theme.textSecondary }]}>Lump Sum vs DCA</Text>
+            <Text style={[crisisStyles.metricCaption, { color: theme.textTertiary }]}>
+              Capital: {formatEUR(analysis.capital)} ({formatEUR(dca)}/mo × {crisis.durationMonths} months)
+            </Text>
+            <View style={crisisStyles.metricRow}>
+              <View style={crisisStyles.metricHalf}>
+                <Text style={[crisisStyles.metricBig, { color: theme.text }]}>
+                  {formatEUR(analysis.lumpSumFinal)}
+                </Text>
+                <Text style={[crisisStyles.metricSmall, { color: theme.textTertiary }]}>Lump Sum</Text>
+              </View>
+              <View style={[crisisStyles.metricDivider, { backgroundColor: theme.border }]} />
+              <View style={crisisStyles.metricHalf}>
+                <Text style={[crisisStyles.metricBig, { color: theme.positive }]}>
+                  {formatEUR(analysis.dcaFinal)}
+                </Text>
+                <Text style={[crisisStyles.metricSmall, { color: theme.textTertiary }]}>DCA</Text>
+              </View>
+            </View>
+            {analysis.pctDiff > 0 && (
+              <Text style={[crisisStyles.metricNote, { color: theme.positive }]}>
+                DCA would have resulted in +{analysis.pctDiff.toFixed(1)}% more value than lump sum at peak
+              </Text>
+            )}
+          </View>
+
+          {/* Block 5 — vs Benchmark */}
+          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.backgroundElevated }]}>
+            <Text style={[crisisStyles.metricTitle, { color: theme.textSecondary }]}>vs Benchmark (MSCI World)</Text>
+            <View style={[dStyles.summaryBox, { backgroundColor: "transparent", padding: 0, gap: 8, marginTop: 4, marginBottom: 0 }]}>
+              <SummaryRow label="Your Portfolio" value={pDrawdown} theme={theme} />
+              <SummaryRow label="MSCI World" value={crisis.msciDrawdown} theme={theme} />
+              <View style={[dStyles.summaryDivider, { backgroundColor: theme.border }]} />
+              <View style={dStyles.summaryRow}>
+                <Text style={[dStyles.summaryLabel, { color: theme.textSecondary }]}>Difference</Text>
+                <Text style={[dStyles.summaryValue, { color: cushioned ? theme.positive : theme.negative }]}>
+                  {cushioned ? "-" : "+"}{diffAbs.toFixed(2)}%{" "}
+                  <Text style={[dStyles.summaryNote, { color: cushioned ? theme.positive : theme.negative }]}>
+                    ({cushioned ? "outperforming" : "underperforming"})
+                  </Text>
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={[dStyles.disclaimer, { color: theme.textTertiary }]}>
+            Simulated results based on historical index data and your current portfolio allocation. Past performance does not guarantee future results.
+          </Text>
+        </>
+      )}
+    </View>
+  );
+}
+
 // ─── Benchmark Comparison Section ─────────────────────────────────────────────
 
 function BenchmarkComparisonSection({
@@ -257,26 +547,8 @@ function BenchmarkComparisonSection({
     if (!isPremium || !earliestDate) return;
     setLoading(true);
     try {
-      // Determine range based on how long ago the earliest purchase was
-      const daysSince = Math.floor(
-        (Date.now() - new Date(earliestDate).getTime()) / (1000 * 60 * 60 * 24)
-      );
-      let range = "1Y";
-      if (daysSince <= 7) range = "1W";
-      else if (daysSince <= 30) range = "1M";
-      else if (daysSince <= 90) range = "3M";
-      else if (daysSince <= 180) range = "6M";
-      else if (daysSince <= 365) range = "1Y";
-      else range = "All";
-
-      const history = await fetchChartHistory(activeBench.symbol, range);
-      if (history.length >= 2) {
-        const start = history[0].priceEUR;
-        const end = history[history.length - 1].priceEUR;
-        setBenchReturn(start > 0 ? ((end - start) / start) * 100 : null);
-      } else {
-        setBenchReturn(null);
-      }
+      const result = await fetchBenchmarkReturn(activeBench.symbol, earliestDate);
+      setBenchReturn(result?.returnPct ?? null);
     } catch {
       setBenchReturn(null);
     } finally {
@@ -724,7 +996,10 @@ export default function PerformanceScreen() {
         width={chartWidth + 32}
       />
 
-      {/* ── Section 4: Dividend Estimate ─────────────────────────────────── */}
+      {/* ── Section 4: Crisis Backtest ────────────────────────────────────── */}
+      <CrisisBacktestSection />
+
+      {/* ── Section 5: Dividend Estimate ─────────────────────────────────── */}
       <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Dividend Estimate</Text>
         <View style={[styles.dividendBox, { backgroundColor: theme.backgroundElevated }]}>
@@ -864,4 +1139,25 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dividendDisclaimer: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center", fontStyle: "italic" },
+});
+
+const crisisStyles = StyleSheet.create({
+  subtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 16, lineHeight: 18 },
+  selectorScroll: { marginBottom: 16 },
+  selectorRow: { flexDirection: "row", gap: 8 },
+  crisisChip: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, minWidth: 120 },
+  crisisName: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  crisisDate: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 2 },
+  warningBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 12 },
+  warningText: { fontSize: 11, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 16 },
+  metricBlock: { borderRadius: 12, padding: 14, gap: 10, marginBottom: 10 },
+  metricTitle: { fontSize: 11, fontFamily: "Inter_500Medium", letterSpacing: 0.3 },
+  metricRow: { flexDirection: "row", alignItems: "center" },
+  metricHalf: { flex: 1, alignItems: "center", gap: 4 },
+  metricDivider: { width: 1, height: 40, marginHorizontal: 8 },
+  metricBig: { fontSize: 22, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
+  metricSmall: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  metricNote: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  metricCaption: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  emptyHint: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", padding: 20 },
 });
