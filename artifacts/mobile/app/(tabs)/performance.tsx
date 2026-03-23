@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -508,13 +508,7 @@ function BenchmarkComparisonSection({
   const [activeBench, setActiveBench] = useState<BenchmarkItem>(defaultBenchmark);
   const [benchReturn, setBenchReturn] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<{
-    startDate: string;
-    firstClose: number;
-    lastClose: number;
-    currency: string;
-    returnPct: number;
-  } | null>(null);
+  const fetchCountRef = useRef(0);
 
   useEffect(() => {
     setActiveBench(defaultBenchmark);
@@ -533,19 +527,17 @@ function BenchmarkComparisonSection({
   // Fetch benchmark return from earliest purchase date to now
   const loadBenchmark = useCallback(async () => {
     if (!isPremium || !earliestDate) return;
+    const fetchId = ++fetchCountRef.current;
     setLoading(true);
     try {
       const result = await fetchBenchmarkReturn(activeBench.symbol, earliestDate);
+      if (fetchId !== fetchCountRef.current) return;
       setBenchReturn(result?.returnPct ?? null);
-      setDebugInfo(result
-        ? { startDate: result.startDate, firstClose: result.firstClose, lastClose: result.lastClose, currency: result.currency, returnPct: result.returnPct }
-        : null
-      );
     } catch {
+      if (fetchId !== fetchCountRef.current) return;
       setBenchReturn(null);
-      setDebugInfo(null);
     } finally {
-      setLoading(false);
+      if (fetchId === fetchCountRef.current) setLoading(false);
     }
   }, [isPremium, activeBench, earliestDate]);
 
@@ -647,33 +639,6 @@ function BenchmarkComparisonSection({
       <Text style={[dStyles.disclaimer, { color: theme.textTertiary }]}>
         Portfolio return based on avg cost vs current price. Benchmark return over same period.
       </Text>
-
-      {debugInfo && (
-        <View style={{
-          backgroundColor: "#111827",
-          borderRadius: 6,
-          padding: 10,
-          marginTop: 10,
-          borderWidth: 1,
-          borderColor: "#374151",
-        }}>
-          <Text style={{ color: "#6B7280", fontSize: 10, fontFamily: "Courier New", marginBottom: 6 }}>
-            Debug Info (temp)
-          </Text>
-          <Text style={{ color: "#9CA3AF", fontSize: 11, fontFamily: "Courier New", lineHeight: 18 }}>
-            Start date:  {new Date(debugInfo.startDate + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-          </Text>
-          <Text style={{ color: "#9CA3AF", fontSize: 11, fontFamily: "Courier New", lineHeight: 18 }}>
-            First close: {debugInfo.firstClose.toFixed(4)} {debugInfo.currency}
-          </Text>
-          <Text style={{ color: "#9CA3AF", fontSize: 11, fontFamily: "Courier New", lineHeight: 18 }}>
-            Last close:  {debugInfo.lastClose.toFixed(4)} {debugInfo.currency}
-          </Text>
-          <Text style={{ color: "#9CA3AF", fontSize: 11, fontFamily: "Courier New", lineHeight: 18 }}>
-            Return:      {debugInfo.returnPct.toFixed(4)}%
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
