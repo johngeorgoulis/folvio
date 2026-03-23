@@ -19,8 +19,10 @@ import { usePortfolio } from "@/context/PortfolioContext";
 import { useAllocation } from "@/context/AllocationContext";
 import { formatEUR, formatPct } from "@/utils/format";
 import { calculateAllocations, validateTargets } from "@/services/allocationService";
-import { getSnapshots, type PortfolioSnapshot } from "@/services/snapshotService";
+import { type PortfolioSnapshot } from "@/services/snapshotService";
 import { fetchBenchmarkReturn } from "@/services/priceService";
+import { buildPortfolioHistory, getPortfolioHistory } from "@/services/portfolioHistoryService";
+import type { HoldingRow } from "@/services/db";
 
 // ─── Benchmark definitions ─────────────────────────────────────────────────────
 
@@ -764,45 +766,6 @@ function fmtK(v: number): string {
   return `${v.toFixed(0)}`;
 }
 
-// ─── Synthetic snapshot generator ─────────────────────────────────────────────
-// Produces monthly "invested capital" data points from holdings purchase history
-// used as a fallback when fewer than 2 real daily snapshots exist.
-
-function generateSyntheticSnapshots(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  holdings: any[]
-): PortfolioSnapshot[] {
-  const dated = holdings
-    .filter((h) => h.purchase_date && h.avg_cost_eur > 0 && h.quantity > 0)
-    .sort((a, b) => a.purchase_date.localeCompare(b.purchase_date));
-  if (dated.length === 0) return [];
-
-  const earliest = dated[0].purchase_date.slice(0, 7) + "-01";
-  const today = new Date().toISOString().split("T")[0];
-  const result: PortfolioSnapshot[] = [];
-  let current = new Date(earliest);
-  const end = new Date(today);
-  let synId = -1;
-
-  while (current <= end) {
-    const dateStr = current.toISOString().split("T")[0];
-    const invested = dated
-      .filter((h) => h.purchase_date <= dateStr)
-      .reduce((sum, h) => sum + h.quantity * h.avg_cost_eur, 0);
-    if (invested > 0) {
-      result.push({
-        id: synId--,
-        snapshotDate: dateStr,
-        totalValueEUR: invested,
-        totalInvestedEUR: invested,
-        createdAt: dateStr,
-      });
-    }
-    current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
-  }
-  return result;
-}
-
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function PerformanceScreen() {
@@ -816,8 +779,9 @@ export default function PerformanceScreen() {
   const { targets, rebalanceThreshold } = useAllocation();
 
   const [selectedRange, setSelectedRange] = useState<Range>("1M");
-  const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
+  const [historySnapshots, setHistorySnapshots] = useState<PortfolioSnapshot[]>([]);
   const [loadingChart, setLoadingChart] = useState(true);
+  const [buildingHistory, setBuildingHistory] = useState(false);
 
   const [isPremium, setIsPremium] = useState(true); // TODO: wire to RevenueCat before release
   const [defaultBenchmark, setDefaultBenchmark] = useState<BenchmarkItem>(DEFAULT_BENCHMARK);
@@ -836,17 +800,32 @@ export default function PerformanceScreen() {
     });
   }, []);
 
+  // Reload from DB when range selector changes
   useEffect(() => {
     let cancelled = false;
     setLoadingChart(true);
-    getSnapshots(selectedRange).then((data) => {
+    getPortfolioHistory(selectedRange).then((data) => {
       if (!cancelled) {
-        setSnapshots(data);
+        setHistorySnapshots(data);
         setLoadingChart(false);
       }
     });
     return () => { cancelled = true; };
   }, [selectedRange]);
+
+  // Backfill historical prices in background when holdings change
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const holdingsKey = (holdings as any[]).map((h) => `${h.ticker ?? ""}${h.quantity ?? ""}`).join(",");
+  useEffect(() => {
+    if (!holdingsKey) return;
+    setBuildingHistory(true);
+    buildPortfolioHistory(holdings as unknown as HoldingRow[])
+      .then(() => getPortfolioHistory(selectedRange))
+      .then((data) => setHistorySnapshots(data))
+      .catch(console.warn)
+      .finally(() => setBuildingHistory(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holdingsKey]);
 
   const allocationRows = useMemo(
     () => calculateAllocations(holdings, targets, rebalanceThreshold),
@@ -884,13 +863,7 @@ export default function PerformanceScreen() {
   }, [holdings]);
 
   const chartWidth = width - 32;
-
-  const effectiveSnapshots = useMemo(() => {
-    if (snapshots.length >= 2) return snapshots;
-    return generateSyntheticSnapshots(holdings);
-  }, [snapshots, holdings]);
-
-  const hasEnoughData = effectiveSnapshots.length >= 2;
+  const hasEnoughData = historySnapshots.length >= 2;
 
   return (
     <ScrollView
@@ -960,16 +933,32 @@ export default function PerformanceScreen() {
           <View style={styles.chartPlaceholder}>
             <ActivityIndicator size="small" color={theme.tint} />
           </View>
-        ) : !hasEnoughData ? (
+        ) : hasEnoughData ? (
+          <>
+            <PortfolioChart snapshots={historySnapshots} width={chartWidth} />
+            {buildingHistory && (
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingTop: 4 }}>
+                <ActivityIndicator size="small" color={theme.tint} />
+                <Text style={{ color: theme.textTertiary, fontSize: 11 }}>Updating…</Text>
+              </View>
+            )}
+          </>
+        ) : buildingHistory ? (
           <View style={styles.chartPlaceholder}>
-            <Feather name="trending-up" size={28} color={theme.textTertiary} />
-            <Text style={[styles.chartEmptyTitle, { color: theme.text }]}>Keep tracking</Text>
+            <ActivityIndicator size="small" color={theme.tint} />
+            <Text style={[styles.chartEmptyTitle, { color: theme.text }]}>Fetching price history</Text>
             <Text style={[styles.chartEmptySub, { color: theme.textSecondary }]}>
-              Open the app daily to build your portfolio history. Chart appears after 7 days of data.
+              Downloading historical prices for your holdings…
             </Text>
           </View>
         ) : (
-          <PortfolioChart snapshots={effectiveSnapshots} width={chartWidth} />
+          <View style={styles.chartPlaceholder}>
+            <Feather name="trending-up" size={28} color={theme.textTertiary} />
+            <Text style={[styles.chartEmptyTitle, { color: theme.text }]}>No history yet</Text>
+            <Text style={[styles.chartEmptySub, { color: theme.textSecondary }]}>
+              Add holdings with a purchase date to see your portfolio value over time.
+            </Text>
+          </View>
         )}
       </View>
 

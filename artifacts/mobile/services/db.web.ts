@@ -37,11 +37,26 @@ export type SnapshotRow = {
   created_at: string;
 };
 
+export type EtfPriceRow = {
+  ticker: string;
+  date: string;
+  close_eur: number;
+};
+
+export type PortfolioHistoryRow = {
+  date: string;
+  total_value_eur: number;
+  total_invested_eur: number;
+  created_at: string;
+};
+
 const KEYS = {
   holdings: "fortis_v2_holdings",
   prices: "fortis_v2_prices",
   targets: "fortis_v2_targets",
   snapshots: "fortis_v2_snapshots",
+  etfPriceHistory: "fortis_v2_etf_price_history",
+  portfolioHistory: "fortis_v2_portfolio_history",
 };
 
 async function readJSON<T>(key: string): Promise<T[]> {
@@ -181,4 +196,57 @@ export async function pruneSnapshots(maxCount: number): Promise<void> {
   if (rows.length <= maxCount) return;
   const sorted = [...rows].sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
   await writeJSON(KEYS.snapshots, sorted.slice(0, maxCount));
+}
+
+// ─── ETF Price History ────────────────────────────────────────────────────────
+
+export async function upsertEtfPrices(
+  ticker: string,
+  prices: { date: string; closeEur: number }[]
+): Promise<void> {
+  if (prices.length === 0) return;
+  const rows = await readJSON<EtfPriceRow>(KEYS.etfPriceHistory);
+  const map = new Map(rows.map((r) => [`${r.ticker}|${r.date}`, r]));
+  for (const { date, closeEur } of prices) {
+    map.set(`${ticker}|${date}`, { ticker, date, close_eur: closeEur });
+  }
+  await writeJSON(KEYS.etfPriceHistory, Array.from(map.values()));
+}
+
+export async function getEtfPricesForTicker(ticker: string): Promise<EtfPriceRow[]> {
+  const rows = await readJSON<EtfPriceRow>(KEYS.etfPriceHistory);
+  return rows
+    .filter((r) => r.ticker === ticker)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function getLatestEtfPriceDate(ticker: string): Promise<string | null> {
+  const rows = await readJSON<EtfPriceRow>(KEYS.etfPriceHistory);
+  const ticker_rows = rows.filter((r) => r.ticker === ticker).sort((a, b) => b.date.localeCompare(a.date));
+  return ticker_rows[0]?.date ?? null;
+}
+
+// ─── Portfolio History ────────────────────────────────────────────────────────
+
+export async function upsertPortfolioHistory(
+  rows: { date: string; totalValueEur: number; totalInvestedEur: number }[]
+): Promise<void> {
+  if (rows.length === 0) return;
+  const existing = await readJSON<PortfolioHistoryRow>(KEYS.portfolioHistory);
+  const map = new Map(existing.map((r) => [r.date, r]));
+  const now = new Date().toISOString();
+  for (const { date, totalValueEur, totalInvestedEur } of rows) {
+    map.set(date, { date, total_value_eur: totalValueEur, total_invested_eur: totalInvestedEur, created_at: now });
+  }
+  await writeJSON(KEYS.portfolioHistory, Array.from(map.values()));
+}
+
+export async function getPortfolioHistoryByRange(days: number): Promise<PortfolioHistoryRow[]> {
+  const cutoff = days >= 36000
+    ? "1900-01-01"
+    : new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const rows = await readJSON<PortfolioHistoryRow>(KEYS.portfolioHistory);
+  return rows
+    .filter((r) => r.date >= cutoff)
+    .sort((a, b) => a.date.localeCompare(b.date));
 }

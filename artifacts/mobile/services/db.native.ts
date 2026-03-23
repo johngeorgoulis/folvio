@@ -37,6 +37,19 @@ export type SnapshotRow = {
   created_at: string;
 };
 
+export type EtfPriceRow = {
+  ticker: string;
+  date: string;
+  close_eur: number;
+};
+
+export type PortfolioHistoryRow = {
+  date: string;
+  total_value_eur: number;
+  total_invested_eur: number;
+  created_at: string;
+};
+
 let db: SQLite.SQLiteDatabase | null = null;
 
 async function getDb(): Promise<SQLite.SQLiteDatabase> {
@@ -73,6 +86,18 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
     CREATE TABLE IF NOT EXISTS portfolio_snapshots (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       snapshot_date TEXT UNIQUE NOT NULL,
+      total_value_eur REAL NOT NULL,
+      total_invested_eur REAL NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS etf_price_history (
+      ticker TEXT NOT NULL,
+      date TEXT NOT NULL,
+      close_eur REAL NOT NULL,
+      PRIMARY KEY (ticker, date)
+    );
+    CREATE TABLE IF NOT EXISTS portfolio_history (
+      date TEXT PRIMARY KEY,
       total_value_eur REAL NOT NULL,
       total_invested_eur REAL NOT NULL,
       created_at TEXT NOT NULL
@@ -230,5 +255,70 @@ export async function pruneSnapshots(maxCount: number): Promise<void> {
       SELECT id FROM portfolio_snapshots ORDER BY snapshot_date DESC LIMIT ?
     )`,
     [maxCount]
+  );
+}
+
+// ─── ETF Price History ────────────────────────────────────────────────────────
+
+export async function upsertEtfPrices(
+  ticker: string,
+  prices: { date: string; closeEur: number }[]
+): Promise<void> {
+  if (prices.length === 0) return;
+  const database = await getDb();
+  await database.withTransactionAsync(async () => {
+    for (const { date, closeEur } of prices) {
+      await database.runAsync(
+        `INSERT OR REPLACE INTO etf_price_history (ticker, date, close_eur) VALUES (?, ?, ?)`,
+        [ticker, date, closeEur]
+      );
+    }
+  });
+}
+
+export async function getEtfPricesForTicker(ticker: string): Promise<EtfPriceRow[]> {
+  const database = await getDb();
+  return database.getAllAsync<EtfPriceRow>(
+    "SELECT ticker, date, close_eur FROM etf_price_history WHERE ticker = ? ORDER BY date ASC",
+    [ticker]
+  );
+}
+
+export async function getLatestEtfPriceDate(ticker: string): Promise<string | null> {
+  const database = await getDb();
+  const row = await database.getFirstAsync<{ date: string }>(
+    "SELECT date FROM etf_price_history WHERE ticker = ? ORDER BY date DESC LIMIT 1",
+    [ticker]
+  );
+  return row?.date ?? null;
+}
+
+// ─── Portfolio History ────────────────────────────────────────────────────────
+
+export async function upsertPortfolioHistory(
+  rows: { date: string; totalValueEur: number; totalInvestedEur: number }[]
+): Promise<void> {
+  if (rows.length === 0) return;
+  const database = await getDb();
+  const now = new Date().toISOString();
+  await database.withTransactionAsync(async () => {
+    for (const { date, totalValueEur, totalInvestedEur } of rows) {
+      await database.runAsync(
+        `INSERT OR REPLACE INTO portfolio_history (date, total_value_eur, total_invested_eur, created_at)
+         VALUES (?, ?, ?, ?)`,
+        [date, totalValueEur, totalInvestedEur, now]
+      );
+    }
+  });
+}
+
+export async function getPortfolioHistoryByRange(days: number): Promise<PortfolioHistoryRow[]> {
+  const database = await getDb();
+  const cutoff = days >= 36000
+    ? "1900-01-01"
+    : new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  return database.getAllAsync<PortfolioHistoryRow>(
+    "SELECT date, total_value_eur, total_invested_eur, created_at FROM portfolio_history WHERE date >= ? ORDER BY date ASC",
+    [cutoff]
   );
 }
