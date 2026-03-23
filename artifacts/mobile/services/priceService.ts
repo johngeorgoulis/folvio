@@ -544,7 +544,13 @@ export async function fetchBenchmarkReturn(
   symbol: string,
   sinceDate: string
 ): Promise<{ returnPct: number; startDate: string } | null> {
-  const url = yahooChartUrl(symbol, "1wk", "10y");
+  const period1 = Math.floor(new Date(sinceDate).getTime() / 1000);
+  const period2 = Math.floor(Date.now() / 1000);
+
+  const url = Platform.OS === "web"
+    ? `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}/api/yahoo/chart/${encodeURIComponent(symbol)}?interval=1d&period1=${period1}&period2=${period2}`
+    : `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&period1=${period1}&period2=${period2}`;
+
   try {
     const res = await fetch(url, { headers: YAHOO_HEADERS });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -567,23 +573,17 @@ export async function fetchBenchmarkReturn(
     const toEUR = (p: number) =>
       currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
 
-    const sinceDateMs = new Date(sinceDate).getTime();
-
-    const points: { dateMs: number; date: string; priceEUR: number }[] = [];
+    const points: { date: string; priceEUR: number }[] = [];
     for (let i = 0; i < timestamps.length; i++) {
       const price = closes[i];
       if (price == null || isNaN(price)) continue;
-      const dateMs = timestamps[i] * 1000;
-      const date = new Date(dateMs).toISOString().split("T")[0];
-      points.push({ dateMs, date, priceEUR: toEUR(price) });
+      const date = new Date(timestamps[i] * 1000).toISOString().split("T")[0];
+      points.push({ date, priceEUR: toEUR(price) });
     }
 
     if (points.length < 2) return null;
 
-    const startIdx = points.findIndex(p => p.dateMs >= sinceDateMs);
-    if (startIdx === -1) return null;
-
-    const start = points[startIdx];
+    const start = points[0];
     const end = points[points.length - 1];
     if (start.priceEUR <= 0) return null;
 

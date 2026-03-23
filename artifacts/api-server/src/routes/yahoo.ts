@@ -65,9 +65,14 @@ async function yahooFetch(url: string): Promise<unknown> {
 
 router.get("/yahoo/chart/:symbol", async (req, res) => {
   const { symbol } = req.params;
-  const { interval = "1d", range = "1mo" } = req.query as Record<string, string>;
+  const { interval = "1d", range, period1, period2 } = req.query as Record<string, string>;
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`;
+    let url: string;
+    if (period1 && period2) {
+      url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&period1=${period1}&period2=${period2}`;
+    } else {
+      url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range ?? "1mo"}`;
+    }
     const data = await yahooFetch(url);
     res.json(data);
   } catch (err) {

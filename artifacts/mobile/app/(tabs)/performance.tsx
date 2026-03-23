@@ -481,25 +481,6 @@ function CrisisBacktestSection() {
             )}
           </View>
 
-          {/* Block 5 — vs Benchmark */}
-          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.backgroundElevated }]}>
-            <Text style={[crisisStyles.metricTitle, { color: theme.textSecondary }]}>vs Benchmark (MSCI World)</Text>
-            <View style={[dStyles.summaryBox, { backgroundColor: "transparent", padding: 0, gap: 8, marginTop: 4, marginBottom: 0 }]}>
-              <SummaryRow label="Your Portfolio" value={pDrawdown} theme={theme} />
-              <SummaryRow label="MSCI World" value={crisis.msciDrawdown} theme={theme} />
-              <View style={[dStyles.summaryDivider, { backgroundColor: theme.border }]} />
-              <View style={dStyles.summaryRow}>
-                <Text style={[dStyles.summaryLabel, { color: theme.textSecondary }]}>Difference</Text>
-                <Text style={[dStyles.summaryValue, { color: cushioned ? theme.positive : theme.negative }]}>
-                  {cushioned ? "-" : "+"}{diffAbs.toFixed(2)}%{" "}
-                  <Text style={[dStyles.summaryNote, { color: cushioned ? theme.positive : theme.negative }]}>
-                    ({cushioned ? "outperforming" : "underperforming"})
-                  </Text>
-                </Text>
-              </View>
-            </View>
-          </View>
-
           <Text style={[dStyles.disclaimer, { color: theme.textTertiary }]}>
             Simulated results based on historical index data and your current portfolio allocation. Past performance does not guarantee future results.
           </Text>
