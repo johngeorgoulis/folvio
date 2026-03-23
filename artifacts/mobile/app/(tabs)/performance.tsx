@@ -651,7 +651,7 @@ function BenchmarkComparisonSection({
 // ─── Portfolio Value Chart ─────────────────────────────────────────────────────
 
 const CHART_H = 160;
-const PAD = { top: 10, bottom: 28, left: 56, right: 8 };
+const PAD = { top: 10, bottom: 28, left: 56, right: 16 };
 
 interface ChartPt { x: number; y: number }
 
