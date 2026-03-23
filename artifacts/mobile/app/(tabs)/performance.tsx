@@ -508,48 +508,43 @@ function BenchmarkComparisonSection({
   const [activeBench, setActiveBench] = useState<BenchmarkItem>(defaultBenchmark);
   const [benchReturn, setBenchReturn] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const fetchCountRef = useRef(0);
+  const hasFetchedRef = useRef(false);
 
-  useEffect(() => {
-    setActiveBench(defaultBenchmark);
-  }, [defaultBenchmark]);
-
-  // Find earliest purchase date across all holdings
   const earliestDate = useMemo(() => {
     if (holdings.length === 0) return null;
-    const dates = holdings
-      .map((h) => h.purchase_date)
-      .filter(Boolean)
-      .sort();
+    const dates = holdings.map((h) => h.purchase_date).filter(Boolean).sort();
     return dates[0] ?? null;
   }, [holdings]);
 
-  // Fetch benchmark return from earliest purchase date to now
-  const loadBenchmark = useCallback(async () => {
-    if (!isPremium || !earliestDate) return;
-    const fetchId = ++fetchCountRef.current;
+  async function loadBench(bench: BenchmarkItem, date: string) {
+    if (!isPremium) return;
     setLoading(true);
+    setBenchReturn(null);
     try {
-      const result = await fetchBenchmarkReturn(activeBench.symbol, earliestDate);
-      if (fetchId !== fetchCountRef.current) return;
-      setBenchReturn(result?.returnPct ?? null);
+      const pct = await fetchBenchmarkReturn(bench.symbol, date);
+      setBenchReturn(pct);
     } catch {
-      if (fetchId !== fetchCountRef.current) return;
       setBenchReturn(null);
     } finally {
-      if (fetchId === fetchCountRef.current) setLoading(false);
+      setLoading(false);
     }
-  }, [isPremium, activeBench, earliestDate]);
+  }
 
   useEffect(() => {
-    loadBenchmark();
-  }, [loadBenchmark]);
+    if (hasFetchedRef.current || !earliestDate) return;
+    hasFetchedRef.current = true;
+    loadBench(activeBench, earliestDate);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [earliestDate]);
 
-  // Portfolio return %
+  function handleChipTap(bm: BenchmarkItem) {
+    setActiveBench(bm);
+    if (earliestDate) loadBench(bm, earliestDate);
+  }
+
   const portfolioReturn = totalInvested > 0
     ? ((totalPortfolioValue - totalInvested) / totalInvested) * 100
     : 0;
-
   const diff = benchReturn !== null ? portfolioReturn - benchReturn : null;
 
   if (!isPremium) {
@@ -583,7 +578,6 @@ function BenchmarkComparisonSection({
     <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>Benchmark Comparison</Text>
 
-      {/* Benchmark picker */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
         <View style={{ flexDirection: "row", gap: 6 }}>
           {BENCHMARKS.map((bm) => (
@@ -596,7 +590,7 @@ function BenchmarkComparisonSection({
                   borderColor: activeBench.symbol === bm.symbol ? theme.tint : theme.border,
                 },
               ]}
-              onPress={() => setActiveBench(bm)}
+              onPress={() => handleChipTap(bm)}
             >
               <Text style={[styles.benchChipText, { color: activeBench.symbol === bm.symbol ? theme.tint : theme.textSecondary }]}>
                 {bm.label}
@@ -606,7 +600,6 @@ function BenchmarkComparisonSection({
         </View>
       </ScrollView>
 
-      {/* Since date */}
       {earliestDate && (
         <Text style={[{ fontSize: 11, fontFamily: "Inter_400Regular", color: theme.textTertiary, marginBottom: 14 }]}>
           Since {earliestDate} (your first purchase)
