@@ -22,7 +22,6 @@ import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import { useAllocation, THRESHOLD_OPTIONS, type ThresholdOption } from "@/context/AllocationContext";
 import { formatEUR } from "@/utils/format";
 import PremiumModal from "@/components/PremiumModal";
-import { fetchLivePrice, buildYahooSymbol } from "@/services/priceService";
 import {
   NOTIF_KEY,
   checkPermissionStatus,
@@ -193,8 +192,19 @@ export default function SettingsScreen() {
     setDcaDay(day);
     setShowDcaDayPicker(false);
     await AsyncStorage.setItem(NOTIF_KEY.DCA_DAY, String(day));
-    if (dcaNotifEnabled) {
+
+    if (dcaNotifEnabled && notifPermission === "granted") {
       await toggleDCAReminder(true, day, dcaAmount);
+
+      // Compute the actual notification day (5 days before DCA day)
+      let notifDay = day - 5;
+      if (notifDay <= 0) notifDay = 28 + notifDay;
+      notifDay = Math.max(1, Math.min(28, notifDay));
+
+      Alert.alert(
+        "DCA Reminder Updated",
+        `You'll be notified on the ${ordinalSuffix(notifDay)} of each month at 9:00 AM.`
+      );
     }
   }
 
@@ -228,29 +238,6 @@ export default function SettingsScreen() {
         },
       ]
     );
-  }
-
-  async function handleDebugPriceFetch() {
-    const tests = [
-      { ticker: "VWCE", exchange: "XETRA" },
-      { ticker: "TDIV", exchange: "EURONEXT_AMS" },
-      { ticker: "CSBGE7", exchange: "SIX" },
-    ];
-    const lines: string[] = [];
-    for (const t of tests) {
-      const sym = buildYahooSymbol(t.ticker, t.exchange);
-      try {
-        const result = await fetchLivePrice(t.ticker, t.exchange);
-        if (result) {
-          lines.push(`${sym} → €${result.priceEUR.toFixed(2)} (${result.currency}) ✅`);
-        } else {
-          lines.push(`${sym} → ❌ No data returned`);
-        }
-      } catch (e: any) {
-        lines.push(`${sym} → ❌ ${e?.message ?? String(e)}`);
-      }
-    }
-    Alert.alert("Price Fetch Test", lines.join("\n\n"));
   }
 
   function handleExportCSV() {
@@ -681,7 +668,7 @@ export default function SettingsScreen() {
 
         {/* Clear Price Cache */}
         <TouchableOpacity
-          style={[styles.dataRow, { borderBottomColor: theme.border }]}
+          style={[styles.dataRow, { borderBottomColor: "transparent" }]}
           onPress={handleClearCache}
         >
           <View style={styles.dataRowLeft}>
@@ -691,17 +678,6 @@ export default function SettingsScreen() {
           <Feather name="chevron-right" size={16} color={theme.textTertiary} />
         </TouchableOpacity>
 
-        {/* Debug: Test Price Fetch */}
-        <TouchableOpacity
-          style={[styles.dataRow, { borderBottomColor: "transparent" }]}
-          onPress={handleDebugPriceFetch}
-        >
-          <View style={styles.dataRowLeft}>
-            <Feather name="terminal" size={17} color={theme.textSecondary} />
-            <Text style={[styles.rowLabel, { color: theme.textSecondary }]}>Test Price Fetch (Debug)</Text>
-          </View>
-          <Feather name="chevron-right" size={16} color={theme.textTertiary} />
-        </TouchableOpacity>
       </View>
 
       {/* ── 4. PREMIUM ───────────────────────────────────────────────────── */}
