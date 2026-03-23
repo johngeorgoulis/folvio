@@ -672,14 +672,18 @@ function PortfolioChart({
 
   const minV = Math.min(...data);
   const maxV = Math.max(...data);
-  const rangeV = maxV - minV || 1;
+  const rawRange = maxV - minV || maxV * 0.1 || 1;
+  const pad = rawRange * 0.05;
+  const displayMin = minV - pad;
+  const displayMax = maxV + pad;
+  const rangeV = displayMax - displayMin;
 
   const isPositive = data[data.length - 1] >= data[0];
   const lineColor = isPositive ? "#34D399" : "#F87171";
 
   const points: ChartPt[] = data.map((v, i) => ({
     x: PAD.left + (i / (data.length - 1)) * innerW,
-    y: PAD.top + (1 - (v - minV) / rangeV) * innerH,
+    y: PAD.top + (1 - (v - displayMin) / rangeV) * innerH,
   }));
 
   const segments = points.slice(0, -1).map((p1, i) => {
@@ -693,11 +697,13 @@ function PortfolioChart({
     return { cx, cy, length, angle };
   });
 
-  const yLabels = [
-    { y: PAD.top, v: maxV },
-    { y: PAD.top + innerH / 2, v: (maxV + minV) / 2 },
-    { y: PAD.top + innerH, v: minV },
-  ];
+  const yLabels = [0, 1, 2, 3].map((i) => {
+    const frac = i / 3;
+    return {
+      y: PAD.top + frac * innerH,
+      v: displayMax - frac * rangeV,
+    };
+  });
 
   const xLabels: { x: number; label: string }[] = [
     { x: PAD.left, label: fmtDate(snapshots[0].snapshotDate) },
@@ -762,8 +768,9 @@ function fmtDate(iso: string): string {
 }
 
 function fmtK(v: number): string {
-  if (v >= 1000) return `${(v / 1000).toFixed(0)}k`;
-  return `${v.toFixed(0)}`;
+  if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
+  if (v >= 100) return `${v.toFixed(0)}`;
+  return `${v.toFixed(1)}`;
 }
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
