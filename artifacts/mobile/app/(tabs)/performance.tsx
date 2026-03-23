@@ -225,7 +225,7 @@ const CRISES = [
   {
     id: "dotcom" as const,
     name: "Dot-com",
-    dateRange: "Mar 2000 – Oct 2002",
+    dateRange: "Mar '00–Oct '02",
     durationMonths: 31,
     drawdowns: { equity: -48, bond: 8, gold: 12 },
     msciDrawdown: -49,
@@ -234,7 +234,7 @@ const CRISES = [
   {
     id: "financial" as const,
     name: "Financial Crisis",
-    dateRange: "Oct 2007 – Mar 2009",
+    dateRange: "Oct '07–Mar '09",
     durationMonths: 17,
     drawdowns: { equity: -52, bond: 6, gold: 25 },
     msciDrawdown: -54,
@@ -243,7 +243,7 @@ const CRISES = [
   {
     id: "covid" as const,
     name: "COVID Crash",
-    dateRange: "Feb 2020 – Mar 2020",
+    dateRange: "Feb–Mar 2020",
     durationMonths: 2,
     drawdowns: { equity: -32, bond: 3, gold: 5 },
     msciDrawdown: -34,
@@ -252,7 +252,7 @@ const CRISES = [
   {
     id: "rate2022" as const,
     name: "2022 Rate Hike",
-    dateRange: "Jan 2022 – Oct 2022",
+    dateRange: "Jan–Oct 2022",
     durationMonths: 9,
     drawdowns: { equity: -24, bond: -18, gold: -3 },
     msciDrawdown: -25,
@@ -633,6 +633,12 @@ function BenchmarkComparisonSection({
         </View>
       )}
 
+      {diff !== null && diff < 0 && (
+        <Text style={[dStyles.disclaimer, { color: theme.textTertiary, fontStyle: "italic", marginTop: 10, fontSize: 11, lineHeight: 17 }]}>
+          Your portfolio includes defensive assets (bonds, gold) which reduce volatility and drawdowns but may lag pure equity benchmarks during strong bull markets. This is by design, not underperformance.
+        </Text>
+      )}
+
       <Text style={[dStyles.disclaimer, { color: theme.textTertiary }]}>
         Portfolio return based on avg cost vs current price. Benchmark return over same period.
       </Text>
@@ -758,6 +764,45 @@ function fmtK(v: number): string {
   return `${v.toFixed(0)}`;
 }
 
+// ─── Synthetic snapshot generator ─────────────────────────────────────────────
+// Produces monthly "invested capital" data points from holdings purchase history
+// used as a fallback when fewer than 2 real daily snapshots exist.
+
+function generateSyntheticSnapshots(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  holdings: any[]
+): PortfolioSnapshot[] {
+  const dated = holdings
+    .filter((h) => h.purchase_date && h.avg_cost_eur > 0 && h.quantity > 0)
+    .sort((a, b) => a.purchase_date.localeCompare(b.purchase_date));
+  if (dated.length === 0) return [];
+
+  const earliest = dated[0].purchase_date.slice(0, 7) + "-01";
+  const today = new Date().toISOString().split("T")[0];
+  const result: PortfolioSnapshot[] = [];
+  let current = new Date(earliest);
+  const end = new Date(today);
+  let synId = -1;
+
+  while (current <= end) {
+    const dateStr = current.toISOString().split("T")[0];
+    const invested = dated
+      .filter((h) => h.purchase_date <= dateStr)
+      .reduce((sum, h) => sum + h.quantity * h.avg_cost_eur, 0);
+    if (invested > 0) {
+      result.push({
+        id: synId--,
+        snapshotDate: dateStr,
+        totalValueEUR: invested,
+        totalInvestedEUR: invested,
+        createdAt: dateStr,
+      });
+    }
+    current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+  }
+  return result;
+}
+
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function PerformanceScreen() {
@@ -839,7 +884,13 @@ export default function PerformanceScreen() {
   }, [holdings]);
 
   const chartWidth = width - 32;
-  const hasEnoughData = snapshots.length >= 7;
+
+  const effectiveSnapshots = useMemo(() => {
+    if (snapshots.length >= 2) return snapshots;
+    return generateSyntheticSnapshots(holdings);
+  }, [snapshots, holdings]);
+
+  const hasEnoughData = effectiveSnapshots.length >= 2;
 
   return (
     <ScrollView
@@ -918,7 +969,7 @@ export default function PerformanceScreen() {
             </Text>
           </View>
         ) : (
-          <PortfolioChart snapshots={snapshots} width={chartWidth} />
+          <PortfolioChart snapshots={effectiveSnapshots} width={chartWidth} />
         )}
       </View>
 
@@ -930,7 +981,7 @@ export default function PerformanceScreen() {
             {totalGain >= 0 ? "+" : ""}{formatEUR(totalGain, true)}
           </Text>
           <Text style={[styles.metricSub, { color: totalGain >= 0 ? theme.positive : theme.negative }]}>
-            {totalGain >= 0 ? "+" : ""}{formatPct(totalGainPct)}
+            {formatPct(totalGainPct)}
           </Text>
         </View>
 
