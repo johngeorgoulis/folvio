@@ -125,6 +125,29 @@ Suffix map: XETRA→.DE, Euronext Paris→.PA, Euronext Amsterdam→.AS, LSE→.
 - Remove target (trash → confirm alert)
 - Live sum validation: "Sum: X% ✓" (green) or error (red)
 
+### ETF Database Service (`services/etfDatabaseService.ts`)
+- Bundled seed database: `assets/etf-database.json` — 52 real UCITS ETFs scraped from JustETF (TER, distribution, replication, domicile, inception date, fund size, exchanges)
+- Search index: `assets/etf-index.json` — ISIN map, ticker map, keyword index for O(1) lookups
+- `initETFDatabase()` — loads bundled DB then checks AsyncStorage for newer downloaded version
+- `searchETFDatabase(query, maxResults)` — instant synchronous search: exact ISIN → exact ticker → partial ticker → name contains; returns scored results with `matchType`
+- `lookupByISIN(isin)` / `lookupByTicker(ticker)` — O(1) single lookups
+- Background update: checks `REMOTE_DB_URL` (GitHub Gist) max once per 24h, 5s timeout, never blocks UI; shows toast on success
+- AsyncStorage keys: `fortis_etf_database`, `fortis_etf_db_version`, `fortis_etf_db_last_check`
+- **To enable remote updates**: Create a GitHub Gist with `etf-database.json` contents → get the raw URL → replace `REMOTE_DB_URL` constant in `etfDatabaseService.ts`
+
+### Search Screen (`app/(tabs)/search.tsx`)
+- Instant local search from bundled DB (no network, as user types) → colored asset class badges (green=Equity, blue=Bonds, yellow=Commodities, purple=Real Estate)
+- Shows: ticker, short name, ISIN, TER%, asset class badge, Acc/Dist badge
+- Falls back to Yahoo Finance live search when local DB has < 5 results
+- Labels sections: "UCITS ETF Database" (local) and "More results / Yahoo Finance" (network)
+- Shows "ETF database updated" toast when background download completes
+
+### Build Script (`scripts/buildETFDatabase.ts`)
+- Run: `node_modules/.bin/tsx scripts/buildETFDatabase.ts` from `artifacts/mobile/`
+- Scrapes JustETF profile pages for a curated ISIN list, saves to `assets/etf-database.json` + `assets/etf-index.json`
+- Deduplicated by ISIN; 600ms polite delay between requests
+- Output format: `{ version, generatedAt, count, etfs: [...] }`
+
 ### Key Files
 - `app/_layout.tsx` — root layout; wraps with PortfolioProvider + AllocationProvider
 - `app/(tabs)/_layout.tsx` — tab bar (Dashboard, Holdings, Search, Performance, Settings)

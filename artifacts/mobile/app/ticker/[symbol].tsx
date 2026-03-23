@@ -27,6 +27,12 @@ import {
   type TickerMeta,
 } from "@/services/priceService";
 import { getAssetClass, getTER } from "@/services/assetClassService";
+import {
+  initETFDatabase,
+  lookupByISIN,
+  lookupByTicker,
+  type ETFEntry,
+} from "@/services/etfDatabaseService";
 
 const theme = Colors.dark;
 
@@ -155,6 +161,7 @@ export default function TickerDetailScreen() {
   const [rangePerf, setRangePerf] = useState<number | null>(null);
   const [rangeChange, setRangeChange] = useState<{ abs: number; pct: number } | null>(null);
   const [etfData, setEtfData] = useState<ServerETFData | null>(null);
+  const [localETF, setLocalETF] = useState<ETFEntry | null>(null);
 
   const safeSymbol = symbol ?? "";
 
@@ -165,6 +172,21 @@ export default function TickerDetailScreen() {
   const existingHolding = holdings.find(
     (h) => h.ticker.toUpperCase() === ticker.toUpperCase()
   );
+
+  // ── Local ETF DB pre-population ───────────────────────────────────────────
+  useEffect(() => {
+    initETFDatabase().then(() => {
+      const bare = symbolToTicker(safeSymbol);
+      const found = lookupByTicker(bare);
+      if (found) { setLocalETF(found); return; }
+      // Also try portfolio ISIN
+      const portISIN = holdings.find(h => h.ticker.toUpperCase() === bare.toUpperCase())?.isin;
+      if (portISIN) {
+        const byISIN = lookupByISIN(portISIN);
+        if (byISIN) setLocalETF(byISIN);
+      }
+    });
+  }, [safeSymbol]);
 
   const loadMeta = useCallback(async () => {
     setLoadingMeta(true);
@@ -248,9 +270,16 @@ export default function TickerDetailScreen() {
   const assetClass = getAssetClass(cleanTicker);
   const knownYield = KNOWN_YIELDS_MAP[cleanTicker.toUpperCase()];
   const portfolioISIN = holdings.find(h => h.ticker.toUpperCase() === cleanTicker.toUpperCase())?.isin ?? "";
-  const effectiveTER = etfData?.ter ?? ter;
-  // ISIN priority: portfolio (exact) > Yahoo Finance meta > server-resolved from JustETF search
-  const displayISIN = portfolioISIN || (meta?.isin ?? "") || etfData?.isin || "";
+  const effectiveTER = etfData?.ter ?? localETF?.ter ?? ter;
+  // ISIN priority: portfolio (exact) > Yahoo Finance meta > local DB > server-resolved from JustETF search
+  const displayISIN = portfolioISIN || (meta?.isin ?? "") || localETF?.isin || etfData?.isin || "";
+  // Key stats — use server data (etfData) with local DB fallback (localETF)
+  const displayDistribution = etfData?.distributionPolicy || localETF?.distribution || null;
+  const displayReplication  = etfData?.replicationMethod  || localETF?.replication  || null;
+  const displayDomicile     = etfData?.domicile            || localETF?.domicile     || null;
+  const displayInception    = etfData?.launchDate          || localETF?.inceptionDate || null;
+  const displayAssetClass   = assetClass !== "Unknown" ? assetClass : (localETF?.assetClass ?? "—");
+  const displayFundSizeMil  = localETF?.fundSize ?? null;  // in millions EUR
 
   // Three-tier ISIN resolution for JustETF enrichment — runs for ALL ETFs.
   // Waits for meta to finish loading so the Yahoo Finance ISIN (tier 2) can
@@ -431,7 +460,7 @@ export default function TickerDetailScreen() {
           <View style={styles.statsGrid}>
             <StatCell label="52W High" value={fmt(meta.fiftyTwoWeekHigh)} />
             <StatCell label="52W Low"  value={fmt(meta.fiftyTwoWeekLow)} />
-            <StatCell label="Asset Class" value={assetClass} />
+            <StatCell label="Asset Class" value={displayAssetClass} />
             <StatCell label="Currency" value={meta.currency || "—"} />
             {effectiveTER !== null && (
               <StatCell label="TER (Fee)" value={`${effectiveTER.toFixed(2)}%/yr`} />
@@ -453,24 +482,36 @@ export default function TickerDetailScreen() {
             {knownYield !== undefined && knownYield > 0 && (
               <StatCell label="Div. Yield" value={`${knownYield.toFixed(1)}%`} />
             )}
-            {/* From JustETF server data */}
-            {etfData?.replicationMethod && (
-              <StatCell label="Replication" value={capitalize(etfData.replicationMethod)} />
+            {/* Merged: local DB + JustETF server data */}
+            {displayReplication && (
+              <StatCell label="Replication" value={capitalize(displayReplication)} />
             )}
-            {etfData?.distributionPolicy && (
-              <StatCell label="Distribution" value={capitalize(etfData.distributionPolicy)} />
+            {displayDistribution && (
+              <StatCell label="Distribution" value={capitalize(displayDistribution)} />
             )}
-            {etfData?.fundSize && (
-              <StatCell label="Fund Size" value={etfData.fundSize} />
+            {/* Fund size: local DB (millions) or server (formatted string) */}
+            {(displayFundSizeMil || etfData?.fundSize) && (
+              <StatCell
+                label="Fund Size"
+                value={
+                  etfData?.fundSize
+                    ? etfData.fundSize
+                    : displayFundSizeMil
+                    ? `€${displayFundSizeMil >= 1000
+                        ? `${(displayFundSizeMil / 1000).toFixed(1)}B`
+                        : `${displayFundSizeMil}M`}`
+                    : "—"
+                }
+              />
             )}
             {etfData?.numberOfHoldings && (
               <StatCell label="# Holdings" value={etfData.numberOfHoldings.toString()} />
             )}
-            {etfData?.domicile && (
-              <StatCell label="Domicile" value={capitalize(etfData.domicile)} />
+            {displayDomicile && (
+              <StatCell label="Domicile" value={capitalize(displayDomicile)} />
             )}
-            {etfData?.launchDate && (
-              <StatCell label="Inception" value={etfData.launchDate} />
+            {displayInception && (
+              <StatCell label="Inception" value={displayInception} />
             )}
           </View>
         </View>
