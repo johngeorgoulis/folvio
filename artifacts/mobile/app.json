@@ -30,7 +30,16 @@
       "expo-font",
       "expo-web-browser",
       "expo-document-picker",
-      "expo-file-system"
+      "expo-file-system",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#0F1923",
+          "sounds": [],
+          "iosDisplayInForeground": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

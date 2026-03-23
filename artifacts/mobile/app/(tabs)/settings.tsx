@@ -6,6 +6,7 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -22,6 +23,14 @@ import { useAllocation, THRESHOLD_OPTIONS, type ThresholdOption } from "@/contex
 import { formatEUR } from "@/utils/format";
 import PremiumModal from "@/components/PremiumModal";
 import { fetchLivePrice, buildYahooSymbol } from "@/services/priceService";
+import {
+  NOTIF_KEY,
+  checkPermissionStatus,
+  requestNotificationPermission,
+  toggleDCAReminder,
+  toggleDriftAlert,
+  toggleWeeklySummary,
+} from "@/services/notificationService";
 
 const APP_VERSION = "1.0.0";
 
@@ -59,6 +68,15 @@ export default function SettingsScreen() {
   const [isPremium, setIsPremium] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
+  // ── Notification state ────────────────────────────────────────────────────
+  const [notifPermission, setNotifPermission] = useState<"granted" | "denied" | "undetermined">("undetermined");
+  const [dcaNotifEnabled, setDcaNotifEnabled] = useState(true);
+  const [driftNotifEnabled, setDriftNotifEnabled] = useState(true);
+  const [weeklyNotifEnabled, setWeeklyNotifEnabled] = useState(true);
+  const [dcaDay, setDcaDay] = useState<number | null>(null);
+  const [dcaAmount, setDcaAmount] = useState<number>(0);
+  const [showDcaDayPicker, setShowDcaDayPicker] = useState(false);
+
   // ── UI state ─────────────────────────────────────────────────────────────
   const [showPremium, setShowPremium] = useState(false);
   const [editingTicker, setEditingTicker] = useState<string | null>(null);
@@ -74,11 +92,16 @@ export default function SettingsScreen() {
   // Load settings from AsyncStorage on mount
   useEffect(() => {
     (async () => {
-      const [cb, sd, bm, ip] = await Promise.all([
+      const [cb, sd, bm, ip, dcaE, driftE, weeklyE, dcaDayStr, dcaAmtStr] = await Promise.all([
         AsyncStorage.getItem(ASYNC_KEYS.showCostBasis),
         AsyncStorage.getItem(ASYNC_KEYS.showDividends),
         AsyncStorage.getItem(ASYNC_KEYS.defaultBenchmark),
         AsyncStorage.getItem(ASYNC_KEYS.isPremium),
+        AsyncStorage.getItem(NOTIF_KEY.DCA_ENABLED),
+        AsyncStorage.getItem(NOTIF_KEY.DRIFT_ENABLED),
+        AsyncStorage.getItem(NOTIF_KEY.WEEKLY_ENABLED),
+        AsyncStorage.getItem(NOTIF_KEY.DCA_DAY),
+        AsyncStorage.getItem(NOTIF_KEY.DCA_AMOUNT),
       ]);
       if (cb !== null) setShowCostBasis(cb === "true");
       if (sd !== null) setShowDividends(sd === "true");
@@ -87,12 +110,98 @@ export default function SettingsScreen() {
         if (validSymbols.includes(bm)) setDefaultBenchmark(bm as BenchmarkSymbol);
       }
       if (ip !== null) setIsPremium(ip === "true");
+
+      // Notification preferences (default: all ON)
+      if (dcaE !== null) setDcaNotifEnabled(dcaE === "true");
+      if (driftE !== null) setDriftNotifEnabled(driftE === "true");
+      if (weeklyE !== null) setWeeklyNotifEnabled(weeklyE === "true");
+      if (dcaDayStr !== null) setDcaDay(parseInt(dcaDayStr, 10));
+      if (dcaAmtStr !== null) setDcaAmount(parseFloat(dcaAmtStr) || 0);
+
+      // Check actual permission status
+      if (Platform.OS !== "web") {
+        const perm = await checkPermissionStatus();
+        setNotifPermission(perm);
+      }
+
       setSettingsLoaded(true);
     })();
   }, []);
 
   async function persistToggle(key: string, val: boolean) {
     await AsyncStorage.setItem(key, val ? "true" : "false");
+  }
+
+  // ── Notification handlers ─────────────────────────────────────────────────
+
+  async function ensurePermissionForToggle(): Promise<boolean> {
+    if (Platform.OS === "web") return false;
+    if (notifPermission === "granted") return true;
+    if (notifPermission === "denied") {
+      Alert.alert(
+        "Notifications Disabled",
+        "To receive notifications, please enable them in your device Settings.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Open Settings", onPress: () => Linking.openSettings() },
+        ]
+      );
+      return false;
+    }
+    const granted = await requestNotificationPermission();
+    const status = await checkPermissionStatus();
+    setNotifPermission(status as any);
+    return granted;
+  }
+
+  async function handleDcaNotifToggle(val: boolean) {
+    if (val) {
+      const ok = await ensurePermissionForToggle();
+      if (!ok) return;
+    }
+    setDcaNotifEnabled(val);
+    await AsyncStorage.setItem(NOTIF_KEY.DCA_ENABLED, val ? "true" : "false");
+    if (val && !dcaDay) {
+      // Prompt user to set a DCA day if none configured
+      setShowDcaDayPicker(true);
+      return;
+    }
+    await toggleDCAReminder(val, dcaDay ?? 10, dcaAmount);
+  }
+
+  async function handleDriftNotifToggle(val: boolean) {
+    if (val) {
+      const ok = await ensurePermissionForToggle();
+      if (!ok) return;
+    }
+    setDriftNotifEnabled(val);
+    await AsyncStorage.setItem(NOTIF_KEY.DRIFT_ENABLED, val ? "true" : "false");
+    await toggleDriftAlert(val);
+  }
+
+  async function handleWeeklyNotifToggle(val: boolean) {
+    if (val) {
+      const ok = await ensurePermissionForToggle();
+      if (!ok) return;
+    }
+    setWeeklyNotifEnabled(val);
+    await AsyncStorage.setItem(NOTIF_KEY.WEEKLY_ENABLED, val ? "true" : "false");
+    await toggleWeeklySummary(val);
+  }
+
+  async function handleDcaDaySelect(day: number) {
+    setDcaDay(day);
+    setShowDcaDayPicker(false);
+    await AsyncStorage.setItem(NOTIF_KEY.DCA_DAY, String(day));
+    if (dcaNotifEnabled) {
+      await toggleDCAReminder(true, day, dcaAmount);
+    }
+  }
+
+  function ordinalSuffix(n: number): string {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
   }
 
   // ── Handlers ─────────────────────────────────────────────────────────────
@@ -388,7 +497,139 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* ── 3. DATA ──────────────────────────────────────────────────────── */}
+      {/* ── 3. NOTIFICATIONS ─────────────────────────────────────────────── */}
+      <Text style={labelStyle}>NOTIFICATIONS</Text>
+
+      {/* Permission denied banner */}
+      {notifPermission === "denied" && Platform.OS !== "web" && (
+        <View style={[styles.permDeniedBanner, { backgroundColor: theme.backgroundElevated, borderColor: theme.border }]}>
+          <Feather name="bell-off" size={15} color={theme.textSecondary} style={{ marginRight: 8 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.permDeniedText, { color: theme.textSecondary }]}>
+              Notifications are disabled. Enable them in your device settings to receive DCA reminders and portfolio alerts.
+            </Text>
+            <TouchableOpacity onPress={() => Linking.openSettings()}>
+              <Text style={[styles.permDeniedLink, { color: theme.tint }]}>Open Settings →</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+
+        {/* DCA Reminder */}
+        <View style={[styles.notifRow, { borderBottomColor: theme.border }]}>
+          <View style={styles.notifRowLeft}>
+            <Text style={[styles.notifRowTitle, { color: theme.text }]}>DCA Reminder</Text>
+            <Text style={[styles.notifRowSub, { color: theme.textSecondary }]}>
+              5 days before your DCA date
+            </Text>
+          </View>
+          <Switch
+            value={dcaNotifEnabled && notifPermission !== "denied"}
+            onValueChange={handleDcaNotifToggle}
+            trackColor={{ false: theme.border, true: theme.tint + "88" }}
+            thumbColor={dcaNotifEnabled ? theme.tint : theme.textTertiary}
+          />
+        </View>
+
+        {/* Drift Alert */}
+        <View style={[styles.notifRow, { borderBottomColor: theme.border }]}>
+          <View style={styles.notifRowLeft}>
+            <Text style={[styles.notifRowTitle, { color: theme.text }]}>Drift Alert</Text>
+            <Text style={[styles.notifRowSub, { color: theme.textSecondary }]}>
+              When a holding exceeds ±{rebalanceThreshold}% drift
+            </Text>
+          </View>
+          <Switch
+            value={driftNotifEnabled && notifPermission !== "denied"}
+            onValueChange={handleDriftNotifToggle}
+            trackColor={{ false: theme.border, true: theme.tint + "88" }}
+            thumbColor={driftNotifEnabled ? theme.tint : theme.textTertiary}
+          />
+        </View>
+
+        {/* Weekly Summary */}
+        <View style={[styles.notifRow, { borderBottomColor: theme.border }]}>
+          <View style={styles.notifRowLeft}>
+            <Text style={[styles.notifRowTitle, { color: theme.text }]}>Weekly Summary</Text>
+            <Text style={[styles.notifRowSub, { color: theme.textSecondary }]}>
+              Every Monday at 9:00 AM
+            </Text>
+          </View>
+          <Switch
+            value={weeklyNotifEnabled && notifPermission !== "denied"}
+            onValueChange={handleWeeklyNotifToggle}
+            trackColor={{ false: theme.border, true: theme.tint + "88" }}
+            thumbColor={weeklyNotifEnabled ? theme.tint : theme.textTertiary}
+          />
+        </View>
+
+        {/* DCA Date */}
+        <TouchableOpacity
+          style={[styles.notifRow, { borderBottomColor: "transparent" }]}
+          onPress={() => setShowDcaDayPicker(true)}
+        >
+          <View style={styles.notifRowLeft}>
+            <Text style={[styles.notifRowTitle, { color: theme.text }]}>DCA Date</Text>
+            <Text style={[styles.notifRowSub, { color: theme.textSecondary }]}>
+              {dcaDay ? `${ordinalSuffix(dcaDay)} of each month` : "Tap to set your investment day"}
+            </Text>
+          </View>
+          <View style={styles.dcaDayBadge}>
+            <Text style={[styles.dcaDayBadgeText, { color: theme.tint }]}>
+              {dcaDay ? ordinalSuffix(dcaDay) : "Set"}
+            </Text>
+            <Feather name="chevron-right" size={14} color={theme.textTertiary} style={{ marginLeft: 4 }} />
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* DCA Day Picker Modal */}
+      <Modal
+        visible={showDcaDayPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDcaDayPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Select Your DCA Day</Text>
+            <Text style={[styles.modalSub, { color: theme.textSecondary }]}>
+              Which day of the month do you invest?
+            </Text>
+            <ScrollView style={styles.dayGrid} showsVerticalScrollIndicator={false}>
+              <View style={styles.dayGridInner}>
+                {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                  <TouchableOpacity
+                    key={d}
+                    style={[
+                      styles.dayCell,
+                      {
+                        backgroundColor: dcaDay === d ? theme.deepBlue : theme.backgroundElevated,
+                        borderColor: dcaDay === d ? theme.tint : theme.border,
+                      },
+                    ]}
+                    onPress={() => handleDcaDaySelect(d)}
+                  >
+                    <Text style={[styles.dayCellText, { color: dcaDay === d ? theme.tint : theme.text }]}>
+                      {d}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.modalCancel, { borderColor: theme.border }]}
+              onPress={() => setShowDcaDayPicker(false)}
+            >
+              <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── 4. DATA ──────────────────────────────────────────────────────── */}
       <Text style={labelStyle}>DATA</Text>
       <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
         {/* Import from CSV */}
@@ -656,4 +897,71 @@ const styles = StyleSheet.create({
   featureListTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
   featureItem: { flexDirection: "row", alignItems: "center", gap: 10 },
   featureText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+
+  // Notification rows
+  notifRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+  },
+  notifRowLeft: { flex: 1, marginRight: 12 },
+  notifRowTitle: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  notifRowSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  dcaDayBadge: { flexDirection: "row", alignItems: "center" },
+  dcaDayBadgeText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+
+  // Permission denied banner
+  permDeniedBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 4,
+  },
+  permDeniedText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  permDeniedLink: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 6 },
+
+  // DCA Day picker modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalCard: {
+    width: "100%",
+    maxHeight: "75%",
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+  },
+  modalTitle: { fontSize: 17, fontFamily: "Inter_700Bold", marginBottom: 4 },
+  modalSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 16 },
+  dayGrid: { maxHeight: 240 },
+  dayGridInner: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  dayCell: {
+    width: 52,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayCellText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  modalCancel: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    paddingTop: 14,
+    alignItems: "center",
+  },
+  modalCancelText: { fontSize: 14, fontFamily: "Inter_500Medium" },
 });

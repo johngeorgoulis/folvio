@@ -15,10 +15,15 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import NotificationManager from "@/components/NotificationManager";
 import { PortfolioProvider } from "@/context/PortfolioContext";
 import { AllocationProvider } from "@/context/AllocationContext";
+import { configureNotificationHandler } from "@/services/notificationService";
 
 SplashScreen.preventAutoHideAsync();
+
+// Configure how notifications appear when the app is foregrounded
+configureNotificationHandler();
 
 const queryClient = new QueryClient();
 
@@ -47,6 +52,7 @@ export default function RootLayout() {
             <KeyboardProvider>
               <PortfolioProvider>
                 <AllocationProvider>
+                  <NotificationManager />
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                     <Stack.Screen
