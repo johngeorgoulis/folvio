@@ -126,7 +126,8 @@ Suffix map: XETRA→.DE, Euronext Paris→.PA, Euronext Amsterdam→.AS, LSE→.
 - Live sum validation: "Sum: X% ✓" (green) or error (red)
 
 ### ETF Database Service (`services/etfDatabaseService.ts`)
-- Bundled seed database: `assets/etf-database.json` — 52 real UCITS ETFs scraped from JustETF (TER, distribution, replication, domicile, inception date, fund size, exchanges)
+- Bundled seed database: `assets/etf-database.json` — **671 real UCITS ETFs** (version 2.0, ~400KB); sourced from JustETF (TER/distribution/replication), Yahoo Finance search (ticker+name), and legacy curated entries. All IE/LU domicile.
+- Provider coverage: iShares 139, Amundi 136, SPDR 71, Xtrackers 65, Invesco 39, UBS 50, L&G 21, HSBC 16, Vanguard 15, WisdomTree 13
 - Search index: `assets/etf-index.json` — ISIN map, ticker map, keyword index for O(1) lookups
 - `initETFDatabase()` — loads bundled DB then checks AsyncStorage for newer downloaded version
 - `searchETFDatabase(query, maxResults)` — instant synchronous search: exact ISIN → exact ticker → partial ticker → name contains; returns scored results with `matchType`
@@ -143,10 +144,13 @@ Suffix map: XETRA→.DE, Euronext Paris→.PA, Euronext Amsterdam→.AS, LSE→.
 - Shows "ETF database updated" toast when background download completes
 
 ### Build Script (`scripts/buildETFDatabase.ts`)
-- Run: `node_modules/.bin/tsx scripts/buildETFDatabase.ts` from `artifacts/mobile/`
-- Scrapes JustETF profile pages for a curated ISIN list, saves to `assets/etf-database.json` + `assets/etf-index.json`
-- Deduplicated by ISIN; 600ms polite delay between requests
-- Output format: `{ version, generatedAt, count, etfs: [...] }`
+- Run: `cd artifacts/mobile && timeout 110 /home/runner/workspace/artifacts/api-server/node_modules/.bin/tsx scripts/buildETFDatabase.ts`
+- Phase 1: OpenFIGI bulk lookup (probe first; skips entire phase if rate-limited)
+- Phase 2: JustETF profile scraping (TER, distribution, replication) with Yahoo Finance fallback for ISIN→ticker+name lookup when JustETF is rate-limited
+- 1,007 ISINs in `ALL_ISINS[]` array; sources: curated list + JerBouma/FinanceDatabase EU ETFs
+- Saves incrementally after every 10-ISIN batch (timeout-safe); run multiple times to process all ISINs
+- JustETF rate-limit: IP may be blocked after ~200 requests; Yahoo Finance is not rate-limited and serves as reliable fallback
+- Output format: `{ version, generatedAt, count, etfs: [...] }` written to `assets/etf-database.json` + `assets/etf-index.json`
 
 ### Key Files
 - `app/_layout.tsx` — root layout; wraps with PortfolioProvider + AllocationProvider
