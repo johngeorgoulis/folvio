@@ -544,8 +544,13 @@ export async function fetchBenchmarkReturn(
   symbol: string,
   sinceDate: string
 ): Promise<{ returnPct: number; startDate: string } | null> {
-  const period1 = Math.floor(new Date(sinceDate).getTime() / 1000);
-  const period2 = Math.floor(Date.now() / 1000);
+  const startDate = new Date(sinceDate);
+  const endDate = new Date();
+
+  const period1 = Math.floor(startDate.getTime() / 1000);
+  const period2 = Math.floor(endDate.getTime() / 1000);
+
+  console.log(`[fetchBenchmarkReturn] ${symbol} period1=${period1} (${sinceDate}) period2=${period2} (${endDate.toISOString().split("T")[0]})`);
 
   const url = Platform.OS === "web"
     ? `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}/api/yahoo/chart/${encodeURIComponent(symbol)}?interval=1d&period1=${period1}&period2=${period2}`
@@ -556,11 +561,19 @@ export async function fetchBenchmarkReturn(
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const result = data?.chart?.result?.[0];
-    if (!result) return null;
+    if (!result) {
+      console.warn(`[fetchBenchmarkReturn] ${symbol} no result in response`);
+      return null;
+    }
 
     const timestamps: number[] = result.timestamp ?? [];
     const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
     const currency: string = result.meta?.currency ?? "USD";
+
+    console.log(`[fetchBenchmarkReturn] ${symbol} datapoints=${closes.length} close[0]=${closes[0]} close[last]=${closes[closes.length - 1]}`);
+    if (timestamps.length > 0) {
+      console.log(`[fetchBenchmarkReturn] ${symbol} date[0]=${new Date(timestamps[0] * 1000).toISOString().split("T")[0]} date[last]=${new Date(timestamps[timestamps.length - 1] * 1000).toISOString().split("T")[0]}`);
+    }
 
     let fxRate = 1;
     if (currency !== "EUR") {
@@ -573,22 +586,38 @@ export async function fetchBenchmarkReturn(
     const toEUR = (p: number) =>
       currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
 
-    const points: { date: string; priceEUR: number }[] = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      const price = closes[i];
-      if (price == null || isNaN(price)) continue;
-      const date = new Date(timestamps[i] * 1000).toISOString().split("T")[0];
-      points.push({ date, priceEUR: toEUR(price) });
+    let firstClose: number | null = null;
+    let firstDate = sinceDate;
+    for (let i = 0; i < closes.length; i++) {
+      const c = closes[i];
+      if (c != null && !isNaN(c) && c > 0) {
+        firstClose = c;
+        firstDate = timestamps[i] != null
+          ? new Date(timestamps[i] * 1000).toISOString().split("T")[0]
+          : sinceDate;
+        break;
+      }
     }
 
-    if (points.length < 2) return null;
+    let lastClose: number | null = null;
+    for (let i = closes.length - 1; i >= 0; i--) {
+      const c = closes[i];
+      if (c != null && !isNaN(c) && c > 0) {
+        lastClose = c;
+        break;
+      }
+    }
 
-    const start = points[0];
-    const end = points[points.length - 1];
-    if (start.priceEUR <= 0) return null;
+    console.log(`[fetchBenchmarkReturn] ${symbol} firstClose=${firstClose} (${firstDate}) lastClose=${lastClose} currency=${currency} fxRate=${fxRate}`);
 
-    const returnPct = ((end.priceEUR - start.priceEUR) / start.priceEUR) * 100;
-    return { returnPct, startDate: start.date };
+    if (firstClose == null || lastClose == null || firstClose <= 0) {
+      console.warn(`[fetchBenchmarkReturn] ${symbol} missing valid prices`);
+      return null;
+    }
+
+    const returnPct = ((toEUR(lastClose) - toEUR(firstClose)) / toEUR(firstClose)) * 100;
+    console.log(`[fetchBenchmarkReturn] ${symbol} returnPct=${returnPct.toFixed(2)}%`);
+    return { returnPct, startDate: firstDate };
   } catch (err) {
     console.warn(`[fetchBenchmarkReturn] failed for ${symbol}:`, err);
     return null;
