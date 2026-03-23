@@ -21,6 +21,7 @@ import {
   fetchChartHistory,
   fetchETFDataBySymbol,
   fetchETFDataFromServer,
+  fetchPeriodReturn,
   fetchTickerMeta,
   type ChartPoint,
   type ServerETFData,
@@ -259,37 +260,69 @@ export default function TickerDetailScreen() {
 
   async function handleRangeChange(r: Range) {
     setRange(r);
+    setLoadingChart(true);
 
-    // For calendar-based ranges, use yearData as the price source so the
-    // start price is the closing price on the exact calendar date (or the
-    // last available trading day before it), not the first bucket in the API
-    // response which may not land on the same calendar day.
-    if (r === "1W" || r === "1M" || r === "3M" || r === "6M" || r === "1Y") {
-      // Fetch chart data for visual display in parallel
-      if (r !== "1Y") {
-        setLoadingChart(true);
+    if (r === "1D") {
+      // 1D: use official previousClose from meta (already fetched, no extra call)
+      const [d] = await Promise.all([fetchChartHistory(safeSymbol, "1D")]);
+      setChartData(d);
+      if (meta) {
+        // meta.regularMarketChange / regularMarketChangePercent are derived from
+        // meta.previousClose in fetchTickerMeta — exact previous session close
+        setRangePerf(meta.regularMarketChangePercent);
+        setRangeChange({ abs: meta.regularMarketChange, pct: meta.regularMarketChangePercent });
+      } else {
+        setRangePerf(null);
+        setRangeChange(null);
+      }
+      setLoadingChart(false);
+      return;
+    }
+
+    if (r === "1W") {
+      // 1W: fetch with period1 = 7 days ago, take closes[0] as reference
+      // (forward-rolls to next trading day when target falls on weekend/holiday)
+      const [d, result] = await Promise.all([
+        fetchChartHistory(safeSymbol, "1W"),
+        fetchPeriodReturn(safeSymbol, "1W"),
+      ]);
+      setChartData(d);
+      setRangePerf(result?.changePct ?? null);
+      setRangeChange(result ? { abs: result.changeAbs, pct: result.changePct } : null);
+      setLoadingChart(false);
+      return;
+    }
+
+    if (r === "1M" || r === "3M" || r === "6M" || r === "1Y") {
+      // Calendar-based ranges: use daily yearData with roll-backward to find
+      // the exact closing price on (or last trading day before) the target date
+      if (r === "1Y") {
+        setChartData(yearData);
+      } else {
         const d = await fetchChartHistory(safeSymbol, r);
         setChartData(d);
-        setLoadingChart(false);
-      } else {
-        setChartData(yearData);
       }
       const result = computePerfCalendar(yearData, r);
       setRangePerf(result?.changePct ?? null);
       setRangeChange(result ? { abs: result.changeAbs, pct: result.changePct } : null);
+      setLoadingChart(false);
       return;
     }
 
-    // "1D" and "All" — just use the raw chart data first-to-last
-    setLoadingChart(true);
-    const d = await fetchChartHistory(safeSymbol, r);
-    setChartData(d);
-    const p = d.length >= 2
-      ? ((d[d.length - 1].priceEUR - d[0].priceEUR) / d[0].priceEUR) * 100
-      : null;
-    const abs = d.length >= 2 ? d[d.length - 1].priceEUR - d[0].priceEUR : null;
-    setRangePerf(p);
-    setRangeChange(abs !== null && p !== null ? { abs, pct: p } : null);
+    if (r === "All") {
+      // All: fetch full history from Unix epoch 0; use closes[0] as the very
+      // first available price in Yahoo Finance's history for this ETF
+      const [d, result] = await Promise.all([
+        fetchChartHistory(safeSymbol, "All"),
+        fetchPeriodReturn(safeSymbol, "All"),
+      ]);
+      setChartData(d);
+      setRangePerf(result?.changePct ?? null);
+      setRangeChange(result ? { abs: result.changeAbs, pct: result.changePct } : null);
+      setLoadingChart(false);
+      return;
+    }
+
     setLoadingChart(false);
   }
 

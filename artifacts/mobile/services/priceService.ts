@@ -292,7 +292,9 @@ const CHART_INTERVALS: Record<string, { interval: string; range: string }> = {
   "1M":  { interval: "1d",  range: "1mo" },
   "3M":  { interval: "1d",  range: "3mo" },
   "6M":  { interval: "1d",  range: "6mo" },
-  "1Y":  { interval: "1wk", range: "1y"  },
+  // Use daily interval for 1Y so computePerfCalendar can find exact calendar dates
+  // (weekly candles store Friday close, not Monday open — daily gives correct 1W reference)
+  "1Y":  { interval: "1d",  range: "1y"  },
   "All": { interval: "1mo", range: "5y"  },
 };
 
@@ -540,6 +542,146 @@ export async function fetchChartHistory(symbol: string, range: string): Promise<
     console.warn(`[fetchChartHistory] failed for ${symbol}:`, err);
     return [];
   }
+}
+
+// ─── Period-based price change (canonical, used everywhere) ─────────────────
+
+/**
+ * Build a Yahoo Finance chart URL using explicit period1/period2 unix timestamps
+ * instead of a predefined range string. Automatically routes through the API
+ * proxy when running on web.
+ */
+function yahooChartUrlByPeriod(
+  symbol: string,
+  interval: string,
+  period1: number,
+  period2?: number
+): string {
+  const p2 = period2 ?? Math.floor(Date.now() / 1000);
+  if (Platform.OS === "web") {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+    return `https://${domain}/api/yahoo/chart/${encodeURIComponent(symbol)}?interval=${interval}&period1=${period1}&period2=${p2}`;
+  }
+  return `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&period1=${period1}&period2=${p2}`;
+}
+
+/** Helper: parse closes from a Yahoo chart API response and convert to EUR */
+async function parseClosesFromYahooResult(result: Record<string, unknown>): Promise<{
+  closesEUR: number[];
+  currentPriceEUR: number;
+}> {
+  const meta = result.meta as Record<string, unknown> ?? {};
+  const currency: string = (meta.currency as string) ?? "EUR";
+  let fxRate = 1;
+  if (currency !== "EUR") {
+    const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+    if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+      try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+    }
+  }
+  const toEUR = (p: number) =>
+    currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
+
+  const rawCloses: (number | null)[] =
+    (result.indicators as Record<string, unknown>)?.["quote"]?.[0]?.["close"] as (number | null)[] ?? [];
+
+  const closesEUR = rawCloses
+    .filter((c): c is number => c != null && c > 0)
+    .map(toEUR);
+
+  const rawCurrent = meta.regularMarketPrice as number | undefined;
+  const currentPriceEUR = rawCurrent ? toEUR(rawCurrent) : (closesEUR[closesEUR.length - 1] ?? 0);
+  return { closesEUR, currentPriceEUR };
+}
+
+export interface PeriodReturn {
+  changePct: number;
+  changeAbs: number;
+  startPriceEUR: number;
+  endPriceEUR: number;
+}
+
+/**
+ * Canonical function for computing per-period price change.
+ * Implements the correct reference price for every timeframe:
+ *
+ *   1D  → previous session's close (from meta.previousClose / meta.chartPreviousClose)
+ *   1W  → closing price on (or first trading day after) exactly 7 calendar days ago
+ *         Fetches with period1 = now - 7d so Yahoo resolves the nearest trading day forward
+ *   1M  → computed by the caller via computePerfCalendar on daily yearData (roll-backward)
+ *   3M  → same, caller uses computePerfCalendar
+ *   6M  → same, caller uses computePerfCalendar
+ *   1Y  → same, caller uses computePerfCalendar
+ *   All → very first close in Yahoo Finance history (period1 = Unix epoch, closes[0])
+ *
+ * @param symbol   Full Yahoo Finance symbol (e.g. "VWCE.DE")
+ * @param period   One of "1D" | "1W" | "All"
+ * @param opts     For "1D": pass previousCloseEUR + currentPriceEUR to avoid a re-fetch
+ */
+export async function fetchPeriodReturn(
+  symbol: string,
+  period: "1D" | "1W" | "All",
+  opts?: { previousCloseEUR?: number; currentPriceEUR?: number }
+): Promise<PeriodReturn | null> {
+  // ── 1D: use previousClose from the quote (official previous session close) ──
+  if (period === "1D") {
+    const prev = opts?.previousCloseEUR;
+    const curr = opts?.currentPriceEUR;
+    if (prev == null || curr == null || prev === 0) return null;
+    const changeAbs = curr - prev;
+    const changePct = (changeAbs / prev) * 100;
+    return { changePct, changeAbs, startPriceEUR: prev, endPriceEUR: curr };
+  }
+
+  // ── 1W: period1 = 7 calendar days ago; take closes[0] (first available
+  //        trading day ≥ that date — forward roll for weekends/holidays) ─────
+  if (period === "1W") {
+    const period1 = Math.floor((Date.now() - 7 * 86_400_000) / 1000);
+    const url = yahooChartUrlByPeriod(symbol, "1d", period1);
+    try {
+      const res = await fetch(url, { headers: YAHOO_HEADERS });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const result = data?.chart?.result?.[0];
+      if (!result) return null;
+      const { closesEUR, currentPriceEUR } = await parseClosesFromYahooResult(result);
+      if (closesEUR.length < 2) return null;
+      const startPriceEUR = closesEUR[0];
+      const endPriceEUR = currentPriceEUR > 0 ? currentPriceEUR : closesEUR[closesEUR.length - 1];
+      if (startPriceEUR === 0) return null;
+      const changeAbs = endPriceEUR - startPriceEUR;
+      const changePct = (changeAbs / startPriceEUR) * 100;
+      return { changePct, changeAbs, startPriceEUR, endPriceEUR };
+    } catch (err) {
+      console.warn(`[fetchPeriodReturn] 1W failed for ${symbol}:`, err);
+      return null;
+    }
+  }
+
+  // ── All: period1 = Unix epoch (0); take closes[0] as the very first price ─
+  if (period === "All") {
+    const url = yahooChartUrlByPeriod(symbol, "1mo", 0);
+    try {
+      const res = await fetch(url, { headers: YAHOO_HEADERS });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const result = data?.chart?.result?.[0];
+      if (!result) return null;
+      const { closesEUR, currentPriceEUR } = await parseClosesFromYahooResult(result);
+      if (closesEUR.length < 2) return null;
+      const startPriceEUR = closesEUR[0];
+      const endPriceEUR = currentPriceEUR > 0 ? currentPriceEUR : closesEUR[closesEUR.length - 1];
+      if (startPriceEUR === 0) return null;
+      const changeAbs = endPriceEUR - startPriceEUR;
+      const changePct = (changeAbs / startPriceEUR) * 100;
+      return { changePct, changeAbs, startPriceEUR, endPriceEUR };
+    } catch (err) {
+      console.warn(`[fetchPeriodReturn] All failed for ${symbol}:`, err);
+      return null;
+    }
+  }
+
+  return null;
 }
 
 export async function fetchBenchmarkReturn(
