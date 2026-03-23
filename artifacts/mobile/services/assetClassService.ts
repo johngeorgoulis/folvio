@@ -1,29 +1,7 @@
+import { lookupByTicker, lookupByISIN } from "@/services/etfDatabaseService";
+
 export type AssetClass = "Equity" | "Bond" | "Commodity" | "Real Estate" | "Cash" | "Other";
 
-const TICKER_CLASS_MAP: Record<string, AssetClass> = {
-  // Equity ETFs
-  "VWCE": "Equity", "VWRL": "Equity", "VHYL": "Equity", "TDIV": "Equity",
-  "IWDA": "Equity", "SWRD": "Equity", "EQQQ": "Equity", "CSPX": "Equity",
-  "CSP1": "Equity", "IUSA": "Equity", "IUES": "Equity", "IEEM": "Equity",
-  "EMIM": "Equity", "VUAA": "Equity", "VUSA": "Equity", "VEUR": "Equity",
-  "VFEM": "Equity", "VERX": "Equity", "VEVE": "Equity", "IDVY": "Equity",
-  "XDWD": "Equity", "XDEW": "Equity", "XMAW": "Equity", "SPPW": "Equity",
-  "SAWD": "Equity", "LCUW": "Equity", "PANX": "Equity", "MXWO": "Equity",
-  "VFEA": "Equity", "LYP6": "Equity", "LYPE": "Equity", "AHYQ": "Equity",
-  "QDVW": "Equity", "10AI": "Equity", "SPY5": "Equity",
-  // Bond ETFs
-  "ERNE": "Bond", "IEGE": "Bond", "CSBGE7": "Bond", "AGGH": "Bond",
-  "IEAG": "Bond", "IBTM": "Bond", "IBTS": "Bond", "LQDE": "Bond",
-  "IHYG": "Bond", "HYLD": "Bond", "VGOV": "Bond", "IBGX": "Bond",
-  "EUNA": "Bond", "JPST": "Bond", "2B7S": "Bond",
-  // Commodity
-  "EGLN": "Commodity", "IGLN": "Commodity", "SGLN": "Commodity",
-  "PHAU": "Commodity", "VZLD": "Commodity",
-  // Real Estate
-  "IWDP": "Real Estate", "IPRP": "Real Estate", "TRET": "Real Estate",
-};
-
-const ISIN_PREFIX_MAP: Record<string, AssetClass> = {};
 
 const KNOWN_TER: Record<string, number> = {
   "VWCE": 0.19, "VWRL": 0.22, "VHYL": 0.29, "TDIV": 0.38,
@@ -41,16 +19,28 @@ export function getTER(ticker: string): number | null {
 }
 
 export function getAssetClass(ticker: string, isin?: string): AssetClass {
+  // 1. Check the live ETF database (synchronous once initialized)
+  const entry = lookupByTicker(ticker) ?? (isin ? lookupByISIN(isin) : null);
+  if (entry) {
+    const ac = entry.assetClass;
+    if (ac === "Bonds")       return "Bond";
+    if (ac === "Commodities") return "Commodity";
+    if (ac === "Real Estate") return "Real Estate";
+    if (ac === "Money Market") return "Cash";
+    if (ac === "Equity")      return "Equity";
+  }
+
+  // 2. Simple ticker fallback (user-specified)
   const upper = ticker.toUpperCase();
-  if (TICKER_CLASS_MAP[upper]) return TICKER_CLASS_MAP[upper];
+  if (upper === "CSBGE7" || upper === "AGGH" || upper === "IEAG" ||
+      upper === "IBTM"   || upper === "IBTS" || upper === "LQDE" ||
+      upper === "IHYG"   || upper === "HYLD" || upper === "VGOV" ||
+      upper === "IBGX"   || upper === "EUNA" || upper === "JPST") return "Bond";
+  if (upper === "EGLN" || upper === "IGLN" || upper === "SGLN" ||
+      upper === "PHAU"  || upper === "VZLD") return "Commodity";
+  if (upper === "IWDP" || upper === "IPRP" || upper === "TRET") return "Real Estate";
 
-  // Heuristics from ticker name
-  const t = upper;
-  if (t.includes("BOND") || t.includes("GILT") || t.includes("TREA")) return "Bond";
-  if (t.includes("GOLD") || t.includes("SILV") || t.includes("COMD")) return "Commodity";
-  if (t.includes("REIT") || t.includes("PROP")) return "Real Estate";
-
-  return "Equity"; // default assumption for unknown tickers
+  return "Equity";
 }
 
 export function classifyPortfolio(
