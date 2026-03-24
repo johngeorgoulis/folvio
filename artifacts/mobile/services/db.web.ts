@@ -59,6 +59,9 @@ const KEYS = {
   portfolioHistory: "folvio_v2_portfolio_history",
 };
 
+/** No-op on web — AsyncStorage needs no initialization. */
+export async function initDb(): Promise<void> {}
+
 async function readJSON<T>(key: string): Promise<T[]> {
   try {
     const raw = await AsyncStorage.getItem(key);

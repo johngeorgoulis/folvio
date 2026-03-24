@@ -22,6 +22,7 @@ import { PortfolioProvider } from "@/context/PortfolioContext";
 import { AllocationProvider } from "@/context/AllocationContext";
 import { configureNotificationHandler } from "@/services/notificationService";
 import { loadAssetClassOverrides } from "@/services/assetClassService";
+import { initDb } from "@/services/db";
 
 SplashScreen.preventAutoHideAsync();
 configureNotificationHandler();
@@ -43,11 +44,23 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!fontsLoaded && !fontError) return;
-    loadAssetClassOverrides().catch(() => {});
-    AsyncStorage.getItem(ONBOARDING_KEY).then((v) => {
-      setOnboardingDone(v === "true");
+    (async () => {
+      // Warm the database BEFORE any context mounts — prevents concurrent-init
+      // race conditions that cause "Calling..." promise rejection errors.
+      try {
+        await initDb();
+      } catch (e) {
+        console.warn("[startup] DB init failed, proceeding anyway:", e);
+      }
+      loadAssetClassOverrides().catch(() => {});
+      try {
+        const v = await AsyncStorage.getItem(ONBOARDING_KEY);
+        setOnboardingDone(v === "true");
+      } catch {
+        setOnboardingDone(true); // default to app if AsyncStorage fails
+      }
       SplashScreen.hideAsync();
-    });
+    })();
   }, [fontsLoaded, fontError]);
 
   // Fire search navigation once the Stack is mounted

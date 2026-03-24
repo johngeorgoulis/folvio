@@ -50,12 +50,15 @@ export type PortfolioHistoryRow = {
   created_at: string;
 };
 
-let db: SQLite.SQLiteDatabase | null = null;
+// ── Singleton init promise ─────────────────────────────────────────────────
+// Using a shared promise prevents the race condition where PortfolioProvider
+// and AllocationProvider both call getDb() concurrently on first mount. All
+// callers await the same promise — the database is opened exactly once.
+let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-async function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (db) return db;
-  db = await SQLite.openDatabaseAsync("folvio.db");
-  await db.execAsync(`
+async function openAndInit(): Promise<SQLite.SQLiteDatabase> {
+  const database = await SQLite.openDatabaseAsync("folvio.db");
+  await database.execAsync(`
     PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS holdings (
       id TEXT PRIMARY KEY,
@@ -108,13 +111,29 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
       updated_at TEXT NOT NULL
     );
   `);
-  // Migration: add yield_pct to existing holdings tables
+  // Migration: add yield_pct column to existing databases (safe to ignore if already exists)
   try {
-    await db.runAsync("ALTER TABLE holdings ADD COLUMN yield_pct REAL");
+    await database.runAsync("ALTER TABLE holdings ADD COLUMN yield_pct REAL");
   } catch {
     // Column already exists — safe to ignore
   }
-  return db;
+  return database;
+}
+
+function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (!_dbPromise) {
+    _dbPromise = openAndInit().catch((err) => {
+      // Reset so the next caller can retry
+      _dbPromise = null;
+      throw err;
+    });
+  }
+  return _dbPromise;
+}
+
+/** Call once at app startup to warm the database before contexts mount. */
+export async function initDb(): Promise<void> {
+  await getDb();
 }
 
 // ─── Holdings ────────────────────────────────────────────────────────────────
