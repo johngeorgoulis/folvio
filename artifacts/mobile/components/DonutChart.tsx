@@ -17,17 +17,18 @@ interface DonutChartProps {
   centerSublabel?: string;
 }
 
-const CHART_COLORS = [
-  "#C9A84C",
-  "#4A90D9",
-  "#34D399",
-  "#F87171",
-  "#A78BFA",
-  "#60A5FA",
-  "#FBBF24",
-  "#F472B6",
-  "#2DD4BF",
-  "#FB923C",
+// Premium chart palette — muted, distinguishable, never pure gold (gold is UI-only)
+export const CHART_COLORS = [
+  "#60A5FA", // Blue
+  "#34D399", // Emerald
+  "#FBBF24", // Light amber (distinct from UI gold #F59E0B)
+  "#A78BFA", // Violet
+  "#F472B6", // Pink
+  "#2DD4BF", // Cyan
+  "#FB923C", // Orange
+  "#818CF8", // Indigo
+  "#6EE7B7", // Light teal
+  "#94A3B8", // Slate
 ];
 
 export function DonutChart({
@@ -37,13 +38,11 @@ export function DonutChart({
   centerLabel,
   centerSublabel,
 }: DonutChartProps) {
-  const theme = Colors.dark;
-
+  const theme  = Colors.dark;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
-
-  const total = segments.reduce((s, seg) => s + seg.value, 0);
+  const total  = segments.reduce((s, seg) => s + seg.value, 0);
 
   if (total === 0) {
     return (
@@ -53,7 +52,7 @@ export function DonutChart({
             cx={center}
             cy={center}
             r={radius}
-            stroke="#1E3A5F"
+            stroke={theme.border}
             strokeWidth={strokeWidth}
             fill="none"
           />
@@ -76,9 +75,9 @@ export function DonutChart({
 
   let offset = 0;
   const arcs = segments.map((seg, i) => {
-    const pct = seg.value / total;
+    const pct      = seg.value / total;
     const dashArray = `${pct * circumference} ${circumference}`;
-    const rotation = -90 + (offset / total) * 360;
+    const rotation  = -90 + (offset / total) * 360;
     offset += seg.value;
     return {
       ...seg,
@@ -126,4 +125,4 @@ export function DonutChart({
   );
 }
 
-export { CHART_COLORS };
+export { CHART_COLORS as default };

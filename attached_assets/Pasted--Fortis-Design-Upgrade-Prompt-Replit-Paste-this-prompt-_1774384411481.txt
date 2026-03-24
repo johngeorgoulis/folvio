@@ -1,0 +1,107 @@
+# Fortis — Design Upgrade Prompt (Replit)
+
+Paste this prompt into Replit AI to upgrade the visual quality of the Fortis app.
+
+-----
+
+## PROMPT
+
+Upgrade the visual design of the Fortis app to feel like a premium €8.99/month product. Do not change any functionality or data logic — this is a UI-only pass. Follow these instructions precisely:
+
+### 1. Typography Hierarchy
+
+Establish a clear 4-level type scale used consistently across all screens:
+
+- **Display** (portfolio total value): 36–40sp, bold, white `#FFFFFF`
+- **Title** (screen headers, card titles): 20–22sp, semibold, white `#FFFFFF`
+- **Body** (labels, list items): 15–16sp, regular, `#CBD5E1`
+- **Caption** (secondary info, dates, percentages): 12–13sp, regular, `#64748B`
+
+Never use the same font size for more than one level of hierarchy on the same screen.
+
+### 2. Colour System
+
+Replace the current ad-hoc colour usage with a strict system:
+
+```
+Background (deepest):  #0A0F1E
+Surface (cards):       #111827
+Surface elevated:      #1C2333
+Border:                #1E2D45
+Accent (gold):         #F59E0B   ← used ONLY for: active tab, selected state, upgrade CTAs
+Success (positive):    #10B981
+Danger (negative):     #EF4444
+Text primary:          #F1F5F9
+Text secondary:        #94A3B8
+Text muted:            #475569
+```
+
+The amber/gold must appear in exactly 3 contexts: (1) the active bottom tab icon, (2) selected toggle/button states, (3) Premium/Upgrade badges and CTAs. Nowhere else.
+
+### 3. Card Design
+
+All cards (rounded containers with content) must follow this pattern:
+
+- Background: `#111827`
+- Border: 1px `#1E2D45`
+- Border radius: 16px
+- Inner padding: 20px
+- No drop shadows (they look cheap on dark backgrounds — use border instead)
+- Section dividers inside cards: 1px `#1E2D45`, no full-width lines that touch card edges (add 20px horizontal inset)
+
+### 4. Dashboard Screen — Priority Redesign
+
+The Dashboard is the first screen users see. It must feel like a Bloomberg terminal, not a budget app.
+
+- **Hero card**: Full-width card showing total portfolio value. Large display number (36sp bold white). Below it: Δ since last month in green/red with an arrow icon. Below that: a subtle sparkline (7-day or 30-day trend line) using a single amber stroke on transparent background.
+- **Allocation donut**: Increase to 180–200px diameter. Segments use a palette of 6–8 distinct muted-but-distinguishable colours (not neon). Centre label shows “X holdings” in caption style.
+- **Alert banner**: Only appears when drift exists. Style as a left-bordered card (4px amber left border, background `#1C2333`). Example: “ERNE is 6.2% below target”
+- **DCA reminder card**: Subtle. Icon + “DCA due in 4 days · €450”. Right chevron.
+- **Remove** any card that is purely decorative or shows placeholder/zero data.
+
+### 5. Bottom Navigation
+
+- Background: `#0A0F1E` with a 1px `#1E2D45` top border
+- Active tab: amber icon `#F59E0B` + amber label, no background pill
+- Inactive tab: icon `#475569`, no label shown (icon only for inactive)
+- Tab bar height: 64px with safe area inset handling
+
+### 6. Settings Screen — Premium Section
+
+The current “Fortis — Free Tier” upgrade card needs to feel compelling:
+
+- Full-width card with a subtle gradient background: from `#1C2333` to `#0F1929`
+- Left side: tier name in semibold white, “X of 3 holdings used” as a mini progress bar (thin, amber fill)
+- Right side: “Upgrade” button — amber background `#F59E0B`, dark text `#0A0F1E`, 12px border radius, bold label, 44px height minimum
+- Below the card: feature list uses amber checkmark icons, text in `#CBD5E1`, slightly larger spacing between items (10–12px gap)
+- Add the Investor tier (€4.99/mo) and Pro tier (€8.99/mo) as two distinct cards below the feature list, with a clear visual distinction between them (e.g. Pro has a subtle amber border)
+
+### 7. List Items (Holdings, DCA entries, etc.)
+
+- Height: minimum 64px per row
+- Left: holding name in body weight + ISIN/ticker in caption below
+- Right: current value bold white + percentage change in green/red caption below
+- ACC/DIST badge: small pill, 10px border radius, `#1C2333` background, `#94A3B8` text, 5px horizontal padding
+- Broker tag: same pill style, slightly dimmer
+- Separator: 1px `#1E2D45`, inset 20px from left (do not span full width)
+
+### 8. Micro-details That Signal Quality
+
+Add these small details — they are what separates a premium app from a generic one:
+
+- Number formatting: always use European locale (1.234,56 €) throughout — already present, ensure it’s consistent on every screen
+- Percentage changes: always show + or − sign explicitly, coloured green/red
+- Loading states: use a subtle skeleton shimmer (animated `#1C2333` → `#1E2D45`) instead of spinners
+- Empty states: when a screen has no data, show a small icon + 2-line message + optional CTA, never just blank space
+- Haptic feedback on: adding a holding, logging a DCA contribution, tapping Upgrade
+
+### 9. What NOT to Change
+
+- All data logic, calculations, and SQLite operations
+- Navigation structure and screen names
+- Any existing functionality
+- The dark theme (do not introduce a light mode)
+
+-----
+
+*Apply changes screen by screen, starting with Dashboard, then Portfolio/Holdings, then Settings.*

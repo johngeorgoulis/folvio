@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -682,35 +683,85 @@ export default function SettingsScreen() {
 
       {/* ── 4. PREMIUM ───────────────────────────────────────────────────── */}
       <Text style={labelStyle}>PREMIUM</Text>
-      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-        <View style={[styles.premiumBanner, { backgroundColor: theme.deepBlue }]}>
-          <View style={styles.premiumBannerLeft}>
-            <Text style={styles.premiumBannerTitle}>Folvio — Free Tier</Text>
-            <Text style={styles.premiumBannerSub}>{holdingCount} of {FREE_TIER_LIMIT} holdings used</Text>
+
+      {/* Tier card with gradient + progress bar */}
+      <LinearGradient
+        colors={["#1C2333", "#0F1929"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.premiumCard}
+      >
+        <View style={styles.premiumCardTop}>
+          <View style={{ flex: 1, gap: 6 }}>
+            <Text style={styles.premiumCardTier}>
+              {isPremium ? "Folvio Pro" : "Folvio — Free Tier"}
+            </Text>
+            <Text style={styles.premiumCardSub}>
+              {holdingCount} of {FREE_TIER_LIMIT} holdings used
+            </Text>
+            {/* Usage progress bar */}
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.min(100, (holdingCount / FREE_TIER_LIMIT) * 100)}%` as any },
+                ]}
+              />
+            </View>
           </View>
           {!isPremium && (
             <TouchableOpacity
-              style={[styles.upgradeBtn, { backgroundColor: theme.tint }]}
+              style={styles.upgradeBtn}
               onPress={() => setShowPremium(true)}
+              activeOpacity={0.85}
             >
               <Text style={styles.upgradeBtnText}>Upgrade</Text>
             </TouchableOpacity>
           )}
         </View>
+      </LinearGradient>
 
-        <View style={styles.featureList}>
-          <Text style={[styles.featureListTitle, { color: theme.text }]}>Premium features:</Text>
-          {[
-            "Unlimited holdings",
-            "Benchmark comparison charts",
-            "CSV export",
-            "Priority support",
-          ].map((f) => (
-            <View key={f} style={styles.featureItem}>
-              <Feather name="check-circle" size={14} color={theme.tint} />
-              <Text style={[styles.featureText, { color: theme.textSecondary }]}>{f}</Text>
-            </View>
-          ))}
+      {/* Feature list */}
+      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+        {[
+          "Unlimited holdings",
+          "Benchmark comparison charts",
+          "CSV import & export",
+          "Priority support",
+          "Advanced projections",
+        ].map((f, idx, arr) => (
+          <View
+            key={f}
+            style={[
+              styles.featureItem,
+              { borderBottomWidth: idx < arr.length - 1 ? 1 : 0, borderBottomColor: theme.border },
+            ]}
+          >
+            <Feather name="check-circle" size={16} color={theme.tint} />
+            <Text style={styles.featureText}>{f}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Tier cards */}
+      <View style={[styles.tierCard, { borderColor: theme.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.tierName}>Investor</Text>
+          <Text style={styles.tierDesc}>Up to 10 holdings · All features</Text>
+        </View>
+        <View style={{ alignItems: "flex-end", gap: 2 }}>
+          <Text style={styles.tierPrice}>€4.99</Text>
+          <Text style={styles.tierPeriod}>/month</Text>
+        </View>
+      </View>
+      <View style={[styles.tierCard, styles.tierCardPro]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.tierName}>Pro</Text>
+          <Text style={styles.tierDesc}>Unlimited holdings · Priority support</Text>
+        </View>
+        <View style={{ alignItems: "flex-end", gap: 2 }}>
+          <Text style={styles.tierPrice}>€8.99</Text>
+          <Text style={styles.tierPeriod}>/month</Text>
         </View>
       </View>
 
@@ -855,24 +906,101 @@ const styles = StyleSheet.create({
   },
   premiumPillText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 
-  // Premium banner
-  premiumBanner: {
-    margin: 12,
+  // ── Premium section ─────────────────────────────────────────────────────
+  premiumCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#1E2D45",
+    overflow: "hidden",
+    padding: 20,
+  },
+  premiumCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  premiumCardTier: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    color: "#F1F5F9",
+  },
+  premiumCardSub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: "#94A3B8",
+  },
+  progressTrack: {
+    height: 4,
+    backgroundColor: "#1E2D45",
+    borderRadius: 2,
+    marginTop: 4,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: 4,
+    backgroundColor: "#F59E0B",
+    borderRadius: 2,
+  },
+  upgradeBtn: {
+    minHeight: 44,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
     borderRadius: 12,
+    backgroundColor: "#F59E0B",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  upgradeBtnText: {
+    color: "#0A0F1E",
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+  },
+  featureItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  featureText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: "#CBD5E1",
+  },
+  tierCard: {
+    backgroundColor: "#111827",
+    borderRadius: 14,
+    borderWidth: 1,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
   },
-  premiumBannerLeft: { gap: 3 },
-  premiumBannerTitle: { color: "#FFFFFF", fontSize: 14, fontFamily: "Inter_700Bold" },
-  premiumBannerSub: { color: "rgba(255,255,255,0.55)", fontSize: 12, fontFamily: "Inter_400Regular" },
-  upgradeBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
-  upgradeBtnText: { color: "#0A0F1A", fontSize: 13, fontFamily: "Inter_700Bold" },
-  featureList: { paddingHorizontal: 16, paddingBottom: 14, gap: 10 },
-  featureListTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
-  featureItem: { flexDirection: "row", alignItems: "center", gap: 10 },
-  featureText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  tierCardPro: {
+    borderColor: "#F59E0B",
+  },
+  tierName: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    color: "#F1F5F9",
+    marginBottom: 3,
+  },
+  tierDesc: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: "#94A3B8",
+  },
+  tierPrice: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    color: "#F1F5F9",
+    letterSpacing: -0.5,
+  },
+  tierPeriod: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: "#475569",
+  },
 
   // Notification rows
   notifRow: {

@@ -20,10 +20,19 @@ import { formatEUR, formatPct } from "@/utils/format";
 import AddHoldingModal, { type AddHoldingInitialValues } from "@/components/AddHoldingModal";
 import PremiumModal from "@/components/PremiumModal";
 
+const theme = Colors.dark;
+
+// Detect ACC / DIST from the fund name or ticker
+function getDistBadge(name: string, ticker: string): "ACC" | "DIST" | null {
+  const hay = (name + " " + ticker).toLowerCase();
+  if (hay.includes("acc") || hay.includes("accumul")) return "ACC";
+  if (hay.includes("dist") || hay.includes("distribut")) return "DIST";
+  return null;
+}
+
 export default function HoldingsScreen() {
-  const theme = Colors.dark;
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 24 : insets.top;
+  const insets    = useSafeAreaInsets();
+  const topPad    = Platform.OS === "web" ? 24 : insets.top;
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
   const {
@@ -34,7 +43,8 @@ export default function HoldingsScreen() {
     refreshPrices,
     totalPortfolioValue,
   } = usePortfolio();
-  const [showAdd, setShowAdd] = useState(false);
+
+  const [showAdd, setShowAdd]         = useState(false);
   const [showPremium, setShowPremium] = useState(false);
   const [prefillValues, setPrefillValues] = useState<AddHoldingInitialValues | undefined>();
 
@@ -46,14 +56,11 @@ export default function HoldingsScreen() {
   const processedTickerRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (
-      params.prefillTicker &&
-      params.prefillTicker !== processedTickerRef.current
-    ) {
+    if (params.prefillTicker && params.prefillTicker !== processedTickerRef.current) {
       processedTickerRef.current = params.prefillTicker;
       const iv: AddHoldingInitialValues = {
-        ticker: params.prefillTicker,
-        name: params.prefillName ?? "",
+        ticker:   params.prefillTicker,
+        name:     params.prefillName ?? "",
         exchange: params.prefillExchange ?? "XETRA",
       };
       setPrefillValues(iv);
@@ -63,11 +70,8 @@ export default function HoldingsScreen() {
   }, [params.prefillTicker, params.prefillName, params.prefillExchange, isAtLimit]);
 
   function handleAddPress() {
-    if (isAtLimit) {
-      setShowPremium(true);
-    } else {
-      setShowAdd(true);
-    }
+    if (isAtLimit) setShowPremium(true);
+    else setShowAdd(true);
   }
 
   function handleDeleteHolding(id: string, ticker: string) {
@@ -76,11 +80,7 @@ export default function HoldingsScreen() {
       `Remove ${ticker} from your portfolio?`,
       [
         { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => deleteHolding(id),
-        },
+        { text: "Remove", style: "destructive", onPress: () => deleteHolding(id) },
       ]
     );
   }
@@ -88,20 +88,11 @@ export default function HoldingsScreen() {
   function renderRightActions(holdingId: string, ticker: string) {
     return (
       <TouchableOpacity
-        style={{
-          backgroundColor: theme.negative,
-          justifyContent: "center",
-          alignItems: "center",
-          width: 80,
-          borderRadius: 16,
-          marginLeft: 8,
-        }}
+        style={styles.swipeDelete}
         onPress={() => handleDeleteHolding(holdingId, ticker)}
       >
         <Feather name="trash-2" size={20} color="#fff" />
-        <Text style={{ color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold", marginTop: 4 }}>
-          Remove
-        </Text>
+        <Text style={styles.swipeDeleteLabel}>Remove</Text>
       </TouchableOpacity>
     );
   }
@@ -112,10 +103,11 @@ export default function HoldingsScreen() {
         contentContainerStyle={[styles.content, { paddingTop: topPad + 12, paddingBottom: bottomPad }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Header ─────────────────────────────────────────────────────── */}
         <View style={styles.header}>
           <View>
-            <Text style={[styles.pageTitle, { color: theme.text }]}>Holdings</Text>
-            <Text style={[styles.pageSubtitle, { color: theme.textSecondary }]}>
+            <Text style={styles.pageTitle}>Holdings</Text>
+            <Text style={styles.pageSubtitle}>
               {holdings.length} holding{holdings.length !== 1 ? "s" : ""}
               {holdings.length >= FREE_TIER_LIMIT && (
                 <Text style={{ color: theme.tint }}> · Upgrade for unlimited</Text>
@@ -124,7 +116,7 @@ export default function HoldingsScreen() {
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity
-              style={[styles.refreshBtn, { borderColor: theme.border }]}
+              style={styles.refreshBtn}
               onPress={refreshPrices}
               disabled={isRefreshingPrices}
             >
@@ -134,39 +126,39 @@ export default function HoldingsScreen() {
                 <Feather name="refresh-cw" size={16} color={theme.tint} />
               )}
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.addBtn, { backgroundColor: theme.tint }]}
-              onPress={handleAddPress}
-            >
-              <Feather name="plus" size={20} color="#0A0F1A" />
+            <TouchableOpacity style={styles.addBtn} onPress={handleAddPress}>
+              <Feather name="plus" size={20} color={theme.background} />
             </TouchableOpacity>
           </View>
         </View>
 
+        {/* ── Empty state ─────────────────────────────────────────────────── */}
         {holdings.length === 0 && (
-          <View style={[styles.emptyState, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-            <Feather name="briefcase" size={32} color={theme.tint} />
-            <Text style={[styles.emptyTitle, { color: theme.text }]}>No holdings yet</Text>
-            <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-              Add your first UCITS ETF or stock to begin.
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconWrap}>
+              <Feather name="briefcase" size={30} color={theme.tint} />
+            </View>
+            <Text style={styles.emptyTitle}>No holdings yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Add your first UCITS ETF or stock to begin tracking your European portfolio.
             </Text>
-            <TouchableOpacity
-              style={[styles.emptyBtn, { backgroundColor: theme.deepBlue }]}
-              onPress={handleAddPress}
-            >
-              <Feather name="plus" size={16} color="#C9A84C" />
+            <TouchableOpacity style={styles.emptyBtn} onPress={handleAddPress}>
+              <Feather name="plus" size={16} color={theme.background} />
               <Text style={styles.emptyBtnText}>Add Holding</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {holdings.map((h) => {
+        {/* ── Holding cards ──────────────────────────────────────────────── */}
+        {holdings.map((h, idx) => {
           const marketValue = h.quantity * h.currentPrice;
-          const invested = h.quantity * h.avg_cost_eur;
-          const gain = marketValue - invested;
-          const gainPct = invested > 0 ? (gain / invested) * 100 : 0;
-          const weight = totalPortfolioValue > 0 ? (marketValue / totalPortfolioValue) * 100 : 0;
-          const isPositive = gain >= 0;
+          const invested    = h.quantity * h.avg_cost_eur;
+          const gain        = marketValue - invested;
+          const gainPct     = invested > 0 ? (gain / invested) * 100 : 0;
+          const weight      = totalPortfolioValue > 0 ? (marketValue / totalPortfolioValue) * 100 : 0;
+          const isPositive  = gain >= 0;
+          const distBadge   = getDistBadge(h.name ?? "", h.ticker);
+          const isLast      = idx === holdings.length - 1;
 
           return (
             <Swipeable
@@ -174,71 +166,83 @@ export default function HoldingsScreen() {
               renderRightActions={() => renderRightActions(h.id, h.ticker)}
               overshootRight={false}
             >
-            <Pressable
-              style={[styles.holdingCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}
-              onPress={() => router.push({ pathname: "/holding/[id]", params: { id: h.id } })}
-            >
-              <View style={styles.holdingMain}>
-                <View style={[styles.tickerBadge, { backgroundColor: theme.deepBlue }]}>
-                  <Text style={styles.tickerText}>{h.ticker.slice(0, 4)}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.tickerRow}>
-                    <Text style={[styles.holdingTicker, { color: theme.text }]}>{h.ticker}</Text>
-                    {h.hasPrice && h.priceIsStale && (
-                      <Text style={styles.staleWarning}>⚠</Text>
-                    )}
-                    {!h.hasPrice && (
-                      <Text style={[styles.noPrice, { color: theme.textSecondary }]}>no price</Text>
-                    )}
+              <Pressable
+                style={styles.holdingCard}
+                onPress={() => router.push({ pathname: "/holding/[id]", params: { id: h.id } })}
+              >
+                {/* ── Main row ────────────────────────────────────────────── */}
+                <View style={styles.holdingMain}>
+                  {/* Left: ticker badge */}
+                  <View style={styles.tickerBadge}>
+                    <Text style={styles.tickerBadgeText}>{h.ticker.slice(0, 4)}</Text>
                   </View>
-                  <Text style={[styles.holdingName, { color: theme.textSecondary }]} numberOfLines={1}>
-                    {h.name || h.exchange}
-                  </Text>
-                </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text style={[styles.holdingValue, { color: theme.text }]}>
-                    {h.hasPrice ? formatEUR(marketValue) : "—"}
-                  </Text>
-                  {h.hasPrice && (
-                    <View
-                      style={[
-                        styles.gainBadge,
-                        { backgroundColor: isPositive ? theme.positive + "20" : theme.negative + "20" },
-                      ]}
-                    >
-                      <Text style={[styles.gainText, { color: isPositive ? theme.positive : theme.negative }]}>
+
+                  {/* Centre: name + badges */}
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.tickerRow}>
+                      <Text style={styles.holdingTicker}>{h.ticker}</Text>
+                      {h.hasPrice && h.priceIsStale && (
+                        <Text style={{ fontSize: 12, color: "#FBBF24" }}>⚠</Text>
+                      )}
+                      {!h.hasPrice && (
+                        <Text style={styles.noPrice}>no price</Text>
+                      )}
+                    </View>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.holdingName} numberOfLines={1}>
+                        {h.name || h.exchange}
+                      </Text>
+                      {distBadge && (
+                        <View style={styles.pill}>
+                          <Text style={styles.pillText}>{distBadge}</Text>
+                        </View>
+                      )}
+                      {h.exchange && (
+                        <View style={styles.pill}>
+                          <Text style={styles.pillText}>{h.exchange}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Right: value + gain% */}
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={styles.holdingValue}>
+                      {h.hasPrice ? formatEUR(marketValue) : "—"}
+                    </Text>
+                    {h.hasPrice && (
+                      <Text style={[styles.holdingGain, { color: isPositive ? theme.positive : theme.negative }]}>
                         {isPositive ? "+" : ""}{formatPct(gainPct, false)}
                       </Text>
-                    </View>
-                  )}
+                    )}
+                  </View>
                 </View>
-              </View>
 
-              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                {/* ── Inset divider ────────────────────────────────────────── */}
+                <View style={styles.divider} />
 
-              <View style={styles.holdingDetails}>
-                <View style={styles.detailItem}>
-                  <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Qty</Text>
-                  <Text style={[styles.detailValue, { color: theme.text }]}>{h.quantity}</Text>
+                {/* ── Detail strip ─────────────────────────────────────────── */}
+                <View style={styles.detailStrip}>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>QTY</Text>
+                    <Text style={styles.detailValue}>{h.quantity}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>AVG COST</Text>
+                    <Text style={styles.detailValue}>{formatEUR(h.avg_cost_eur)}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>PRICE</Text>
+                    <Text style={[styles.detailValue, h.priceIsStale ? { color: "#FBBF24" } : {}]}>
+                      {h.hasPrice ? formatEUR(h.currentPrice) : "—"}
+                    </Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>WEIGHT</Text>
+                    <Text style={styles.detailValue}>{weight.toFixed(1)}%</Text>
+                  </View>
                 </View>
-                <View style={styles.detailItem}>
-                  <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Avg Cost</Text>
-                  <Text style={[styles.detailValue, { color: theme.text }]}>{formatEUR(h.avg_cost_eur)}</Text>
-                </View>
-                <View style={styles.detailItem}>
-                  <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Price</Text>
-                  <Text style={[styles.detailValue, { color: h.priceIsStale ? "#FBBF24" : theme.text }]}>
-                    {h.hasPrice ? formatEUR(h.currentPrice) : "—"}
-                  </Text>
-                </View>
-                <View style={styles.detailItem}>
-                  <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Weight</Text>
-                  <Text style={[styles.detailValue, { color: theme.text }]}>{weight.toFixed(1)}%</Text>
-                </View>
-              </View>
-
-            </Pressable>
+              </Pressable>
             </Swipeable>
           );
         })}
@@ -254,93 +258,131 @@ export default function HoldingsScreen() {
   );
 }
 
+// ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: 16, gap: 12 },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  pageTitle: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.8 },
-  pageSubtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  content:   { paddingHorizontal: 16, gap: 10 },
+
+  // Header
+  header:        { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+  pageTitle:     { fontSize: 26, fontFamily: "Inter_700Bold", color: theme.text, letterSpacing: -0.8 },
+  pageSubtitle:  { fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary, marginTop: 2 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   refreshBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
+    width: 44, height: 44, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: theme.border,
+    backgroundColor: theme.backgroundCard,
   },
   addBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 44, height: 44, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: theme.tint,
   },
-  tickerRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  staleWarning: { fontSize: 12, color: "#FBBF24" },
-  noPrice: { fontSize: 10, fontFamily: "Inter_400Regular" },
+
+  // Swipe delete
+  swipeDelete: {
+    backgroundColor: theme.negative,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+    borderRadius: 14,
+    marginLeft: 8,
+    gap: 4,
+  },
+  swipeDeleteLabel: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
+
+  // Empty state
   emptyState: {
+    backgroundColor: theme.backgroundCard,
     borderRadius: 16,
-    padding: 32,
+    padding: 36,
     alignItems: "center",
     gap: 10,
     borderWidth: 1,
+    borderColor: theme.border,
     marginTop: 8,
   },
-  emptyTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  emptySubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  emptyIconWrap: {
+    width: 68, height: 68, borderRadius: 20,
+    backgroundColor: theme.backgroundElevated,
+    borderWidth: 1, borderColor: theme.border,
+    alignItems: "center", justifyContent: "center",
+    marginBottom: 4,
+  },
+  emptyTitle:    { fontSize: 18, fontFamily: "Inter_700Bold", color: theme.text },
+  emptySubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", color: theme.textSecondary, textAlign: "center", lineHeight: 21 },
   emptyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 8,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 22, paddingVertical: 13,
+    backgroundColor: theme.tint, borderRadius: 12, marginTop: 4,
   },
-  emptyBtnText: { color: "#C9A84C", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  emptyBtnText: { color: theme.background, fontSize: 15, fontFamily: "Inter_700Bold" },
+
+  // Holding card
   holdingCard: {
+    backgroundColor: theme.backgroundCard,
     borderRadius: 16,
-    padding: 16,
     borderWidth: 1,
-    position: "relative",
+    borderColor: theme.border,
+    minHeight: 64,
+    overflow: "hidden",
   },
+
+  // Main row
   holdingMain: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    minHeight: 64,
   },
+
+  // Ticker badge
   tickerBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 46, height: 46, borderRadius: 12,
+    backgroundColor: theme.backgroundElevated,
+    borderWidth: 1, borderColor: theme.border,
+    alignItems: "center", justifyContent: "center",
   },
-  tickerText: {
-    color: "#C9A84C",
-    fontSize: 12,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 0.5,
+  tickerBadgeText: { color: theme.tint, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
+
+  // Name row
+  tickerRow:   { flexDirection: "row", alignItems: "center", gap: 5 },
+  nameRow:     { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3, flexWrap: "wrap" },
+  holdingTicker: { fontSize: 16, fontFamily: "Inter_700Bold", color: theme.text },
+  holdingName:   { fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary, flexShrink: 1 },
+  noPrice:       { fontSize: 10, fontFamily: "Inter_400Regular", color: theme.textTertiary },
+
+  // Pills (ACC/DIST/exchange)
+  pill: {
+    paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 6, backgroundColor: theme.backgroundElevated,
+    borderWidth: 1, borderColor: theme.border,
   },
-  holdingTicker: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  holdingName: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  holdingValue: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  gainBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginTop: 4,
+  pillText: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: theme.textSecondary },
+
+  // Right side
+  holdingValue: { fontSize: 16, fontFamily: "Inter_700Bold", color: theme.text },
+  holdingGain:  { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 3 },
+
+  // Inset divider (20px from left, not full-width)
+  divider: {
+    height: 1,
+    backgroundColor: theme.border,
+    marginLeft: 20, // inset from left edge
   },
-  gainText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  divider: { height: 1, marginVertical: 12 },
-  holdingDetails: { flexDirection: "row", justifyContent: "space-between" },
-  detailItem: { alignItems: "center" },
-  detailLabel: { fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 0.3 },
-  detailValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginTop: 2 },
+
+  // Detail strip
+  detailStrip: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  detailItem:  { alignItems: "center", gap: 3 },
+  detailLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: theme.textTertiary, letterSpacing: 0.5 },
+  detailValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: theme.text },
 });
