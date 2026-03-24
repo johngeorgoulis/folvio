@@ -2,41 +2,18 @@ import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 
-const theme = Colors.dark;
-const GOLD  = "#F59E0B";
-const MUTED = "#475569";
-
-const TAB_HEIGHT = 64;
-
-interface TabIconProps {
-  name: React.ComponentProps<typeof Feather>["name"];
-  label: string;
-  color: string;
-  focused: boolean;
-  size?: number;
-}
-
-function TabIcon({ name, label, color, focused, size = 21 }: TabIconProps) {
-  return (
-    <View style={styles.tabItem}>
-      <Feather name={name} size={size} color={color} />
-      {focused && (
-        <Text style={[styles.tabLabel, { color }]}>{label}</Text>
-      )}
-    </View>
-  );
-}
+const theme  = Colors.dark;
+const GOLD   = "#F59E0B";
+const MUTED  = "#475569";
+const TAB_H  = 64;
 
 export default function TabLayout() {
-  const isIOS  = Platform.OS === "ios";
-  const isWeb  = Platform.OS === "web";
   const insets = useSafeAreaInsets();
-
-  const tabBarHeight = TAB_HEIGHT + insets.bottom;
+  const isIOS  = Platform.OS === "ios";
 
   return (
     <Tabs
@@ -47,7 +24,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: MUTED,
         tabBarStyle: {
           position: "absolute",
-          height: tabBarHeight,
+          height: TAB_H + insets.bottom,
           paddingBottom: insets.bottom,
           backgroundColor: isIOS ? "transparent" : theme.background,
           borderTopWidth: 1,
@@ -59,77 +36,50 @@ export default function TabLayout() {
             <BlurView
               intensity={95}
               tint="dark"
-              style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(10,15,30,0.85)" }]}
+              style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(10,15,30,0.88)" }]}
             />
           ) : (
-            <View
-              style={[StyleSheet.absoluteFill, { backgroundColor: theme.background }]}
-            />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background }]} />
           ),
+        tabBarIconStyle: { marginBottom: 0 },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="home" label="Dashboard" color={color} focused={focused} />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="holdings"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="briefcase" label="Holdings" color={color} focused={focused} />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="briefcase" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="search"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="search" label="Search" color={color} focused={focused} />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="search" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="performance"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="bar-chart-2" label="Returns" color={color} focused={focused} size={22} />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="projections"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="clock" label="Forecast" color={color} focused={focused} size={22} />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="clock" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="settings" label="Settings" color={color} focused={focused} />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="settings" size={22} color={color} />,
         }}
       />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabItem: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-    minWidth: 44,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.2,
-  },
-});
