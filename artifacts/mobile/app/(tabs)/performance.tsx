@@ -427,7 +427,7 @@ function CrisisBacktestSection() {
   const [dca, setDca] = useState(400);
 
   useEffect(() => {
-    AsyncStorage.getItem("fortis_forecast_dca").then(v => {
+    AsyncStorage.getItem("folvio_forecast_dca").then(v => {
       if (v) setDca(parseFloat(v) || 400);
     });
   }, []);
@@ -945,8 +945,8 @@ export default function PerformanceScreen() {
 
   useEffect(() => {
     Promise.all([
-      AsyncStorage.getItem("fortis_is_premium"),
-      AsyncStorage.getItem("fortis_default_benchmark"),
+      AsyncStorage.getItem("folvio_is_premium"),
+      AsyncStorage.getItem("folvio_default_benchmark"),
     ]).then(([ip, bm]) => {
       if (ip === "true") setIsPremium(true);
       if (bm) {

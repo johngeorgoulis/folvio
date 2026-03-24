@@ -89,7 +89,7 @@ export default function NotificationManager() {
       setTimeout(() => {
         Alert.alert(
           "Stay on top of your portfolio",
-          "Fortis would like to send you reminders for your monthly DCA and portfolio alerts.",
+          "Folvio would like to send you reminders for your monthly DCA and portfolio alerts.",
           [
             { text: "Not now", style: "cancel" },
             {

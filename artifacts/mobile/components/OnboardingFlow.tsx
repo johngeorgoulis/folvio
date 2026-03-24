@@ -13,7 +13,7 @@ import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
-export const ONBOARDING_KEY = "fortis_onboarding_complete";
+export const ONBOARDING_KEY = "folvio_onboarding_complete";
 
 const NAVY = "#0F1923";
 const GOLD = "#C9A84C";
@@ -37,15 +37,15 @@ const PAGES: Page[] = [
   {
     id: "1",
     isFirst: true,
-    title: "Fortis",
-    subtitle: "The portfolio tracker built for European ETF investors",
+    title: "Folvio",
+    subtitle: "Your portfolio's path forward",
     body: "🇪🇺  UCITS-native · DCA-aware · Multi-broker",
   },
   {
     id: "2",
     icon: "shield",
     title: "Your data stays on\nyour device",
-    body: "Fortis stores everything locally. No account required, no cloud sync, no data sharing. Your portfolio is yours alone.",
+    body: "Folvio stores everything locally. No account required, no cloud sync, no data sharing. Your portfolio is yours alone.",
     note: "Cloud sync available in a future update for those who want it.",
   },
   {
@@ -199,7 +199,7 @@ function PageView({ page }: { page: Page }) {
           <View style={styles.fMarkWrap}>
             <FMark size={96} />
           </View>
-          <Text style={styles.wordmark}>Fortis</Text>
+          <Text style={styles.wordmark}>Folvio</Text>
           <Text style={styles.subtitle}>{page.subtitle}</Text>
           <View style={styles.badgeRow}>
             <Text style={styles.flagBody}>🇪🇺</Text>

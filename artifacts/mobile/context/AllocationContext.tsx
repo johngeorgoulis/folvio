@@ -24,7 +24,7 @@ const DEFAULT_TARGETS: { ticker: string; target_pct: number }[] = [
   { ticker: "EGLN", target_pct: 7 },
 ];
 
-const THRESHOLD_KEY = "fortis_rebalance_threshold";
+const THRESHOLD_KEY = "folvio_rebalance_threshold";
 export const THRESHOLD_OPTIONS = [3, 5, 10] as const;
 export type ThresholdOption = (typeof THRESHOLD_OPTIONS)[number];
 

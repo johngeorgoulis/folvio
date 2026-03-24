@@ -51,12 +51,12 @@ export type PortfolioHistoryRow = {
 };
 
 const KEYS = {
-  holdings: "fortis_v2_holdings",
-  prices: "fortis_v2_prices",
-  targets: "fortis_v2_targets",
-  snapshots: "fortis_v2_snapshots",
-  etfPriceHistory: "fortis_v2_etf_price_history",
-  portfolioHistory: "fortis_v2_portfolio_history",
+  holdings: "folvio_v2_holdings",
+  prices: "folvio_v2_prices",
+  targets: "folvio_v2_targets",
+  snapshots: "folvio_v2_snapshots",
+  etfPriceHistory: "folvio_v2_etf_price_history",
+  portfolioHistory: "folvio_v2_portfolio_history",
 };
 
 async function readJSON<T>(key: string): Promise<T[]> {
@@ -249,7 +249,7 @@ export type AssetClassOverrideRow = {
   updated_at: string;
 };
 
-const OVERRIDE_KEY = "fortis_v2_asset_class_overrides";
+const OVERRIDE_KEY = "folvio_v2_asset_class_overrides";
 
 export async function getAllAssetClassOverrides(): Promise<AssetClassOverrideRow[]> {
   return readJSON<AssetClassOverrideRow>(OVERRIDE_KEY);

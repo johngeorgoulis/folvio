@@ -117,7 +117,7 @@ export default function RebalanceScreen() {
   const [calculating, setCalculating] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem("fortis_forecast_dca").then((val) => {
+    AsyncStorage.getItem("folvio_forecast_dca").then((val) => {
       if (val && parseFloat(val) > 0) setCashInput(val);
     });
   }, []);

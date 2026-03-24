@@ -43,10 +43,10 @@ const BENCHMARKS = [
 type BenchmarkSymbol = typeof BENCHMARKS[number]["symbol"];
 
 const ASYNC_KEYS = {
-  showCostBasis: "fortis_show_cost_basis",
-  showDividends: "fortis_show_dividends",
-  defaultBenchmark: "fortis_default_benchmark",
-  isPremium: "fortis_is_premium",
+  showCostBasis: "folvio_show_cost_basis",
+  showDividends: "folvio_show_dividends",
+  defaultBenchmark: "folvio_default_benchmark",
+  isPremium: "folvio_is_premium",
 };
 
 export default function SettingsScreen() {
@@ -244,7 +244,7 @@ export default function SettingsScreen() {
     if (!isPremium) {
       Alert.alert(
         "Premium Feature",
-        "CSV export is available on Fortis Premium.",
+        "CSV export is available on Folvio Premium.",
         [
           { text: "Maybe Later", style: "cancel" },
           { text: "Upgrade", onPress: () => setShowPremium(true) },
@@ -685,7 +685,7 @@ export default function SettingsScreen() {
       <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
         <View style={[styles.premiumBanner, { backgroundColor: theme.deepBlue }]}>
           <View style={styles.premiumBannerLeft}>
-            <Text style={styles.premiumBannerTitle}>Fortis — Free Tier</Text>
+            <Text style={styles.premiumBannerTitle}>Folvio — Free Tier</Text>
             <Text style={styles.premiumBannerSub}>{holdingCount} of {FREE_TIER_LIMIT} holdings used</Text>
           </View>
           {!isPremium && (
@@ -726,7 +726,7 @@ export default function SettingsScreen() {
         </View>
         <TouchableOpacity
           style={[styles.settingRow, { borderBottomColor: "transparent" }]}
-          onPress={() => Linking.openURL("https://fortis.app/privacy")}
+          onPress={() => Linking.openURL("https://folvio.app/privacy")}
         >
           <Text style={[styles.rowLabel, { color: theme.text }]}>Privacy Policy</Text>
           <Feather name="external-link" size={14} color={theme.textTertiary} />

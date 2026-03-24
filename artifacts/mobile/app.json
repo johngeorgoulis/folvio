@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Fortis",
+    "name": "Folvio",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,13 +14,15 @@
       "backgroundColor": "#0F1923"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.folvio.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0F1923"
-      }
+      },
+      "package": "com.folvio.app"
     },
     "web": {
       "favicon": "./assets/images/icon.png"

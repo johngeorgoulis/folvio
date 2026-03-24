@@ -156,12 +156,12 @@ export default function ProjectionsScreen() {
   const [monthlyDCA, setMonthlyDCA] = useState("400");
 
   useEffect(() => {
-    AsyncStorage.getItem("fortis_forecast_dca").then(v => { if (v) setMonthlyDCA(v); });
+    AsyncStorage.getItem("folvio_forecast_dca").then(v => { if (v) setMonthlyDCA(v); });
   }, []);
 
   function handleDCAChange(v: string) {
     setMonthlyDCA(v);
-    AsyncStorage.setItem("fortis_forecast_dca", v);
+    AsyncStorage.setItem("folvio_forecast_dca", v);
   }
 
   const [years, setYears] = useState(30);

@@ -38,7 +38,7 @@ export default function PremiumModal({ visible, onClose }: Props) {
             <Feather name="star" size={28} color="#C9A84C" />
           </View>
 
-          <Text style={[styles.title, { color: theme.text }]}>Fortis Premium</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Folvio Premium</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             Built for serious European passive investors.
           </Text>

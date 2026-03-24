@@ -1,5 +1,5 @@
 /**
- * Fortis ETF Database Service
+ * Folvio ETF Database Service
  *
  * Provides instant local search over the bundled ETF database.
  * Handles background updates from a remote URL (GitHub Gist).
@@ -45,15 +45,15 @@ export interface ETFSearchResult extends ETFEntry {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const ASYNC_KEY_DB      = "fortis_etf_database";
-const ASYNC_KEY_VERSION = "fortis_etf_db_version";
-const ASYNC_KEY_LAST_CHECK = "fortis_etf_db_last_check";
+const ASYNC_KEY_DB      = "folvio_etf_database";
+const ASYNC_KEY_VERSION = "folvio_etf_db_version";
+const ASYNC_KEY_LAST_CHECK = "folvio_etf_db_last_check";
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const FETCH_TIMEOUT_MS  = 5_000;
 
 // Replace with your actual GitHub Gist raw URL after setup (Step 7).
 const REMOTE_DB_URL =
-  "https://raw.githubusercontent.com/your-username/fortis-etf-db/main/etf-database.json";
+  "https://raw.githubusercontent.com/your-username/folvio-etf-db/main/etf-database.json";
 
 // ── Module state ──────────────────────────────────────────────────────────────
 let _db: ETFDatabase | null = null;

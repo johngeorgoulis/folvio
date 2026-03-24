@@ -4,22 +4,22 @@ import { Platform } from "react-native";
 
 // ── Identifiers ───────────────────────────────────────────────────────────────
 export const NOTIF_ID = {
-  DCA_REMINDER: "fortis_dca_reminder",
-  DRIFT_ALERT: "fortis_drift_alert",
-  WEEKLY_SUMMARY: "fortis_weekly_summary",
+  DCA_REMINDER: "folvio_dca_reminder",
+  DRIFT_ALERT: "folvio_drift_alert",
+  WEEKLY_SUMMARY: "folvio_weekly_summary",
 } as const;
 
 // ── AsyncStorage keys ─────────────────────────────────────────────────────────
 export const NOTIF_KEY = {
-  PERMISSION_ASKED: "fortis_notif_permission_asked",
-  PERMISSION_STATUS: "fortis_notif_permission_status",
-  DCA_ENABLED: "fortis_notif_dca_enabled",
-  DRIFT_ENABLED: "fortis_notif_drift_enabled",
-  WEEKLY_ENABLED: "fortis_notif_weekly_enabled",
-  DCA_DAY: "fortis_dca_day",
-  LAST_DRIFT_NOTIF: "fortis_last_drift_notification",
+  PERMISSION_ASKED: "folvio_notif_permission_asked",
+  PERMISSION_STATUS: "folvio_notif_permission_status",
+  DCA_ENABLED: "folvio_notif_dca_enabled",
+  DRIFT_ENABLED: "folvio_notif_drift_enabled",
+  WEEKLY_ENABLED: "folvio_notif_weekly_enabled",
+  DCA_DAY: "folvio_dca_day",
+  LAST_DRIFT_NOTIF: "folvio_last_drift_notification",
   // DCA amount is shared with projections screen
-  DCA_AMOUNT: "fortis_forecast_dca",
+  DCA_AMOUNT: "folvio_forecast_dca",
 } as const;
 
 // ── Foreground handler ────────────────────────────────────────────────────────
@@ -178,7 +178,7 @@ export async function scheduleWeeklySummary(summaryBody?: string): Promise<void>
 
   const body =
     summaryBody ??
-    "Open Fortis to review your weekly portfolio performance and plan your next DCA.";
+    "Open Folvio to review your weekly portfolio performance and plan your next DCA.";
 
   await Notifications.scheduleNotificationAsync({
     identifier: NOTIF_ID.WEEKLY_SUMMARY,

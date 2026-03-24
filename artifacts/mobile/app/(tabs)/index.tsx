@@ -64,7 +64,7 @@ export default function DashboardScreen() {
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
   useEffect(() => {
-    AsyncStorage.multiGet(["fortis_dca_day", "fortis_forecast_dca"]).then((pairs) => {
+    AsyncStorage.multiGet(["folvio_dca_day", "folvio_forecast_dca"]).then((pairs) => {
       const day = pairs[0][1];
       const amt = pairs[1][1];
       if (day) setDcaDay(parseInt(day, 10));
@@ -136,7 +136,7 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{currentMonthLabel()}</Text>
-          <Text style={[styles.title, { color: theme.text }]}>Fortis</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Folvio</Text>
         </View>
         <View style={[styles.badge, { backgroundColor: theme.deepBlue }]}>
           <Text style={styles.badgeText}>EU</Text>

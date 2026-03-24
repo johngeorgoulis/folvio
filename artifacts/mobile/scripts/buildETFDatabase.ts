@@ -1,5 +1,5 @@
 /**
- * Fortis ETF Database Builder v3
+ * Folvio ETF Database Builder v3
  *
  * Data sources (in priority order):
  *  1. OpenFIGI API   – free, no-auth, bulk ISIN → ticker/name/exchange
@@ -1452,7 +1452,7 @@ function writeDB(dbPath: string, idxPath: string, allEtfs: any[]) {
 // MAIN
 // ─────────────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log("\n🔨 Fortis ETF Database Builder v3");
+  console.log("\n🔨 Folvio ETF Database Builder v3");
   console.log("   Sources: OpenFIGI (bulk) + JustETF (details)\n");
 
   const outDir  = path.join(__dirname, "..", "assets");
