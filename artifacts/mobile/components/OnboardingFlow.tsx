@@ -178,11 +178,11 @@ export default function OnboardingFlow({ onComplete }: Props) {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={styles.nextBtn}
+            style={styles.primaryBtn}
             onPress={handleNext}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            <Feather name="arrow-right" size={24} color={GOLD} />
+            <Text style={styles.primaryBtnText}>Next →</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -202,7 +202,9 @@ function PageView({ page }: { page: Page }) {
           <Text style={styles.wordmark}>Fortis</Text>
           <Text style={styles.subtitle}>{page.subtitle}</Text>
           <View style={styles.badgeRow}>
-            <Text style={styles.flagBody}>{page.body}</Text>
+            <Text style={styles.flagBody}>🇪🇺</Text>
+            <Text style={styles.flagBody}>UCITS-native · DCA-aware</Text>
+            <Text style={styles.flagBody}>Multi-broker</Text>
           </View>
         </View>
       ) : page.isLast ? (
@@ -338,6 +340,8 @@ const styles = StyleSheet.create({
   },
   badgeRow: {
     marginTop: 8,
+    alignItems: "center",
+    gap: 4,
   },
   flagBody: {
     fontSize: 15,
