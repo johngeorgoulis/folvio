@@ -103,55 +103,6 @@ function symbolToExchange(symbol: string): string {
   return "XETRA";
 }
 
-/**
- * Compute the target calendar date for a given period relative to today.
- * e.g. "1M" on March 23 → February 23.
- * Returns a timestamp representing end-of-day on the target date.
- */
-function targetDateForPeriod(period: "1W" | "1M" | "3M" | "6M" | "1Y"): number {
-  const d = new Date();
-  switch (period) {
-    case "1W": d.setDate(d.getDate() - 7); break;
-    case "1M": d.setMonth(d.getMonth() - 1); break;
-    case "3M": d.setMonth(d.getMonth() - 3); break;
-    case "6M": d.setMonth(d.getMonth() - 6); break;
-    case "1Y": d.setFullYear(d.getFullYear() - 1); break;
-  }
-  // End-of-day so we include the full trading day
-  d.setHours(23, 59, 59, 999);
-  return d.getTime();
-}
-
-/**
- * Find the latest data point whose timestamp is ≤ targetTs.
- * This gives us the closing price on or before the target calendar date,
- * which correctly handles weekends and market holidays (roll back, not forward).
- */
-function startPriceAtOrBefore(data: ChartPoint[], targetTs: number): ChartPoint | null {
-  let found: ChartPoint | null = null;
-  for (const pt of data) {
-    if (pt.timestamp <= targetTs) found = pt;
-  }
-  return found;
-}
-
-/**
- * Compute the percentage change from the calendar-correct start date to the
- * last data point. Returns null if not enough data.
- */
-function computePerfCalendar(
-  data: ChartPoint[],
-  period: "1W" | "1M" | "3M" | "6M" | "1Y"
-): { changePct: number; changeAbs: number } | null {
-  if (data.length < 2) return null;
-  const endPt = data[data.length - 1];
-  const targetTs = targetDateForPeriod(period);
-  const startPt = startPriceAtOrBefore(data, targetTs);
-  if (!startPt || startPt.priceEUR === 0 || startPt === endPt) return null;
-  const changePct = ((endPt.priceEUR - startPt.priceEUR) / startPt.priceEUR) * 100;
-  const changeAbs = endPt.priceEUR - startPt.priceEUR;
-  return { changePct, changeAbs };
-}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -197,6 +148,7 @@ export default function TickerDetailScreen() {
   const [now, setNow] = useState(Date.now());
   const [rangePerf, setRangePerf] = useState<number | null>(null);
   const [rangeChange, setRangeChange] = useState<{ abs: number; pct: number } | null>(null);
+  const [perfCards, setPerfCards] = useState<{ w: number | null; m: number | null; m3: number | null; y: number | null }>({ w: null, m: null, m3: null, y: null });
   const [etfData, setEtfData] = useState<ServerETFData | null>(null);
   const [localETF, setLocalETF] = useState<ETFEntry | null>(null);
 
@@ -229,19 +181,30 @@ export default function TickerDetailScreen() {
     setLoadingMeta(true);
     setMetaError(false);
     try {
-      const [m, yd, monthData] = await Promise.all([
+      // All network calls fire in parallel to minimise total load time.
+      // fetchPeriodReturn uses explicit period1 timestamps throughout, so every
+      // result uses the live price as end and the exact calendar date as start.
+      const [m, yd, monthData, initPerf, r1w, r3m, r1y] = await Promise.all([
         fetchTickerMeta(safeSymbol),
         fetchChartHistory(safeSymbol, "1Y"),
         fetchChartHistory(safeSymbol, "1M"),
+        fetchPeriodReturn(safeSymbol, "1M"),   // initial range display (1M selected by default)
+        fetchPeriodReturn(safeSymbol, "1W"),   // perf card
+        fetchPeriodReturn(safeSymbol, "3M"),   // perf card
+        fetchPeriodReturn(safeSymbol, "1Y"),   // perf card
       ]);
       setMeta(m);
       setYearData(yd);
       setChartData(monthData);
       setFetchedAt(new Date());
-      // Use yearData (yd) + calendar-correct 1M start for accurate initial 1M display
-      const initPerf = computePerfCalendar(yd, "1M");
       setRangePerf(initPerf?.changePct ?? null);
       setRangeChange(initPerf ? { abs: initPerf.changeAbs, pct: initPerf.changePct } : null);
+      setPerfCards({
+        w:  r1w?.changePct  ?? null,
+        m:  initPerf?.changePct ?? null,
+        m3: r3m?.changePct  ?? null,
+        y:  r1y?.changePct  ?? null,
+      });
     } catch {
       setMetaError(true);
     } finally {
@@ -261,69 +224,39 @@ export default function TickerDetailScreen() {
   async function handleRangeChange(r: Range) {
     setRange(r);
     setLoadingChart(true);
+    try {
+      // For 1Y we already have the chart data in state — skip the redundant fetch.
+      // For all other ranges we fetch chart and period return in parallel.
+      const chartPromise = r === "1Y"
+        ? Promise.resolve(yearData)
+        : fetchChartHistory(safeSymbol, r);
 
-    if (r === "1D") {
-      // 1D: use official previousClose from meta (already fetched, no extra call)
-      const [d] = await Promise.all([fetchChartHistory(safeSymbol, "1D")]);
-      setChartData(d);
-      if (meta) {
-        // meta.regularMarketChange / regularMarketChangePercent are derived from
-        // meta.previousClose in fetchTickerMeta — exact previous session close
-        setRangePerf(meta.regularMarketChangePercent);
-        setRangeChange({ abs: meta.regularMarketChange, pct: meta.regularMarketChangePercent });
-      } else {
-        setRangePerf(null);
-        setRangeChange(null);
-      }
-      setLoadingChart(false);
-      return;
-    }
+      // fetchPeriodReturn now handles every range natively:
+      //   1D  → (live - prevClose) / prevClose  (meta opts fast-path, else 5d fallback)
+      //   1W  → period1=7d, closes[0] as start, live price as end
+      //   1M  → period1=30d, same pattern
+      //   3M  → period1=91d
+      //   6M  → period1=182d
+      //   1Y  → period1=365d
+      //   All → period1=epoch, monthly candles
+      const returnPromise = fetchPeriodReturn(
+        safeSymbol,
+        r,
+        r === "1D" && meta
+          ? { previousCloseEUR: meta.previousClose, currentPriceEUR: meta.regularMarketPrice }
+          : undefined
+      );
 
-    if (r === "1W") {
-      // 1W: fetch with period1 = 7 days ago, take closes[0] as reference
-      // (forward-rolls to next trading day when target falls on weekend/holiday)
-      const [d, result] = await Promise.all([
-        fetchChartHistory(safeSymbol, "1W"),
-        fetchPeriodReturn(safeSymbol, "1W"),
-      ]);
-      setChartData(d);
-      setRangePerf(result?.changePct ?? null);
-      setRangeChange(result ? { abs: result.changeAbs, pct: result.changePct } : null);
-      setLoadingChart(false);
-      return;
-    }
-
-    if (r === "1M" || r === "3M" || r === "6M" || r === "1Y") {
-      // Calendar-based ranges: use daily yearData with roll-backward to find
-      // the exact closing price on (or last trading day before) the target date
-      if (r === "1Y") {
-        setChartData(yearData);
-      } else {
-        const d = await fetchChartHistory(safeSymbol, r);
-        setChartData(d);
-      }
-      const result = computePerfCalendar(yearData, r);
-      setRangePerf(result?.changePct ?? null);
-      setRangeChange(result ? { abs: result.changeAbs, pct: result.changePct } : null);
-      setLoadingChart(false);
-      return;
-    }
-
-    if (r === "All") {
-      // All: fetch full history from Unix epoch 0; use closes[0] as the very
-      // first available price in Yahoo Finance's history for this ETF
-      const [d, result] = await Promise.all([
-        fetchChartHistory(safeSymbol, "All"),
-        fetchPeriodReturn(safeSymbol, "All"),
-      ]);
+      const [d, result] = await Promise.all([chartPromise, returnPromise]);
       setChartData(d);
       setRangePerf(result?.changePct ?? null);
       setRangeChange(result ? { abs: result.changeAbs, pct: result.changePct } : null);
+    } catch {
+      setRangePerf(null);
+      setRangeChange(null);
+    } finally {
       setLoadingChart(false);
-      return;
     }
-
-    setLoadingChart(false);
   }
 
   function handleAddToPortfolio() {
@@ -382,10 +315,10 @@ export default function TickerDetailScreen() {
 
   const ageMs = fetchedAt ? now - fetchedAt.getTime() : null;
 
-  const perf1W = computePerfCalendar(yearData, "1W")?.changePct ?? null;
-  const perf1M = computePerfCalendar(yearData, "1M")?.changePct ?? null;
-  const perf3M = computePerfCalendar(yearData, "3M")?.changePct ?? null;
-  const perf1Y = computePerfCalendar(yearData, "1Y")?.changePct ?? null;
+  const perf1W = perfCards.w;
+  const perf1M = perfCards.m;
+  const perf3M = perfCards.m3;
+  const perf1Y = perfCards.y;
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loadingMeta) {

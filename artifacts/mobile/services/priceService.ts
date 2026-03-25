@@ -292,8 +292,6 @@ const CHART_INTERVALS: Record<string, { interval: string; range: string }> = {
   "1M":  { interval: "1d",  range: "1mo" },
   "3M":  { interval: "1d",  range: "3mo" },
   "6M":  { interval: "1d",  range: "6mo" },
-  // Use daily interval for 1Y so computePerfCalendar can find exact calendar dates
-  // (weekly candles store Friday close, not Monday open — daily gives correct 1W reference)
   "1Y":  { interval: "1d",  range: "1y"  },
   "All": { interval: "1mo", range: "5y"  },
 };
@@ -602,41 +600,37 @@ export interface PeriodReturn {
 }
 
 /**
- * Canonical function for computing per-period price change.
- * Implements the correct reference price for every timeframe:
- *
- *   1D  → previous session's close (from meta.previousClose / meta.chartPreviousClose)
- *   1W  → closing price on (or first trading day after) exactly 7 calendar days ago
- *         Fetches with period1 = now - 7d so Yahoo resolves the nearest trading day forward
- *   1M  → computed by the caller via computePerfCalendar on daily yearData (roll-backward)
- *   3M  → same, caller uses computePerfCalendar
- *   6M  → same, caller uses computePerfCalendar
- *   1Y  → same, caller uses computePerfCalendar
- *   All → very first close in Yahoo Finance history (period1 = Unix epoch, closes[0])
- *
- * @param symbol   Full Yahoo Finance symbol (e.g. "VWCE.DE")
- * @param period   One of "1D" | "1W" | "All"
- * @param opts     For "1D": pass previousCloseEUR + currentPriceEUR to avoid a re-fetch
+ * Calendar days for each period. Yahoo Finance forward-rolls period1 to the
+ * first available trading day on or after the target date.
  */
+const PERIOD_CALENDAR_DAYS: Partial<Record<string, number>> = {
+  "1W":  7,
+  "1M":  30,
+  "3M":  91,
+  "6M":  182,
+  "1Y":  365,
+};
+
 export async function fetchPeriodReturn(
   symbol: string,
-  period: "1D" | "1W" | "All",
+  period: "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "All",
   opts?: { previousCloseEUR?: number; currentPriceEUR?: number }
 ): Promise<PeriodReturn | null> {
-  // ── 1D: use previousClose from the quote (official previous session close) ──
+
+  // ── 1D ────────────────────────────────────────────────────────────────────
+  // Use previousClose passed from the quote when it is reliable (non-zero and
+  // different from the live price). Otherwise fall back to fetching the last
+  // two daily closes so we have an explicit previous-session reference.
   if (period === "1D") {
     const prev = opts?.previousCloseEUR;
     const curr = opts?.currentPriceEUR;
-    if (prev == null || curr == null || prev === 0) return null;
-    const changeAbs = curr - prev;
-    const changePct = (changeAbs / prev) * 100;
-    return { changePct, changeAbs, startPriceEUR: prev, endPriceEUR: curr };
-  }
-
-  // ── 1W: period1 = 7 calendar days ago; take closes[0] (first available
-  //        trading day ≥ that date — forward roll for weekends/holidays) ─────
-  if (period === "1W") {
-    const period1 = Math.floor((Date.now() - 7 * 86_400_000) / 1000);
+    if (prev != null && curr != null && prev > 0 && prev !== curr) {
+      const changeAbs = curr - prev;
+      const changePct = (changeAbs / prev) * 100;
+      return { changePct, changeAbs, startPriceEUR: prev, endPriceEUR: curr };
+    }
+    // Fallback: fetch ~5 days of daily data; second-to-last close = prev session
+    const period1 = Math.floor((Date.now() - 5 * 86_400_000) / 1000);
     const url = yahooChartUrlByPeriod(symbol, "1d", period1);
     try {
       const res = await fetch(url, { headers: YAHOO_HEADERS });
@@ -644,21 +638,22 @@ export async function fetchPeriodReturn(
       const data = await res.json();
       const result = data?.chart?.result?.[0];
       if (!result) return null;
-      const { closesEUR, currentPriceEUR } = await parseClosesFromYahooResult(result);
+      const { closesEUR, currentPriceEUR: livePriceEUR } = await parseClosesFromYahooResult(result);
       if (closesEUR.length < 2) return null;
-      const startPriceEUR = closesEUR[0];
-      const endPriceEUR = currentPriceEUR > 0 ? currentPriceEUR : closesEUR[closesEUR.length - 1];
+      const startPriceEUR = closesEUR[closesEUR.length - 2]; // previous session's close
+      const endPriceEUR   = livePriceEUR > 0 ? livePriceEUR : closesEUR[closesEUR.length - 1];
       if (startPriceEUR === 0) return null;
       const changeAbs = endPriceEUR - startPriceEUR;
       const changePct = (changeAbs / startPriceEUR) * 100;
       return { changePct, changeAbs, startPriceEUR, endPriceEUR };
     } catch (err) {
-      console.warn(`[fetchPeriodReturn] 1W failed for ${symbol}:`, err);
+      console.warn(`[fetchPeriodReturn] 1D fallback failed for ${symbol}:`, err);
       return null;
     }
   }
 
-  // ── All: period1 = Unix epoch (0); take closes[0] as the very first price ─
+  // ── All ───────────────────────────────────────────────────────────────────
+  // period1 = Unix epoch 0; monthly candles for efficiency; closes[0] = IPO price
   if (period === "All") {
     const url = yahooChartUrlByPeriod(symbol, "1mo", 0);
     try {
@@ -670,7 +665,7 @@ export async function fetchPeriodReturn(
       const { closesEUR, currentPriceEUR } = await parseClosesFromYahooResult(result);
       if (closesEUR.length < 2) return null;
       const startPriceEUR = closesEUR[0];
-      const endPriceEUR = currentPriceEUR > 0 ? currentPriceEUR : closesEUR[closesEUR.length - 1];
+      const endPriceEUR   = currentPriceEUR > 0 ? currentPriceEUR : closesEUR[closesEUR.length - 1];
       if (startPriceEUR === 0) return null;
       const changeAbs = endPriceEUR - startPriceEUR;
       const changePct = (changeAbs / startPriceEUR) * 100;
@@ -681,7 +676,32 @@ export async function fetchPeriodReturn(
     }
   }
 
-  return null;
+  // ── 1W / 1M / 3M / 6M / 1Y ───────────────────────────────────────────────
+  // period1 = exact calendar target timestamp; Yahoo forward-rolls to the first
+  // available trading day on or after that date (same as broker behaviour).
+  // End price = meta.regularMarketPrice (live), not the last cached daily close.
+  const calendarDays = PERIOD_CALENDAR_DAYS[period];
+  if (calendarDays == null) return null;
+  const period1 = Math.floor((Date.now() - calendarDays * 86_400_000) / 1000);
+  const url = yahooChartUrlByPeriod(symbol, "1d", period1);
+  try {
+    const res = await fetch(url, { headers: YAHOO_HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    if (!result) return null;
+    const { closesEUR, currentPriceEUR } = await parseClosesFromYahooResult(result);
+    if (closesEUR.length < 2) return null;
+    const startPriceEUR = closesEUR[0]; // first trading day on/after period1 (forward roll)
+    const endPriceEUR   = currentPriceEUR > 0 ? currentPriceEUR : closesEUR[closesEUR.length - 1];
+    if (startPriceEUR === 0) return null;
+    const changeAbs = endPriceEUR - startPriceEUR;
+    const changePct = (changeAbs / startPriceEUR) * 100;
+    return { changePct, changeAbs, startPriceEUR, endPriceEUR };
+  } catch (err) {
+    console.warn(`[fetchPeriodReturn] ${period} failed for ${symbol}:`, err);
+    return null;
+  }
 }
 
 export async function fetchBenchmarkReturn(
