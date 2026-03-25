@@ -223,13 +223,18 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       },
       manualPrice: number
     ) => {
-      const id = generateId();
-      await insertHolding({ id, ...h, yield_pct: h.yield_pct ?? null });
-      if (manualPrice > 0) {
-        await upsertPrice(h.ticker, manualPrice, "manual");
+      try {
+        const id = generateId();
+        await insertHolding({ id, ...h, yield_pct: h.yield_pct ?? null });
+        if (manualPrice > 0) {
+          await upsertPrice(h.ticker, manualPrice, "manual");
+        }
+        await loadData();
+        doRefreshPrices(holdingRowsRef.current);
+      } catch (e) {
+        console.error("[portfolio] addHolding failed:", e);
+        throw e;
       }
-      await loadData();
-      doRefreshPrices(holdingRowsRef.current);
     },
     [loadData, doRefreshPrices]
   );
@@ -240,30 +245,48 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       h: Partial<Omit<HoldingRow, "id" | "created_at">>,
       newPrice?: number
     ) => {
-      await dbUpdateHolding(id, h);
-      if (newPrice !== undefined && h.ticker) {
-        await upsertPrice(h.ticker, newPrice, "manual");
+      try {
+        await dbUpdateHolding(id, h);
+        if (newPrice !== undefined && h.ticker) {
+          await upsertPrice(h.ticker, newPrice, "manual");
+        }
+        await loadData();
+      } catch (e) {
+        console.error("[portfolio] updateHolding failed:", e);
+        throw e;
       }
-      await loadData();
     },
     [loadData]
   );
 
   const deleteHolding = useCallback(
     async (id: string) => {
-      await dbDeleteHolding(id);
-      await loadData();
+      try {
+        await dbDeleteHolding(id);
+        await loadData();
+      } catch (e) {
+        console.error("[portfolio] deleteHolding failed:", e);
+        throw e;
+      }
     },
     [loadData]
   );
 
   const refreshPrices = useCallback(async () => {
-    await doRefreshPrices(holdingRowsRef.current);
+    try {
+      await doRefreshPrices(holdingRowsRef.current);
+    } catch (e) {
+      console.error("[portfolio] refreshPrices failed:", e);
+    }
   }, [doRefreshPrices]);
 
   const clearPrices = useCallback(async () => {
-    await clearPriceCache();
-    await loadData();
+    try {
+      await clearPriceCache();
+      await loadData();
+    } catch (e) {
+      console.error("[portfolio] clearPrices failed:", e);
+    }
   }, [loadData]);
 
   const holdings = mergeHoldingsWithPrices(holdingRows, prices);

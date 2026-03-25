@@ -87,23 +87,37 @@ export function AllocationProvider({ children }: { children: React.ReactNode }) 
 
   const upsertTarget = useCallback(
     async (ticker: string, targetPct: number) => {
-      await dbUpsertTarget(ticker, targetPct);
-      await reloadTargets();
+      try {
+        await dbUpsertTarget(ticker, targetPct);
+        await reloadTargets();
+      } catch (e) {
+        console.error("[allocation] upsertTarget failed:", e);
+        throw e;
+      }
     },
     [reloadTargets]
   );
 
   const removeTarget = useCallback(
     async (ticker: string) => {
-      await dbDeleteTarget(ticker);
-      await reloadTargets();
+      try {
+        await dbDeleteTarget(ticker);
+        await reloadTargets();
+      } catch (e) {
+        console.error("[allocation] removeTarget failed:", e);
+        throw e;
+      }
     },
     [reloadTargets]
   );
 
   const setRebalanceThreshold = useCallback(async (n: ThresholdOption) => {
-    setThresholdState(n);
-    await AsyncStorage.setItem(THRESHOLD_KEY, String(n));
+    try {
+      setThresholdState(n);
+      await AsyncStorage.setItem(THRESHOLD_KEY, String(n));
+    } catch (e) {
+      console.error("[allocation] setRebalanceThreshold failed:", e);
+    }
   }, []);
 
   return (
