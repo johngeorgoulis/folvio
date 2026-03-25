@@ -16,7 +16,7 @@ name = "expo"
 paths = ["/"]
 
 [services.development]
-run = "pnpm --filter @workspace/mobile run web-static"
+run = "pnpm --filter @workspace/mobile run dev"
 
 [services.env]
 PORT = "18115"
