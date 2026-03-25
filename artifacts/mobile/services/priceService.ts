@@ -76,6 +76,7 @@ interface FMPProfileData {
 /**
  * Infer the native currency from the Yahoo-style symbol suffix.
  * Accurate for all UCITS ETFs; avoids an extra network round-trip.
+ * NOTE: this is used only when FMP itself returns no `currency` field.
  */
 function symbolCurrency(symbol: string): string {
   if (symbol.endsWith(".L")) return "GBP";
@@ -85,27 +86,83 @@ function symbolCurrency(symbol: string): string {
 
 /** Parse FMP's "yearLow-yearHigh" range string into numeric parts. */
 function parseRange(range: string | undefined): { yearLow: number; yearHigh: number } {
-  if (!range) return { yearLow: 0, yearHigh: 0 };
-  const parts = range.split("-").map(Number);
-  if (parts.length !== 2 || parts.some(isNaN)) return { yearLow: 0, yearHigh: 0 };
-  return { yearLow: parts[0], yearHigh: parts[1] };
+  if (!range || typeof range !== "string") return { yearLow: 0, yearHigh: 0 };
+  // Format: "107.9-151.36"  (dash separator; prices are always positive)
+  const dash = range.lastIndexOf("-");
+  if (dash <= 0) return { yearLow: 0, yearHigh: 0 };
+  const low  = Number(range.slice(0, dash).trim());
+  const high = Number(range.slice(dash + 1).trim());
+  if (isNaN(low) || isNaN(high)) return { yearLow: 0, yearHigh: 0 };
+  return { yearLow: low, yearHigh: high };
 }
 
-/**
- * Fetch the FMP /stable/profile for any symbol (European ETFs, US stocks, etc).
- * Returns null if the network call fails or no data is returned.
- */
-async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
+// ─── FMP Symbol resolution ────────────────────────────────────────────────────
+//
+// FMP uses Yahoo Finance–style exchange suffixes for European ETFs:
+//   .DE (XETRA)  .AS (Euronext Amsterdam)  .PA (Euronext Paris)
+//   .L  (LSE)    .SW (SIX Swiss)           .MI (Borsa Italiana)
+//
+// The ".AMS", ".XETR", ".PAR", ".MIL" formats were tested and do NOT work in
+// FMP's /stable API. Yahoo-style suffixes are the correct primary format.
+//
+// However, FMP has partial coverage for Borsa Italiana (.MI) symbols.
+// When a .MI symbol returns no data, we try the same ETF on exchanges that
+// have better FMP coverage. Most UCITS ETFs cross-listed on Borsa Italiana
+// are also available on Euronext Paris, Amsterdam, or London.
+//
+// Fallback order per exchange:
+const FMP_EXCHANGE_FALLBACKS: Partial<Record<string, string[]>> = {
+  ".MI": [".PA", ".AS", ".DE", ".L"],   // Milan → Paris → Amsterdam → XETRA → London
+  ".SW": [".DE", ".AS"],                // Swiss → XETRA → Amsterdam
+};
+
+/** Low-level: fetch a single FMP profile by exact symbol. Returns null if not found. */
+async function fmpFetchProfileSingle(symbol: string): Promise<FMPProfileData | null> {
   try {
     const res = await fetch(fmpUrl(`profile/${encodeURIComponent(symbol)}`), FMP_FETCH_OPTS);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data: FMPProfileData[] = await res.json();
     if (!Array.isArray(data) || !data[0]?.price) return null;
     return data[0];
-  } catch (err) {
-    console.warn(`[fmp] profile failed for ${symbol}:`, err);
+  } catch {
     return null;
   }
+}
+
+/**
+ * Fetch the FMP /stable/profile for any symbol, with automatic fallback to
+ * cross-listed exchanges when the primary symbol returns no data.
+ *
+ * Exchange fallback for Borsa Italiana (.MI) and Swiss (.SW):
+ *   Most UCITS ETFs are cross-listed — same ISIN, same fund, different currency/exchange.
+ *   If the primary listing has no FMP data, we try alternative listings.
+ *   FMP returns `currency` in the profile, so FX conversion is always correct.
+ */
+async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
+  // 1. Primary: try the symbol as-is (Yahoo-style suffix = correct FMP format)
+  const primary = await fmpFetchProfileSingle(symbol);
+  if (primary) return primary;
+
+  // 2. Exchange fallback: extract the suffix and try alternatives
+  const suffixMatch = symbol.match(/(\.[A-Z]+)$/);
+  if (suffixMatch) {
+    const suffix    = suffixMatch[1];                    // e.g. ".MI"
+    const base      = symbol.slice(0, -suffix.length);   // e.g. "EIMI"
+    const fallbacks = FMP_EXCHANGE_FALLBACKS[suffix];
+
+    if (fallbacks) {
+      for (const alt of fallbacks) {
+        const result = await fmpFetchProfileSingle(base + alt);
+        if (result) {
+          console.log(`[fmp] ${symbol} → no data; resolved via ${base + alt} (${result.currency})`);
+          return result;
+        }
+      }
+    }
+  }
+
+  console.warn(`[fmp] profile not found for ${symbol} (tried all fallbacks)`);
+  return null;
 }
 
 export interface PriceResult {
