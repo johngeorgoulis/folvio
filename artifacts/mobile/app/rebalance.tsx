@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useAllocation, THRESHOLD_OPTIONS } from "@/context/AllocationContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import {
   calculateAllocations,
   calculateDCARebalance,
@@ -110,6 +111,37 @@ export default function RebalanceScreen() {
 
   const { holdings } = usePortfolio();
   const { targets, rebalanceThreshold, isLoadingTargets } = useAllocation();
+  const { canUseRebalancing, showPaywall } = useSubscription();
+
+  // Gate on Pro tier — show paywall overlay if not subscribed
+  if (!canUseRebalancing) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background, paddingTop: topPad }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Feather name="arrow-left" size={22} color={theme.text} />
+        </TouchableOpacity>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 16 }}>
+          <View style={{ width: 72, height: 72, borderRadius: 22, backgroundColor: theme.backgroundElevated, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" }}>
+            <Feather name="lock" size={28} color={theme.tint} />
+          </View>
+          <Text style={{ fontSize: 22, fontFamily: "Inter_700Bold", color: theme.text, textAlign: "center" }}>
+            Rebalancing Calculator
+          </Text>
+          <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: theme.textSecondary, textAlign: "center", lineHeight: 21 }}>
+            DCA and full rebalancing suggestions are available on the Pro plan.
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: theme.tint, paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12, marginTop: 8 }}
+            onPress={() => showPaywall("rebalance")}
+          >
+            <Text style={{ fontSize: 15, fontFamily: "Inter_700Bold", color: theme.background }}>
+              Upgrade to Pro
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   const [mode, setMode] = useState<"dca" | "full">("dca");
   const [cashInput, setCashInput] = useState("");

@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useAllocation } from "@/context/AllocationContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { formatEUR, formatPct } from "@/utils/format";
 import { calculateAllocations, validateTargets } from "@/services/allocationService";
 import { getAssetClass } from "@/services/assetClassService";
@@ -939,16 +940,13 @@ export default function PerformanceScreen() {
   const [loadingChart, setLoadingChart] = useState(true);
   const [buildingHistory, setBuildingHistory] = useState(false);
 
-  const [isPremium, setIsPremium] = useState(true); // TODO: wire to RevenueCat before release
+  const { canUseBenchmarkComparison, showPaywall } = useSubscription();
   const [defaultBenchmark, setDefaultBenchmark] = useState<BenchmarkItem>(DEFAULT_BENCHMARK);
-  const [showPremium, setShowPremium] = useState(false);
 
   useEffect(() => {
     Promise.all([
-      AsyncStorage.getItem("folvio_is_premium"),
       AsyncStorage.getItem("folvio_default_benchmark"),
-    ]).then(([ip, bm]) => {
-      if (ip === "true") setIsPremium(true);
+    ]).then(([bm]) => {
       if (bm) {
         const found = BENCHMARKS.find((b) => b.symbol === bm || b.label === bm);
         if (found) setDefaultBenchmark(found);
@@ -1177,9 +1175,9 @@ export default function PerformanceScreen() {
 
       {/* ── Section 3: Benchmark Comparison ──────────────────────────────── */}
       <BenchmarkComparisonSection
-        isPremium={isPremium}
+        isPremium={canUseBenchmarkComparison}
         defaultBenchmark={defaultBenchmark}
-        onUpgrade={() => setShowPremium(true)}
+        onUpgrade={() => showPaywall("benchmark")}
         width={chartWidth + 32}
       />
 

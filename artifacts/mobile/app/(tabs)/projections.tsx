@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import React, { useState, useMemo, useEffect } from "react";
 import {
   ScrollView, View, Text, TextInput, TouchableOpacity,
@@ -8,6 +9,7 @@ import Svg, { Path, Defs, LinearGradient, Stop, Line, Text as SvgText } from "re
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { formatEUR } from "@/utils/format";
 
 const theme = Colors.dark;
@@ -138,9 +140,38 @@ function ProjectionChart({
 
 export default function ProjectionsScreen() {
   const insets = useSafeAreaInsets();
+  const topPad = Platform.OS === "web" ? 24 : insets.top;
+  const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
   const { width } = useWindowDimensions();
+  const { canUseProjections, showPaywall } = useSubscription();
   // Calculate annualized return from actual portfolio performance
   const { totalPortfolioValue, totalInvested, totalGainPct, holdings } = usePortfolio();
+
+  if (!canUseProjections) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.background, paddingTop: topPad, paddingBottom: bottomPad }}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 16 }}>
+          <View style={{ width: 72, height: 72, borderRadius: 22, backgroundColor: theme.backgroundElevated, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" }}>
+            <Feather name="lock" size={28} color={theme.tint} />
+          </View>
+          <Text style={{ fontSize: 22, fontFamily: "Inter_700Bold", color: theme.text, textAlign: "center" }}>
+            10-Year Projections
+          </Text>
+          <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: theme.textSecondary, textAlign: "center", lineHeight: 21 }}>
+            Growth projections and scenario modelling are available on the Pro plan.
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: theme.tint, paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12, marginTop: 8 }}
+            onPress={() => showPaywall("projections")}
+          >
+            <Text style={{ fontSize: 15, fontFamily: "Inter_700Bold", color: theme.background }}>
+              Upgrade to Pro
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   const annualizedReturn = useMemo(() => {
     const dates = holdings.map((h) => h.purchase_date).filter(Boolean).sort();
