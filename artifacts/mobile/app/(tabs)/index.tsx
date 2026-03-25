@@ -77,12 +77,14 @@ export default function DashboardScreen() {
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
   useEffect(() => {
-    AsyncStorage.multiGet(["folvio_dca_day", "folvio_forecast_dca"]).then((pairs) => {
-      const day = pairs[0][1];
-      const amt = pairs[1][1];
-      if (day) setDcaDay(parseInt(day, 10));
-      if (amt) setDcaAmount(parseFloat(amt) || 0);
-    });
+    AsyncStorage.multiGet(["folvio_dca_day", "folvio_forecast_dca"])
+      .then((pairs) => {
+        const day = pairs[0][1];
+        const amt = pairs[1][1];
+        if (day) setDcaDay(parseInt(day, 10));
+        if (amt) setDcaAmount(parseFloat(amt) || 0);
+      })
+      .catch(() => {});
   }, []);
 
   const annualizedReturn = useMemo(() => {

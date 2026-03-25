@@ -156,7 +156,9 @@ export default function ProjectionsScreen() {
   const [monthlyDCA, setMonthlyDCA] = useState("400");
 
   useEffect(() => {
-    AsyncStorage.getItem("folvio_forecast_dca").then(v => { if (v) setMonthlyDCA(v); });
+    AsyncStorage.getItem("folvio_forecast_dca")
+      .then(v => { if (v) setMonthlyDCA(v); })
+      .catch(() => {});
   }, []);
 
   function handleDCAChange(v: string) {

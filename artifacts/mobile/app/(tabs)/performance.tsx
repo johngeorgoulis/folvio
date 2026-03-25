@@ -953,19 +953,23 @@ export default function PerformanceScreen() {
         const found = BENCHMARKS.find((b) => b.symbol === bm || b.label === bm);
         if (found) setDefaultBenchmark(found);
       }
-    });
+    }).catch(() => {});
   }, []);
 
   // Reload from DB when range selector changes
   useEffect(() => {
     let cancelled = false;
     setLoadingChart(true);
-    getPortfolioHistory(selectedRange).then((data) => {
-      if (!cancelled) {
-        setHistorySnapshots(data);
-        setLoadingChart(false);
-      }
-    });
+    getPortfolioHistory(selectedRange)
+      .then((data) => {
+        if (!cancelled) {
+          setHistorySnapshots(data);
+          setLoadingChart(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoadingChart(false);
+      });
     return () => { cancelled = true; };
   }, [selectedRange]);
 

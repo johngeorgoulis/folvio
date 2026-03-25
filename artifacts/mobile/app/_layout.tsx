@@ -5,6 +5,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
+import { Feather } from "@expo/vector-icons";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, Stack } from "expo-router";
@@ -35,6 +36,10 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    // Load Feather icon font explicitly — the tab bar renders at launch
+    // (before any navigation), so the font must be ready on first paint.
+    // Without this, Expo web shows grey squares instead of icons.
+    ...Feather.font,
   });
 
   // null = still checking, false = show onboarding, true = go straight to app
