@@ -19,7 +19,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 artifacts-monorepo/
 ├── artifacts/
 │   ├── api-server/         # Express API server
-│   └── mobile/             # Expo React Native app (Fortis)
+│   └── mobile/             # Expo React Native app (Folvio)
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
@@ -32,7 +32,7 @@ artifacts-monorepo/
 └── package.json
 ```
 
-## Fortis Mobile App (`artifacts/mobile`)
+## Folvio Mobile App (`artifacts/mobile`)
 
 European UCITS ETF portfolio tracker built with Expo (managed workflow).
 
@@ -133,7 +133,7 @@ Suffix map: XETRA→.DE, Euronext Paris→.PA, Euronext Amsterdam→.AS, LSE→.
 - `searchETFDatabase(query, maxResults)` — instant synchronous search: exact ISIN → exact ticker → partial ticker → name contains; returns scored results with `matchType`
 - `lookupByISIN(isin)` / `lookupByTicker(ticker)` — O(1) single lookups
 - Background update: checks `REMOTE_DB_URL` (GitHub Gist) max once per 24h, 5s timeout, never blocks UI; shows toast on success
-- AsyncStorage keys: `fortis_etf_database`, `fortis_etf_db_version`, `fortis_etf_db_last_check`
+- AsyncStorage keys: `folvio_etf_database`, `folvio_etf_db_version`, `folvio_etf_db_last_check`
 - **To enable remote updates**: Create a GitHub Gist with `etf-database.json` contents → get the raw URL → replace `REMOTE_DB_URL` constant in `etfDatabaseService.ts`
 
 ### Search Screen (`app/(tabs)/search.tsx`)
