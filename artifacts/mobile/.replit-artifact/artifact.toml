@@ -16,7 +16,7 @@ name = "expo"
 paths = ["/"]
 
 [services.development]
-run = "pnpm --filter @workspace/mobile run dev"
+run = "fuser -k 8081/tcp 2>/dev/null || true; fuser -k 18115/tcp 2>/dev/null || true; pnpm --filter @workspace/mobile run dev"
 
 [services.env]
 PORT = "18115"
