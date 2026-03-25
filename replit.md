@@ -78,8 +78,18 @@ European UCITS ETF portfolio tracker built with Expo (managed workflow).
 - Tables: `holdings`, `prices_cache`
 
 ### Price Service (`services/priceService.ts`)
-- `buildYahooSymbol(ticker, exchange)` — constructs Yahoo Finance symbol (e.g. VWCE → VWCE.DE for XETRA)
-- `fetchLivePrice(ticker, exchange)` — fetches from Yahoo Finance v8 API, normalizes to EUR
+
+**Data sources:**
+- **FMP (Financial Modeling Prep)** — primary price source; always routed through the API server proxy (`/api/fmp/profile/:symbol`) so the API key stays server-side. Uses `/stable/profile` endpoint which works for all UCITS ETFs including European suffixes (.DE .AS .PA .L .SW).
+- **Yahoo Finance** — secondary source for chart/historical data and multi-period start prices; on native calls Yahoo directly, on web routes through `/api/yahoo/chart/:symbol` proxy.
+- **Frankfurter** — free FX rates for GBP→EUR, USD→EUR, CHF→EUR conversions.
+
+**Key functions:**
+- `buildYahooSymbol(ticker, exchange)` — constructs Yahoo Finance / FMP symbol (e.g. VWCE → VWCE.DE for XETRA)
+- `fetchLivePrice(ticker, exchange)` — FMP profile; returns price in EUR
+- `fetchTickerMeta(symbol)` — FMP profile; returns price, change, changePct, 52W range, ISIN, isEtf
+- `fetchChartHistory(symbol, range)` — Yahoo Finance; all ranges (1D–All) via CHART_INTERVALS
+- `fetchPeriodReturn(symbol, period)` — 1D: FMP profile (price−change = previousClose); 1W–All: Yahoo historical start price + FMP live end price (parallel fetch)
 - `fetchFXRate(from, to)` — Frankfurter API (free, no key); in-memory 60s cache
 - `normalizeToEUR(price, currency, fxRates)` — handles EUR, GBp/GBX (÷100), GBP, USD, CHF
 - `refreshAllPrices(holdings)` — batch refresh with max 5 concurrent, skips manual prices and fresh cache
@@ -87,6 +97,14 @@ European UCITS ETF portfolio tracker built with Expo (managed workflow).
 - **Stale-ok fallback**: if fetch fails, keeps old cached price; if no cache and fails → null
 - **Manual protection**: prices with `source: "manual"` are never auto-overwritten
 - AppState `"active"` listener in PortfolioContext triggers refresh on foreground return
+
+**FMP API notes:**
+- API key stored as `FMP_API_KEY` secret (server-side only)
+- All FMP calls go through `artifacts/api-server/src/routes/fmp.ts` proxy
+- `/stable/profile` returns: price, change, changePercentage, volume, currency, isin, isEtf, range (yearLow-yearHigh string), companyName, exchange
+- Historical price endpoints (`/stable/historical-price-full`) require a paid plan — not used
+- `previousClose = profile.price − profile.change`
+- `yearLow/yearHigh` parsed from `range` string "low-high" via `parseRange()`
 
 ### Exchanges
 `["XETRA", "Euronext Paris", "Euronext Amsterdam", "LSE", "Borsa Italiana", "SIX Swiss", "Other"]`  

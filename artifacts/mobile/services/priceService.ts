@@ -36,6 +36,78 @@ export const EXCHANGE_SUFFIXES: Record<string, string> = {
 const CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_CONCURRENT = 5;
 
+// ─── FMP Data Source ──────────────────────────────────────────────────────────
+// All FMP requests route through the API server so the API key stays server-side.
+// This works for both web (proxy) and native (EXPO_PUBLIC_DOMAIN is set in the
+// tunnel start command and reachable from any device over HTTPS).
+
+function fmpUrl(path: string): string {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+  return `https://${domain}/api/fmp/${path}`;
+}
+
+const FMP_FETCH_OPTS = { headers: { Accept: "application/json" } };
+
+/**
+ * FMP /stable/profile response shape.
+ * This is the primary data source: works for all symbols including European ETFs.
+ * `range` is a "yearLow-yearHigh" string, e.g. "107.9-151.36".
+ * `previousClose` is not returned directly; compute it as `price - change`.
+ */
+interface FMPProfileData {
+  symbol: string;
+  companyName: string;
+  price: number;
+  change: number;
+  changePercentage: number;
+  volume: number;
+  averageVolume: number;
+  marketCap: number | null;
+  currency: string;
+  exchange: string;
+  exchangeFullName: string;
+  range: string;            // "yearLow-yearHigh"
+  isin: string | null;
+  isEtf: boolean;
+  isFund: boolean;
+  ipoDate: string | null;
+}
+
+/**
+ * Infer the native currency from the Yahoo-style symbol suffix.
+ * Accurate for all UCITS ETFs; avoids an extra network round-trip.
+ */
+function symbolCurrency(symbol: string): string {
+  if (symbol.endsWith(".L")) return "GBP";
+  if (symbol.endsWith(".SW")) return "CHF";
+  return "EUR"; // .DE .AS .PA .MI → always EUR
+}
+
+/** Parse FMP's "yearLow-yearHigh" range string into numeric parts. */
+function parseRange(range: string | undefined): { yearLow: number; yearHigh: number } {
+  if (!range) return { yearLow: 0, yearHigh: 0 };
+  const parts = range.split("-").map(Number);
+  if (parts.length !== 2 || parts.some(isNaN)) return { yearLow: 0, yearHigh: 0 };
+  return { yearLow: parts[0], yearHigh: parts[1] };
+}
+
+/**
+ * Fetch the FMP /stable/profile for any symbol (European ETFs, US stocks, etc).
+ * Returns null if the network call fails or no data is returned.
+ */
+async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
+  try {
+    const res = await fetch(fmpUrl(`profile/${encodeURIComponent(symbol)}`), FMP_FETCH_OPTS);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data: FMPProfileData[] = await res.json();
+    if (!Array.isArray(data) || !data[0]?.price) return null;
+    return data[0];
+  } catch (err) {
+    console.warn(`[fmp] profile failed for ${symbol}:`, err);
+    return null;
+  }
+}
+
 export interface PriceResult {
   ticker: string;
   priceEUR: number;
@@ -100,43 +172,31 @@ export async function fetchLivePrice(
   exchange: string
 ): Promise<PriceResult | null> {
   const symbol = buildYahooSymbol(ticker, exchange);
-  const url = yahooChartUrl(symbol, "1d", "2d");
-
   try {
-    const res = await fetch(url, { headers: YAHOO_HEADERS });
-    if (!res.ok) throw new Error(`Yahoo Finance ${res.status} for ${symbol}`);
-    const data = await res.json();
+    const profile = await fmpFetchProfile(symbol);
+    if (!profile?.price) throw new Error(`No FMP profile for ${symbol}`);
 
-    const meta = data?.chart?.result?.[0]?.meta;
-    if (!meta?.regularMarketPrice) throw new Error(`No price in response for ${symbol}`);
-
-    const rawPrice: number = meta.regularMarketPrice;
-    const currency: string = meta.currency;
-
-    const fxRates: Record<string, number> = {};
+    const currency = profile.currency ?? symbolCurrency(symbol);
+    let fxRate = 1;
     if (currency !== "EUR") {
-      const fxFrom =
-        currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+      const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
       if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-        fxRates[fxFrom] = await fetchFXRate(fxFrom, "EUR");
+        fxRate = await fetchFXRate(fxFrom, "EUR");
       }
     }
-
-    const priceEUR = normalizeToEUR(rawPrice, currency, fxRates);
-    const now = new Date().toISOString();
-
-    console.log(`[priceService] ${symbol}: ${rawPrice} ${currency} → ${priceEUR.toFixed(4)} EUR`);
+    const priceEUR = normalizeToEUR(profile.price, currency, { [currency]: fxRate });
+    console.log(`[fmp] ${symbol}: ${profile.price} ${currency} → ${priceEUR.toFixed(4)} EUR`);
 
     return {
       ticker,
       priceEUR,
       currency,
       source: "api",
-      lastFetched: now,
+      lastFetched: new Date().toISOString(),
       isStale: false,
     };
   } catch (err) {
-    console.warn(`[priceService] fetchLivePrice failed for ${ticker} (${symbol}):`, err);
+    console.warn(`[fmp] fetchLivePrice failed for ${ticker} (${symbol}):`, err);
     return null;
   }
 }
@@ -392,17 +452,16 @@ export async function resolveExchangeFromISIN(isin: string, ticker: string): Pro
 }
 
 export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null> {
-  const url = yahooChartUrl(symbol, "1d", "1y");
   try {
-    const res = await fetch(url, { headers: YAHOO_HEADERS });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const result = data?.chart?.result?.[0];
-    if (!result) throw new Error("No result");
+    // Single call to FMP /stable/profile — includes price, change, currency, ISIN, isEtf
+    const profile = await fmpFetchProfile(symbol);
 
-    const meta = result.meta ?? {};
-    const currency: string = meta.currency ?? "EUR";
+    if (!profile?.price) {
+      console.warn(`[fmp] fetchTickerMeta: no profile returned for ${symbol}`);
+      return null;
+    }
 
+    const currency = profile.currency ?? symbolCurrency(symbol);
     let fxRate = 1;
     if (currency !== "EUR") {
       const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
@@ -410,43 +469,45 @@ export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null
         try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
       }
     }
-
     const toEUR = (price: number | undefined): number => {
       if (price == null || isNaN(price)) return 0;
       if (currency === "GBp" || currency === "GBX") return (price / 100) * fxRate;
       return price * fxRate;
     };
 
-    const rawPrice: number = meta.regularMarketPrice ?? 0;
-    const rawPrev: number = meta.previousClose ?? meta.chartPreviousClose ?? rawPrice;
-    const priceEUR = toEUR(rawPrice);
-    const prevEUR = toEUR(rawPrev);
-    const change = priceEUR - prevEUR;
-    const changePct = prevEUR !== 0 ? (change / prevEUR) * 100 : 0;
+    const priceEUR   = toEUR(profile.price);
+    const changeEUR  = toEUR(profile.change);     // change from previous close (in EUR)
+    const prevEUR    = priceEUR - changeEUR;
+    // FMP changePercentage is in %, e.g. 1.00531 → +1.005%
+    const changePct  = profile.changePercentage ?? (prevEUR !== 0 ? (changeEUR / prevEUR) * 100 : 0);
+
+    const { yearLow, yearHigh } = parseRange(profile.range);
+    const isEtf = profile.isEtf ?? profile.isFund ?? false;
 
     return {
-      symbol: meta.symbol ?? symbol,
-      shortName: meta.shortName ?? symbol,
-      longName: meta.longName ?? meta.shortName ?? symbol,
+      symbol:       profile.symbol ?? symbol,
+      shortName:    profile.companyName ?? symbol,
+      longName:     profile.companyName ?? symbol,
       currency,
-      exchangeName: meta.fullExchangeName ?? meta.exchangeName ?? "",
-      quoteType: meta.instrumentType ?? "EQUITY",
-      regularMarketPrice: priceEUR,
-      previousClose: prevEUR,
-      regularMarketChange: change,
+      exchangeName: profile.exchangeFullName ?? profile.exchange ?? "",
+      quoteType:    isEtf ? "ETF" : "EQUITY",
+      regularMarketPrice:         priceEUR,
+      previousClose:              prevEUR,
+      regularMarketChange:        changeEUR,
       regularMarketChangePercent: changePct,
-      fiftyTwoWeekHigh: toEUR(meta.fiftyTwoWeekHigh),
-      fiftyTwoWeekLow: toEUR(meta.fiftyTwoWeekLow),
-      regularMarketVolume: meta.regularMarketVolume ?? 0,
-      averageDailyVolume3Month: meta.averageDailyVolume3Month ?? 0,
-      totalAssets: undefined,
+      fiftyTwoWeekHigh:           toEUR(yearHigh),
+      fiftyTwoWeekLow:            toEUR(yearLow),
+      regularMarketVolume:        profile.volume        ?? 0,
+      averageDailyVolume3Month:   profile.averageVolume ?? 0,
+      totalAssets:                undefined,
       trailingAnnualDividendYield: undefined,
-      marketCap: undefined,
-      trailingPE: undefined,
-      isin: (typeof meta.isin === "string" && meta.isin.length === 12) ? meta.isin : null,
+      marketCap:    profile.marketCap != null ? toEUR(profile.marketCap) : undefined,
+      trailingPE:   undefined,
+      isin:  (typeof profile.isin === "string" && profile.isin.length >= 12)
+               ? profile.isin.substring(0, 12) : null,
     };
   } catch (err) {
-    console.warn(`[fetchTickerMeta] failed for ${symbol}:`, err);
+    console.warn(`[fmp] fetchTickerMeta failed for ${symbol}:`, err);
     return null;
   }
 }
@@ -544,10 +605,16 @@ export async function fetchChartHistory(symbol: string, range: string): Promise<
 
 // ─── Period-based price change (canonical, used everywhere) ─────────────────
 
+export interface PeriodReturn {
+  changePct: number;
+  changeAbs: number;
+  startPriceEUR: number;
+  endPriceEUR: number;
+}
+
 /**
- * Build a Yahoo Finance chart URL using explicit period1/period2 unix timestamps
- * instead of a predefined range string. Automatically routes through the API
- * proxy when running on web.
+ * Build a Yahoo Finance chart URL using explicit period1/period2 unix timestamps.
+ * Used solely to fetch the historical start price for multi-period return calculations.
  */
 function yahooChartUrlByPeriod(
   symbol: string,
@@ -563,143 +630,100 @@ function yahooChartUrlByPeriod(
   return `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&period1=${period1}&period2=${p2}`;
 }
 
-/** Helper: parse closes from a Yahoo chart API response and convert to EUR */
-async function parseClosesFromYahooResult(result: Record<string, unknown>): Promise<{
-  closesEUR: number[];
-  currentPriceEUR: number;
-}> {
-  const meta = result.meta as Record<string, unknown> ?? {};
-  const currency: string = (meta.currency as string) ?? "EUR";
-  let fxRate = 1;
-  if (currency !== "EUR") {
-    const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-    if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-      try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
-    }
-  }
-  const toEUR = (p: number) =>
-    currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
-
-  const rawCloses: (number | null)[] =
-    (result.indicators as Record<string, unknown>)?.["quote"]?.[0]?.["close"] as (number | null)[] ?? [];
-
-  const closesEUR = rawCloses
-    .filter((c): c is number => c != null && c > 0)
-    .map(toEUR);
-
-  const rawCurrent = meta.regularMarketPrice as number | undefined;
-  const currentPriceEUR = rawCurrent ? toEUR(rawCurrent) : (closesEUR[closesEUR.length - 1] ?? 0);
-  return { closesEUR, currentPriceEUR };
-}
-
-export interface PeriodReturn {
-  changePct: number;
-  changeAbs: number;
-  startPriceEUR: number;
-  endPriceEUR: number;
-}
-
-/**
- * Calendar days for each period. Yahoo Finance forward-rolls period1 to the
- * first available trading day on or after the target date.
- */
-const PERIOD_CALENDAR_DAYS: Partial<Record<string, number>> = {
-  "1W":  7,
-  "1M":  30,
-  "3M":  91,
-  "6M":  182,
-  "1Y":  365,
-};
-
 export async function fetchPeriodReturn(
   symbol: string,
   period: "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "All",
-  opts?: { previousCloseEUR?: number; currentPriceEUR?: number }
+  _opts?: { previousCloseEUR?: number; currentPriceEUR?: number }
 ): Promise<PeriodReturn | null> {
 
-  // ── 1D ────────────────────────────────────────────────────────────────────
-  // Use previousClose passed from the quote when it is reliable (non-zero and
-  // different from the live price). Otherwise fall back to fetching the last
-  // two daily closes so we have an explicit previous-session reference.
+  // ── 1D ───────────────────────────────────────────────────────────────────
+  // FMP profile includes `change` (from previous close) and `changePercentage`.
+  // previousClose = price - change; no historical fetch needed.
   if (period === "1D") {
-    const prev = opts?.previousCloseEUR;
-    const curr = opts?.currentPriceEUR;
-    if (prev != null && curr != null && prev > 0 && prev !== curr) {
-      const changeAbs = curr - prev;
-      const changePct = (changeAbs / prev) * 100;
-      return { changePct, changeAbs, startPriceEUR: prev, endPriceEUR: curr };
-    }
-    // Fallback: fetch ~5 days of daily data; second-to-last close = prev session
-    const period1 = Math.floor((Date.now() - 5 * 86_400_000) / 1000);
-    const url = yahooChartUrlByPeriod(symbol, "1d", period1);
     try {
-      const res = await fetch(url, { headers: YAHOO_HEADERS });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const result = data?.chart?.result?.[0];
-      if (!result) return null;
-      const { closesEUR, currentPriceEUR: livePriceEUR } = await parseClosesFromYahooResult(result);
-      if (closesEUR.length < 2) return null;
-      const startPriceEUR = closesEUR[closesEUR.length - 2]; // previous session's close
-      const endPriceEUR   = livePriceEUR > 0 ? livePriceEUR : closesEUR[closesEUR.length - 1];
+      const profile = await fmpFetchProfile(symbol);
+      if (!profile?.price) return null;
+
+      const currency = profile.currency ?? symbolCurrency(symbol);
+      let fxRate = 1;
+      if (currency !== "EUR") {
+        const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+        if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+          try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+        }
+      }
+      const toEUR = (p: number) =>
+        currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
+
+      const endPriceEUR   = toEUR(profile.price);
+      const changeEUR     = toEUR(profile.change);
+      const startPriceEUR = endPriceEUR - changeEUR;        // previousClose
       if (startPriceEUR === 0) return null;
-      const changeAbs = endPriceEUR - startPriceEUR;
-      const changePct = (changeAbs / startPriceEUR) * 100;
-      return { changePct, changeAbs, startPriceEUR, endPriceEUR };
+      const changePct = profile.changePercentage ??
+        (startPriceEUR !== 0 ? (changeEUR / startPriceEUR) * 100 : 0);
+      return { changePct, changeAbs: changeEUR, startPriceEUR, endPriceEUR };
     } catch (err) {
-      console.warn(`[fetchPeriodReturn] 1D fallback failed for ${symbol}:`, err);
+      console.warn(`[fmp] fetchPeriodReturn 1D failed for ${symbol}:`, err);
       return null;
     }
   }
 
-  // ── All ───────────────────────────────────────────────────────────────────
-  // period1 = Unix epoch 0; monthly candles for efficiency; closes[0] = IPO price
-  if (period === "All") {
-    const url = yahooChartUrlByPeriod(symbol, "1mo", 0);
-    try {
-      const res = await fetch(url, { headers: YAHOO_HEADERS });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const result = data?.chart?.result?.[0];
-      if (!result) return null;
-      const { closesEUR, currentPriceEUR } = await parseClosesFromYahooResult(result);
-      if (closesEUR.length < 2) return null;
-      const startPriceEUR = closesEUR[0];
-      const endPriceEUR   = currentPriceEUR > 0 ? currentPriceEUR : closesEUR[closesEUR.length - 1];
-      if (startPriceEUR === 0) return null;
-      const changeAbs = endPriceEUR - startPriceEUR;
-      const changePct = (changeAbs / startPriceEUR) * 100;
-      return { changePct, changeAbs, startPriceEUR, endPriceEUR };
-    } catch (err) {
-      console.warn(`[fetchPeriodReturn] All failed for ${symbol}:`, err);
-      return null;
-    }
-  }
-
-  // ── 1W / 1M / 3M / 6M / 1Y ───────────────────────────────────────────────
-  // period1 = exact calendar target timestamp; Yahoo forward-rolls to the first
-  // available trading day on or after that date (same as broker behaviour).
-  // End price = meta.regularMarketPrice (live), not the last cached daily close.
+  // ── 1W / 1M / 3M / 6M / 1Y / All ────────────────────────────────────────
+  // Strategy: FMP profile for the live end price (accurate), Yahoo historical
+  // for the start price (period1 forward-rolls to the first trading day).
+  const PERIOD_CALENDAR_DAYS: Partial<Record<string, number>> = {
+    "1W": 7, "1M": 30, "3M": 91, "6M": 182, "1Y": 365,
+  };
   const calendarDays = PERIOD_CALENDAR_DAYS[period];
-  if (calendarDays == null) return null;
-  const period1 = Math.floor((Date.now() - calendarDays * 86_400_000) / 1000);
-  const url = yahooChartUrlByPeriod(symbol, "1d", period1);
+  const period1Unix = period === "All"
+    ? 0
+    : calendarDays != null
+      ? Math.floor((Date.now() - calendarDays * 86_400_000) / 1000)
+      : null;
+  if (period1Unix === null) return null;
+
+  const yahooUrl = yahooChartUrlByPeriod(symbol, "1d", period1Unix);
+
   try {
-    const res = await fetch(url, { headers: YAHOO_HEADERS });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const result = data?.chart?.result?.[0];
-    if (!result) return null;
-    const { closesEUR, currentPriceEUR } = await parseClosesFromYahooResult(result);
-    if (closesEUR.length < 2) return null;
-    const startPriceEUR = closesEUR[0]; // first trading day on/after period1 (forward roll)
-    const endPriceEUR   = currentPriceEUR > 0 ? currentPriceEUR : closesEUR[closesEUR.length - 1];
+    // Parallel: FMP live price + Yahoo historical closes for the period
+    const [profile, yRes] = await Promise.all([
+      fmpFetchProfile(symbol),
+      fetch(yahooUrl, { headers: YAHOO_HEADERS }),
+    ]);
+    if (!profile?.price) return null;
+    if (!yRes.ok) throw new Error(`Yahoo ${yRes.status}`);
+
+    const yData = await yRes.json();
+    const yResult = yData?.chart?.result?.[0];
+    if (!yResult) return null;
+
+    const currency = profile.currency ?? symbolCurrency(symbol);
+    let fxRate = 1;
+    if (currency !== "EUR") {
+      const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+        try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+      }
+    }
+    const toEUR = (p: number) =>
+      currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
+
+    const rawCloses: (number | null)[] =
+      yResult.indicators?.quote?.[0]?.close ?? [];
+    const closesEUR = rawCloses
+      .filter((c): c is number => c != null && c > 0)
+      .map(toEUR);
+
+    if (closesEUR.length < 1) return null;
+    const startPriceEUR = closesEUR[0];           // first trading day on/after period1
+    const endPriceEUR   = toEUR(profile.price);   // live price from FMP
+
     if (startPriceEUR === 0) return null;
     const changeAbs = endPriceEUR - startPriceEUR;
     const changePct = (changeAbs / startPriceEUR) * 100;
     return { changePct, changeAbs, startPriceEUR, endPriceEUR };
   } catch (err) {
-    console.warn(`[fetchPeriodReturn] ${period} failed for ${symbol}:`, err);
+    console.warn(`[fmp] fetchPeriodReturn ${period} failed for ${symbol}:`, err);
     return null;
   }
 }
