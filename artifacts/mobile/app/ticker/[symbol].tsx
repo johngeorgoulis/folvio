@@ -104,6 +104,26 @@ function symbolToExchange(symbol: string): string {
 }
 
 
+/**
+ * Derive the absolute and percentage change for the selected range directly
+ * from chart data. Used as a fallback when fetchPeriodReturn returns null
+ * (e.g. Yahoo Finance rate-limited on native Expo Go).
+ * For 1D the chart has intraday candles — the first point approximates market
+ * open, so the result is "change since open" which is close enough. For
+ * multi-day ranges the first daily close is used as the period start.
+ */
+function deriveChangeFromChart(
+  chart: ChartPoint[],
+  currentPriceEUR: number | undefined
+): { abs: number; pct: number } | null {
+  if (!chart || chart.length < 1 || !currentPriceEUR || currentPriceEUR <= 0) return null;
+  const startPrice = chart[0].priceEUR;
+  if (!startPrice || startPrice <= 0) return null;
+  const abs = currentPriceEUR - startPrice;
+  const pct = (abs / startPrice) * 100;
+  return { abs, pct };
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatCell({ label, value }: { label: string; value: string }) {
@@ -197,8 +217,14 @@ export default function TickerDetailScreen() {
       setYearData(yd);
       setChartData(monthData);
       setFetchedAt(new Date());
-      setRangePerf(initPerf?.changePct ?? null);
-      setRangeChange(initPerf ? { abs: initPerf.changeAbs, pct: initPerf.changePct } : null);
+
+      // Prefer fetchPeriodReturn result; fall back to chart-derived change so the
+      // header always reflects the selected period even when Yahoo is rate-limited.
+      const initChange = initPerf
+        ? { abs: initPerf.changeAbs, pct: initPerf.changePct }
+        : deriveChangeFromChart(monthData, m?.regularMarketPrice);
+      setRangePerf(initChange?.pct ?? null);
+      setRangeChange(initChange);
       setPerfCards({
         w:  r1w?.changePct  ?? null,
         m:  initPerf?.changePct ?? null,
@@ -249,8 +275,18 @@ export default function TickerDetailScreen() {
 
       const [d, result] = await Promise.all([chartPromise, returnPromise]);
       setChartData(d);
-      setRangePerf(result?.changePct ?? null);
-      setRangeChange(result ? { abs: result.changeAbs, pct: result.changePct } : null);
+
+      // Prefer fetchPeriodReturn result; fall back so the header always reflects
+      // the active range, even when Yahoo historical is rate-limited.
+      // 1D special case: use FMP's own change fields from meta (vs prev. close)
+      // since the intraday chart first-point only approximates the open price.
+      const resolvedChange = result
+        ? { abs: result.changeAbs, pct: result.changePct }
+        : r === "1D" && meta
+          ? { abs: meta.regularMarketChange, pct: meta.regularMarketChangePercent }
+          : deriveChangeFromChart(d, meta?.regularMarketPrice);
+      setRangePerf(resolvedChange?.pct ?? null);
+      setRangeChange(resolvedChange);
     } catch {
       setRangePerf(null);
       setRangeChange(null);

@@ -133,23 +133,25 @@ async function fmpFetchProfileSingle(symbol: string): Promise<FMPProfileData | n
  * Fetch the FMP /stable/profile for any symbol, with automatic fallback to
  * cross-listed exchanges when the primary symbol returns no data.
  *
- * Exchange fallback for Borsa Italiana (.MI) and Swiss (.SW):
- *   Most UCITS ETFs are cross-listed — same ISIN, same fund, different currency/exchange.
- *   If the primary listing has no FMP data, we try alternative listings.
- *   FMP returns `currency` in the profile, so FX conversion is always correct.
+ * Three-tier fallback strategy:
+ *   1. Primary: try symbol as-is (Yahoo-style suffix = correct FMP format)
+ *   2. Exchange swap: for .MI/.SW symbols with spotty FMP coverage, try better-covered exchanges
+ *   3. Bare ticker: if no exchange suffix was given (e.g. "VWCE" without ".DE"),
+ *      try European exchange suffixes in priority order so holdings stored without
+ *      an exchange suffix still resolve correctly.
  */
 async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
-  // 1. Primary: try the symbol as-is (Yahoo-style suffix = correct FMP format)
+  // 1. Primary: try the symbol as-is
   const primary = await fmpFetchProfileSingle(symbol);
   if (primary) return primary;
 
-  // 2. Exchange fallback: extract the suffix and try alternatives
-  const suffixMatch = symbol.match(/(\.[A-Z]+)$/);
-  if (suffixMatch) {
-    const suffix    = suffixMatch[1];                    // e.g. ".MI"
-    const base      = symbol.slice(0, -suffix.length);   // e.g. "EIMI"
-    const fallbacks = FMP_EXCHANGE_FALLBACKS[suffix];
+  const suffixMatch = symbol.match(/(\.[A-Z0-9]+)$/);
 
+  if (suffixMatch) {
+    // 2. Exchange swap for exchanges with partial FMP coverage (.MI, .SW)
+    const suffix    = suffixMatch[1];
+    const base      = symbol.slice(0, -suffix.length);
+    const fallbacks = FMP_EXCHANGE_FALLBACKS[suffix];
     if (fallbacks) {
       for (const alt of fallbacks) {
         const result = await fmpFetchProfileSingle(base + alt);
@@ -159,6 +161,19 @@ async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
         }
       }
     }
+  } else {
+    // 3. Bare ticker (no exchange suffix) — e.g. "VWCE" typed directly or stored in a
+    //    holding without an exchange field. Try the most common EU/UK listing venues.
+    const suffixOrder = [".DE", ".AS", ".PA", ".L", ".MI", ".SW"];
+    for (const alt of suffixOrder) {
+      const result = await fmpFetchProfileSingle(symbol + alt);
+      if (result) {
+        console.log(`[fmp] bare ticker ${symbol} resolved via ${symbol + alt} (${result.currency})`);
+        return result;
+      }
+    }
+    // Also try plain US-style (no suffix) one last time — catches AAPL, MSFT, etc.
+    // (already tried above as primary, so this is only reached for bare EU tickers)
   }
 
   console.warn(`[fmp] profile not found for ${symbol} (tried all fallbacks)`);
