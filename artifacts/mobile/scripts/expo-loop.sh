@@ -19,7 +19,7 @@ while true; do
   echo "[expo-loop] starting Metro (attempt ${attempt})."
   EXPO_PUBLIC_DOMAIN="${REPLIT_DEV_DOMAIN:-}" \
   EXPO_PUBLIC_REPL_ID="${REPL_ID:-}" \
-    pnpm exec expo start --tunnel --port "${EXPO_PORT}" || true
+    npx expo start --tunnel --port "${EXPO_PORT}" || true
   echo "[expo-loop] Metro exited — clearing port and restarting in 3 s."
   fuser -k "${EXPO_PORT}/tcp" 2>/dev/null || true
   sleep 3
