@@ -1,6 +1,6 @@
 kind = "mobile"
 previewPath = "/"
-title = "Fortis"
+title = "Folvio"
 version = "1.0.0"
 id = "artifacts/mobile"
 router = "expo-domain"
@@ -10,13 +10,13 @@ name = "expo"
 version = "1.0.0"
 
 [[services]]
-ensurePreviewReachable = "/status"
+ensurePreviewReachable = "/"
 localPort = 18115
 name = "expo"
 paths = ["/"]
 
 [services.development]
-run = "pnpm --filter @workspace/mobile run dev"
+run = "pnpm --filter @workspace/mobile run web-static"
 
 [services.env]
 PORT = "18115"
