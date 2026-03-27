@@ -123,15 +123,28 @@ const FMP_EXCHANGE_FALLBACKS: Partial<Record<string, string[]>> = {
 
 /** Low-level: fetch a single FMP profile by exact symbol. Returns null if not found. */
 async function fmpFetchProfileSingle(symbol: string): Promise<FMPProfileData | null> {
+  const url = fmpUrl(`profile/${encodeURIComponent(symbol)}`);
+  console.log(`[fmp:debug] fmpFetchProfileSingle(${symbol}) → ${url}`);
   try {
-    const res = await fetch(fmpUrl(`profile/${encodeURIComponent(symbol)}`), FMP_FETCH_OPTS);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(url, FMP_FETCH_OPTS);
+    console.log(`[fmp:debug] ${symbol} HTTP ${res.status} ok=${res.ok}`);
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.warn(`[fmp:debug] ${symbol} non-OK body:`, body.slice(0, 300));
+      throw new Error(`HTTP ${res.status}`);
+    }
     const data = await res.json();
+    console.log(`[fmp:debug] ${symbol} raw response:`, JSON.stringify(data).slice(0, 400));
     // /stable/profile returns an array [{...}]; handle single-object defensively
     const profile: FMPProfileData = Array.isArray(data) ? data[0] : data;
-    if (!profile?.price) return null;
+    if (!profile?.price) {
+      console.warn(`[fmp:debug] ${symbol} → null (no price). profile keys:`, profile ? Object.keys(profile) : "null/undefined");
+      return null;
+    }
+    console.log(`[fmp:debug] ${symbol} → price=${profile.price} currency=${profile.currency}`);
     return profile;
-  } catch {
+  } catch (err) {
+    console.error(`[fmp:debug] ${symbol} caught error:`, err);
     return null;
   }
 }
