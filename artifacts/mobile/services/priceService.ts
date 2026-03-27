@@ -126,9 +126,11 @@ async function fmpFetchProfileSingle(symbol: string): Promise<FMPProfileData | n
   try {
     const res = await fetch(fmpUrl(`profile/${encodeURIComponent(symbol)}`), FMP_FETCH_OPTS);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data: FMPProfileData[] = await res.json();
-    if (!Array.isArray(data) || !data[0]?.price) return null;
-    return data[0];
+    const data = await res.json();
+    // /stable/profile returns a single object; v3 returned an array — handle both
+    const profile: FMPProfileData = Array.isArray(data) ? data[0] : data;
+    if (!profile?.price) return null;
+    return profile;
   } catch {
     return null;
   }
