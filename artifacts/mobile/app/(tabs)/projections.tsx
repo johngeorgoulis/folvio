@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import React, { useState, useMemo, useEffect } from "react";
 import {
   ScrollView, View, Text, TextInput, TouchableOpacity,
@@ -8,6 +9,7 @@ import Svg, { Path, Defs, LinearGradient, Stop, Line, Text as SvgText } from "re
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { formatEUR } from "@/utils/format";
 
 const theme = Colors.dark;
@@ -139,6 +141,7 @@ function ProjectionChart({
 export default function ProjectionsScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { canUseAllScenarios, showPaywall } = useSubscription();
   // Calculate annualized return from actual portfolio performance
   const { totalPortfolioValue, totalInvested, totalGainPct, holdings } = usePortfolio();
 
@@ -184,6 +187,8 @@ export default function ProjectionsScreen() {
   const startValue = totalPortfolioValue > 0 ? totalPortfolioValue : 0;
   const dca = parseFloat(monthlyDCA) || 0;
   const chartWidth = width - 32;
+  const topPad = Platform.OS === "web" ? 24 : insets.top + 8;
+  const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
   const scenarioData = useMemo(() =>
     SCENARIOS.map((s) => ({
@@ -194,6 +199,10 @@ export default function ProjectionsScreen() {
     })),
     [startValue, dca, years, scenarioPcts]
   );
+
+  const visibleScenarios = canUseAllScenarios
+    ? SCENARIOS
+    : SCENARIOS.filter((s) => s.key === "base");
 
   const tableData = useMemo(() =>
     HORIZONS.map((h) => ({
@@ -212,9 +221,6 @@ export default function ProjectionsScreen() {
     }
     return points;
   }, [startValue, dca, years]);
-
-  const topPad = Platform.OS === "web" ? 24 : insets.top + 8;
-  const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
   return (
     <ScrollView
@@ -276,18 +282,22 @@ export default function ProjectionsScreen() {
         <Text style={[s.cardTitle, { color: theme.text }]}>Growth Projection</Text>
         <ProjectionChart
           width={chartWidth - 36}
-          scenarios={scenarioData.map((sc) => ({ color: sc.color, points: sc.points }))}
+          scenarios={scenarioData
+            .filter((sc) => visibleScenarios.some((vs) => vs.key === sc.key))
+            .map((sc) => ({ color: sc.color, points: sc.points }))}
           investedPoints={investedPoints}
           years={years}
         />
         {/* Legend */}
         <View style={s.legend}>
-          {scenarioData.map((sc) => (
-            <View key={sc.key} style={s.legendItem}>
-              <View style={[s.legendDot, { backgroundColor: sc.color }]} />
-              <Text style={[s.legendLabel, { color: theme.textSecondary }]}>{sc.label} ({sc.pct}%)</Text>
-            </View>
-          ))}
+          {scenarioData
+            .filter((sc) => visibleScenarios.some((vs) => vs.key === sc.key))
+            .map((sc) => (
+              <View key={sc.key} style={s.legendItem}>
+                <View style={[s.legendDot, { backgroundColor: sc.color }]} />
+                <Text style={[s.legendLabel, { color: theme.textSecondary }]}>{sc.label} ({sc.pct}%)</Text>
+              </View>
+            ))}
           <View style={s.legendItem}>
             <View style={[s.legendDot, { backgroundColor: "rgba(255,255,255,0.3)" }]} />
             <Text style={[s.legendLabel, { color: theme.textSecondary }]}>Total Invested</Text>
@@ -295,24 +305,49 @@ export default function ProjectionsScreen() {
         </View>
       </View>
 
+      {/* Scenarios upsell — show when free user */}
+      {!canUseAllScenarios && (
+        <View style={[s.card, { backgroundColor: theme.backgroundCard, borderColor: theme.tint + "44" }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Feather name="lock" size={15} color={theme.tint} />
+            <Text style={[s.cardTitle, { color: theme.tint }]}>Unlock All Scenarios</Text>
+          </View>
+          <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: theme.textSecondary, lineHeight: 18 }}>
+            Conservative (4%) and Optimistic (10%) projections are available on the Investor plan.
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: theme.tint, paddingVertical: 12, borderRadius: 10, alignItems: "center" }}
+            onPress={() => showPaywall("all-scenarios")}
+          >
+            <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color: theme.background }}>
+              Upgrade to Investor
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Table */}
       <View style={[s.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
         <Text style={[s.cardTitle, { color: theme.text }]}>Summary Table</Text>
         {/* Header */}
         <View style={[s.tableRow, { borderBottomColor: theme.border }]}>
           <Text style={[s.tableHeader, { color: theme.textTertiary, flex: 1 }]}>Year</Text>
-          {SCENARIOS.map((sc) => (
+          {visibleScenarios.map((sc) => (
             <Text key={sc.key} style={[s.tableHeader, { color: sc.color, flex: 2, textAlign: "right" }]}>{sc.label}</Text>
           ))}
         </View>
         {tableData.map((row) => (
           <View key={row.years} style={[s.tableRow, { borderBottomColor: theme.border }]}>
             <Text style={[s.tableCell, { color: theme.text, flex: 1 }]}>{row.years}Y</Text>
-            {row.values.map((v, i) => (
-              <Text key={i} style={[s.tableCell, { color: SCENARIOS[i].color, flex: 2, textAlign: "right" }]}>
-                {v >= 1000000 ? `€${(v / 1000000).toFixed(2)}M` : `€${(v / 1000).toFixed(1)}k`}
-              </Text>
-            ))}
+            {visibleScenarios.map((sc) => {
+              const idx = SCENARIOS.findIndex((s) => s.key === sc.key);
+              const v = row.values[idx];
+              return (
+                <Text key={sc.key} style={[s.tableCell, { color: sc.color, flex: 2, textAlign: "right" }]}>
+                  {v >= 1000000 ? `€${(v / 1000000).toFixed(2)}M` : `€${(v / 1000).toFixed(1)}k`}
+                </Text>
+              );
+            })}
           </View>
         ))}
       </View>
@@ -323,7 +358,7 @@ export default function ProjectionsScreen() {
         <Text style={[s.cardSub, { color: theme.textSecondary }]}>
           Base scenario uses your actual annualized return ({annualizedReturn}%/yr)
         </Text>
-        {SCENARIOS.map((sc) => (
+        {visibleScenarios.map((sc) => (
           <View key={sc.key} style={[s.inputRow, { marginTop: 10 }]}>
             <View style={[s.legendDot, { backgroundColor: sc.color, marginRight: 8 }]} />
             <Text style={[s.inputLabel, { color: theme.textSecondary, flex: 1 }]}>{sc.label}</Text>

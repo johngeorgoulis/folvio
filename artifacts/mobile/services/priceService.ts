@@ -105,15 +105,20 @@ function parseRange(range: string | undefined): { yearLow: number; yearHigh: num
 // The ".AMS", ".XETR", ".PAR", ".MIL" formats were tested and do NOT work in
 // FMP's /stable API. Yahoo-style suffixes are the correct primary format.
 //
-// However, FMP has partial coverage for Borsa Italiana (.MI) symbols.
-// When a .MI symbol returns no data, we try the same ETF on exchanges that
-// have better FMP coverage. Most UCITS ETFs cross-listed on Borsa Italiana
-// are also available on Euronext Paris, Amsterdam, or London.
+// However, FMP has uneven ETF coverage across European exchanges.  A UCITS ETF
+// listed on XETRA may only appear in FMP under its Amsterdam or London listing
+// (and vice-versa).  The fallback table below encodes cross-listing order for
+// every EU exchange so a single failed lookup automatically retries the other
+// venues before giving up.
 //
-// Fallback order per exchange:
+// Fallback order per exchange (most → least reliable FMP coverage):
 const FMP_EXCHANGE_FALLBACKS: Partial<Record<string, string[]>> = {
+  ".DE": [".AS", ".L", ".PA"],          // XETRA → Amsterdam → London → Paris
+  ".AS": [".L", ".DE", ".PA"],          // Amsterdam → London → XETRA → Paris
+  ".PA": [".DE", ".AS", ".L"],          // Paris → XETRA → Amsterdam → London
+  ".L":  [".DE", ".AS", ".PA"],         // London → XETRA → Amsterdam → Paris
   ".MI": [".PA", ".AS", ".DE", ".L"],   // Milan → Paris → Amsterdam → XETRA → London
-  ".SW": [".DE", ".AS"],                // Swiss → XETRA → Amsterdam
+  ".SW": [".DE", ".AS", ".L"],          // Swiss → XETRA → Amsterdam → London
 };
 
 /** Low-level: fetch a single FMP profile by exact symbol. Returns null if not found. */
@@ -133,12 +138,13 @@ async function fmpFetchProfileSingle(symbol: string): Promise<FMPProfileData | n
  * Fetch the FMP /stable/profile for any symbol, with automatic fallback to
  * cross-listed exchanges when the primary symbol returns no data.
  *
- * Three-tier fallback strategy:
+ * Four-tier fallback strategy:
  *   1. Primary: try symbol as-is (Yahoo-style suffix = correct FMP format)
- *   2. Exchange swap: for .MI/.SW symbols with spotty FMP coverage, try better-covered exchanges
- *   3. Bare ticker: if no exchange suffix was given (e.g. "VWCE" without ".DE"),
- *      try European exchange suffixes in priority order so holdings stored without
- *      an exchange suffix still resolve correctly.
+ *   2. Exchange swap: all European suffixes have cross-listing fallbacks
+ *      (e.g. VWCE.DE → tries .AS → .L → .PA before giving up)
+ *   3. Bare ticker: for suffixed symbols, try the ticker without any suffix
+ *      (some ETFs are indexed by FMP without an exchange code)
+ *   4. Suffix probe: for bare tickers (no suffix stored), probe all EU venues
  */
 async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
   // 1. Primary: try the symbol as-is
@@ -148,9 +154,10 @@ async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
   const suffixMatch = symbol.match(/(\.[A-Z0-9]+)$/);
 
   if (suffixMatch) {
-    // 2. Exchange swap for exchanges with partial FMP coverage (.MI, .SW)
     const suffix    = suffixMatch[1];
     const base      = symbol.slice(0, -suffix.length);
+
+    // 2. Exchange swap — try every cross-listed venue for this exchange
     const fallbacks = FMP_EXCHANGE_FALLBACKS[suffix];
     if (fallbacks) {
       for (const alt of fallbacks) {
@@ -161,9 +168,15 @@ async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
         }
       }
     }
+
+    // 3. Bare ticker — some ETFs are in FMP without an exchange suffix
+    const bareResult = await fmpFetchProfileSingle(base);
+    if (bareResult) {
+      console.log(`[fmp] ${symbol} → resolved via bare ticker ${base} (${bareResult.currency})`);
+      return bareResult;
+    }
   } else {
-    // 3. Bare ticker (no exchange suffix) — e.g. "VWCE" typed directly or stored in a
-    //    holding without an exchange field. Try the most common EU/UK listing venues.
+    // 4. Bare ticker (no exchange suffix stored) — probe all EU/UK venues
     const suffixOrder = [".DE", ".AS", ".PA", ".L", ".MI", ".SW"];
     for (const alt of suffixOrder) {
       const result = await fmpFetchProfileSingle(symbol + alt);
@@ -172,8 +185,6 @@ async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
         return result;
       }
     }
-    // Also try plain US-style (no suffix) one last time — catches AAPL, MSFT, etc.
-    // (already tried above as primary, so this is only reached for bare EU tickers)
   }
 
   console.warn(`[fmp] profile not found for ${symbol} (tried all fallbacks)`);
@@ -239,6 +250,84 @@ export function normalizeToEUR(
   }
 }
 
+/**
+ * Fallback price fetch via Yahoo Finance chart endpoint (native only).
+ * Uses `meta.regularMarketPrice` from the same endpoint already used for
+ * historical charts — no server proxy required.
+ * Tries the primary symbol first, then European exchange suffixes for bare tickers.
+ */
+async function fetchLivePriceFromYahoo(
+  ticker: string,
+  exchange: string
+): Promise<PriceResult | null> {
+  if (Platform.OS === "web") return null; // web must route through server proxy
+
+  const primarySymbol = buildYahooSymbol(ticker, exchange);
+
+  async function trySymbol(symbol: string): Promise<PriceResult | null> {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+    try {
+      const res = await fetch(url, { headers: YAHOO_HEADERS });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      const price: number | undefined = meta?.regularMarketPrice;
+      if (!price || price <= 0) return null;
+
+      const currency: string = meta?.currency ?? symbolCurrency(symbol);
+      let fxRate = 1;
+      if (currency !== "EUR") {
+        const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+        if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+          try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+        }
+      }
+      const priceEUR = normalizeToEUR(price, currency, { [currency]: fxRate });
+      console.log(`[yahoo] ${symbol}: ${price} ${currency} → ${priceEUR.toFixed(4)} EUR`);
+      return {
+        ticker,
+        priceEUR,
+        currency,
+        source: "api",
+        lastFetched: new Date().toISOString(),
+        isStale: false,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // 1. Try primary symbol
+  const primary = await trySymbol(primarySymbol);
+  if (primary) return primary;
+
+  const suffixMatch = primarySymbol.match(/(\.[A-Z0-9]+)$/);
+
+  if (suffixMatch) {
+    // 2. Exchange swap — same cross-listing table as FMP
+    const suffix    = suffixMatch[1];
+    const fallbacks = FMP_EXCHANGE_FALLBACKS[suffix];
+    if (fallbacks) {
+      for (const alt of fallbacks) {
+        const result = await trySymbol(ticker + alt);
+        if (result) return result;
+      }
+    }
+    // 3. Bare ticker fallback
+    const bareResult = await trySymbol(ticker);
+    if (bareResult) return bareResult;
+  } else {
+    // 4. Bare ticker — probe common European exchanges
+    for (const suffix of [".DE", ".AS", ".PA", ".L", ".MI", ".SW"]) {
+      const result = await trySymbol(ticker + suffix);
+      if (result) return result;
+    }
+  }
+
+  console.warn(`[yahoo] fetchLivePrice failed for ${ticker} (${primarySymbol})`);
+  return null;
+}
+
 export async function fetchLivePrice(
   ticker: string,
   exchange: string
@@ -269,7 +358,8 @@ export async function fetchLivePrice(
     };
   } catch (err) {
     console.warn(`[fmp] fetchLivePrice failed for ${ticker} (${symbol}):`, err);
-    return null;
+    // Fallback: try Yahoo Finance directly (works on native without server proxy)
+    return fetchLivePriceFromYahoo(ticker, exchange);
   }
 }
 
