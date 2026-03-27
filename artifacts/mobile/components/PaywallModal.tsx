@@ -25,30 +25,33 @@ const theme = Colors.dark;
 // ─── Plan definitions ──────────────────────────────────────────────────────────
 
 const INVESTOR_FEATURES = [
-  { icon: "layers"   as const, text: `Unlimited holdings (free: ${FREE_TIER_LIMIT} max)` },
-  { icon: "upload"   as const, text: "CSV import from 10+ brokers" },
-  { icon: "download" as const, text: "Export portfolio to CSV" },
-  { icon: "bar-chart-2" as const, text: "Benchmark comparison (S&P 500, MSCI World…)" },
+  { icon: "layers"      as const, text: `Unlimited holdings (free: ${FREE_TIER_LIMIT} max)` },
+  { icon: "book"        as const, text: "DCA contribution log" },
+  { icon: "trending-up" as const, text: "All projection scenarios (Conservative & Optimistic)" },
+  { icon: "bell"        as const, text: "Push notifications (DCA reminders, drift alerts)" },
+  { icon: "sliders"     as const, text: "Rebalancing suggestions (DCA & full)" },
 ];
 
 const PRO_FEATURES = [
   { icon: "check-circle" as const, text: "Everything in Investor" },
-  { icon: "sliders"      as const, text: "Rebalancing calculator (DCA & full)" },
-  { icon: "trending-up"  as const, text: "10-year growth projections" },
-  { icon: "zap"          as const, text: "Priority support" },
+  { icon: "upload"       as const, text: "CSV import from 10+ brokers" },
+  { icon: "download"     as const, text: "Export portfolio to CSV" },
+  { icon: "bar-chart-2"  as const, text: "Benchmark comparison (S&P 500, MSCI World…)" },
 ];
 
 // ─── Trigger → human-readable copy ────────────────────────────────────────────
 
 function triggerMessage(trigger?: string): string {
   switch (trigger) {
-    case "holdings":    return `Add more than ${FREE_TIER_LIMIT} holdings`;
-    case "import":      return "Import from CSV";
-    case "export":      return "Export to CSV";
-    case "benchmark":   return "Benchmark comparison";
-    case "rebalance":   return "Rebalancing calculator";
-    case "projections": return "10-year projections";
-    default:            return "Unlock all Folvio features";
+    case "holdings":      return `Add more than ${FREE_TIER_LIMIT} holdings`;
+    case "dca-log":       return "Log DCA contributions";
+    case "all-scenarios": return "Conservative & Optimistic projections";
+    case "notifications": return "Push notifications";
+    case "rebalance":     return "Rebalancing suggestions";
+    case "import":        return "Import from CSV";
+    case "export":        return "Export to CSV";
+    case "benchmark":     return "Benchmark comparison";
+    default:              return "Unlock all Folvio features";
   }
 }
 

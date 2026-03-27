@@ -27,12 +27,14 @@ export const YEARLY_SAVINGS_PCT = {
 // ─── Feature gates ─────────────────────────────────────────────────────────────
 
 export interface FeatureGates {
-  canAddUnlimitedHoldings: boolean;
-  canImportCSV:            boolean;
-  canExportCSV:            boolean;
+  canAddUnlimitedHoldings:  boolean;
+  canImportCSV:             boolean;
+  canExportCSV:             boolean;
   canUseBenchmarkComparison: boolean;
-  canUseRebalancing:       boolean;
-  canUseProjections:       boolean;
+  canUseFullRebalance:      boolean;
+  canUseAllScenarios:       boolean;
+  canUseDCALog:             boolean;
+  canUsePushNotifications:  boolean;
 }
 
 function getFeatureGates(tier: SubscriptionTier): FeatureGates {
@@ -40,11 +42,13 @@ function getFeatureGates(tier: SubscriptionTier): FeatureGates {
   const isPro              = tier === "pro";
   return {
     canAddUnlimitedHoldings:    isInvestorOrHigher,
-    canImportCSV:               isInvestorOrHigher,
-    canExportCSV:               isInvestorOrHigher,
-    canUseBenchmarkComparison:  isInvestorOrHigher,
-    canUseRebalancing:          isPro,
-    canUseProjections:          isPro,
+    canImportCSV:               isPro,
+    canExportCSV:               isPro,
+    canUseBenchmarkComparison:  isPro,
+    canUseFullRebalance:        isInvestorOrHigher,
+    canUseAllScenarios:         isInvestorOrHigher,
+    canUseDCALog:               isInvestorOrHigher,
+    canUsePushNotifications:    isInvestorOrHigher,
   };
 }
 
@@ -174,8 +178,9 @@ export function tierLabel(tier: SubscriptionTier): string {
 /** Which paid tier is required for a given feature trigger */
 export function requiredTierFor(trigger?: string): SubscriptionTier {
   switch (trigger) {
-    case "rebalance":
-    case "projections":
+    case "import":
+    case "export":
+    case "benchmark":
       return "pro";
     default:
       return "investor";
