@@ -239,6 +239,79 @@ export function normalizeToEUR(
   }
 }
 
+/**
+ * Fallback price fetch via Yahoo Finance chart endpoint (native only).
+ * Uses `meta.regularMarketPrice` from the same endpoint already used for
+ * historical charts — no server proxy required.
+ * Tries the primary symbol first, then European exchange suffixes for bare tickers.
+ */
+async function fetchLivePriceFromYahoo(
+  ticker: string,
+  exchange: string
+): Promise<PriceResult | null> {
+  if (Platform.OS === "web") return null; // web must route through server proxy
+
+  const primarySymbol = buildYahooSymbol(ticker, exchange);
+
+  async function trySymbol(symbol: string): Promise<PriceResult | null> {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+    try {
+      const res = await fetch(url, { headers: YAHOO_HEADERS });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      const price: number | undefined = meta?.regularMarketPrice;
+      if (!price || price <= 0) return null;
+
+      const currency: string = meta?.currency ?? symbolCurrency(symbol);
+      let fxRate = 1;
+      if (currency !== "EUR") {
+        const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+        if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+          try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+        }
+      }
+      const priceEUR = normalizeToEUR(price, currency, { [currency]: fxRate });
+      console.log(`[yahoo] ${symbol}: ${price} ${currency} → ${priceEUR.toFixed(4)} EUR`);
+      return {
+        ticker,
+        priceEUR,
+        currency,
+        source: "api",
+        lastFetched: new Date().toISOString(),
+        isStale: false,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // 1. Try primary symbol
+  const primary = await trySymbol(primarySymbol);
+  if (primary) return primary;
+
+  // 2. For bare tickers (no suffix), probe common European exchanges
+  if (!primarySymbol.includes(".")) {
+    for (const suffix of [".DE", ".AS", ".PA", ".L", ".MI", ".SW"]) {
+      const result = await trySymbol(ticker + suffix);
+      if (result) return result;
+    }
+  }
+
+  // 3. For .MI / .SW with spotty coverage, try cross-listed exchanges
+  const suffixMatch = primarySymbol.match(/(\.[A-Z0-9]+)$/);
+  if (suffixMatch && FMP_EXCHANGE_FALLBACKS[suffixMatch[1]]) {
+    const base = ticker;
+    for (const alt of FMP_EXCHANGE_FALLBACKS[suffixMatch[1]]!) {
+      const result = await trySymbol(base + alt);
+      if (result) return result;
+    }
+  }
+
+  console.warn(`[yahoo] fetchLivePrice failed for ${ticker} (${primarySymbol})`);
+  return null;
+}
+
 export async function fetchLivePrice(
   ticker: string,
   exchange: string
@@ -269,7 +342,8 @@ export async function fetchLivePrice(
     };
   } catch (err) {
     console.warn(`[fmp] fetchLivePrice failed for ${ticker} (${symbol}):`, err);
-    return null;
+    // Fallback: try Yahoo Finance directly (works on native without server proxy)
+    return fetchLivePriceFromYahoo(ticker, exchange);
   }
 }
 
