@@ -37,13 +37,35 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_CONCURRENT = 5;
 
 // ─── FMP Data Source ──────────────────────────────────────────────────────────
-// All FMP requests route through the API server so the API key stays server-side.
-// This works for both web (proxy) and native (EXPO_PUBLIC_DOMAIN is set in the
-// tunnel start command and reachable from any device over HTTPS).
+// Two modes depending on platform and env:
+//
+//   WEB / native-with-server:
+//     EXPO_PUBLIC_DOMAIN is set → route through the API proxy so the key is
+//     kept server-side.  URL: https://<domain>/api/fmp/profile/<symbol>
+//
+//   NATIVE without server (EAS preview / production builds):
+//     EXPO_PUBLIC_DOMAIN is NOT set → call FMP /stable directly using the
+//     EXPO_PUBLIC_FMP_API_KEY build secret (set in eas.json env or EAS Secrets).
+//     URL: https://financialmodelingprep.com/stable/profile?symbol=<symbol>&apikey=<key>
+//
+// eas.json env to add: "EXPO_PUBLIC_FMP_API_KEY": "<your-key>"
+
+const FMP_DIRECT_BASE = "https://financialmodelingprep.com/stable";
 
 function fmpUrl(path: string): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-  return `https://${domain}/api/fmp/${path}`;
+  if (domain) {
+    // Proxy path: keep API key server-side
+    return `https://${domain}/api/fmp/${path}`;
+  }
+  // Direct path: extract symbol from path like "profile/VWCE.DE"
+  // and rebuild as /stable/profile?symbol=VWCE.DE&apikey=<key>
+  const apiKey = process.env.EXPO_PUBLIC_FMP_API_KEY ?? "";
+  const [endpoint, symbol] = path.split("/");
+  if (symbol) {
+    return `${FMP_DIRECT_BASE}/${endpoint}?symbol=${encodeURIComponent(decodeURIComponent(symbol))}&apikey=${apiKey}`;
+  }
+  return `${FMP_DIRECT_BASE}/${path}?apikey=${apiKey}`;
 }
 
 const FMP_FETCH_OPTS = { headers: { Accept: "application/json" } };

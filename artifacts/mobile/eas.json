@@ -11,7 +11,8 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_ENV": "preview"
+        "EXPO_PUBLIC_ENV": "preview",
+        "EXPO_PUBLIC_FMP_API_KEY": "YOUR_FMP_API_KEY"
       }
     },
     "simulator": {
@@ -20,7 +21,8 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_ENV": "preview"
+        "EXPO_PUBLIC_ENV": "preview",
+        "EXPO_PUBLIC_FMP_API_KEY": "YOUR_FMP_API_KEY"
       }
     },
     "production": {
@@ -29,7 +31,8 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_ENV": "production"
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_FMP_API_KEY": "YOUR_FMP_API_KEY"
       }
     }
   },
