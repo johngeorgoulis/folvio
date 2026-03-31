@@ -19,8 +19,10 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import NotificationManager from "@/components/NotificationManager";
 import OnboardingFlow, { ONBOARDING_KEY } from "@/components/OnboardingFlow";
+import PaywallModal from "@/components/PaywallModal";
 import { PortfolioProvider } from "@/context/PortfolioContext";
 import { AllocationProvider } from "@/context/AllocationContext";
+import { SubscriptionProvider, useSubscription } from "@/context/SubscriptionContext";
 import { configureNotificationHandler } from "@/services/notificationService";
 import { loadAssetClassOverrides } from "@/services/assetClassService";
 import { initDb } from "@/services/db";
@@ -29,6 +31,19 @@ SplashScreen.preventAutoHideAsync();
 configureNotificationHandler();
 
 const queryClient = new QueryClient();
+
+// ─── Global paywall driven by SubscriptionContext ─────────────────────────────
+// Rendered inside the provider tree so it can read/close the paywall state.
+function GlobalPaywall() {
+  const { paywallVisible, paywallTrigger, hidePaywall } = useSubscription();
+  return (
+    <PaywallModal
+      visible={paywallVisible}
+      onClose={hidePaywall}
+      trigger={paywallTrigger}
+    />
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -106,10 +121,12 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              <PortfolioProvider>
-                <AllocationProvider>
-                  <NotificationManager />
-                  <Stack screenOptions={{ headerShown: false }}>
+              <SubscriptionProvider>
+                <PortfolioProvider>
+                  <AllocationProvider>
+                    <GlobalPaywall />
+                    <NotificationManager />
+                    <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                     <Stack.Screen
                       name="holding/[id]"
@@ -132,8 +149,9 @@ export default function RootLayout() {
                       }}
                     />
                   </Stack>
-                </AllocationProvider>
-              </PortfolioProvider>
+                  </AllocationProvider>
+                </PortfolioProvider>
+              </SubscriptionProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

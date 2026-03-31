@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useAllocation, THRESHOLD_OPTIONS } from "@/context/AllocationContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import {
   calculateAllocations,
   calculateDCARebalance,
@@ -110,6 +111,7 @@ export default function RebalanceScreen() {
 
   const { holdings } = usePortfolio();
   const { targets, rebalanceThreshold, isLoadingTargets } = useAllocation();
+  const { canUseFullRebalance, showPaywall } = useSubscription();
 
   const [mode, setMode] = useState<"dca" | "full">("dca");
   const [cashInput, setCashInput] = useState("");
@@ -286,13 +288,19 @@ export default function RebalanceScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modeBtn, { backgroundColor: mode === "full" ? theme.tint + "22" : theme.backgroundElevated, borderColor: mode === "full" ? theme.tint : theme.border }]}
-              onPress={() => { setMode("full"); setResult(null); }}
+              onPress={() => {
+                if (!canUseFullRebalance) { showPaywall("rebalance"); return; }
+                setMode("full"); setResult(null);
+              }}
             >
-              <Text style={[styles.modeBtnText, { color: mode === "full" ? theme.tint : theme.textSecondary }]}>
-                Full Rebalance
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={[styles.modeBtnText, { color: mode === "full" ? theme.tint : theme.textSecondary }]}>
+                  Full Rebalance
+                </Text>
+                {!canUseFullRebalance && <Feather name="lock" size={12} color={theme.textTertiary} />}
+              </View>
               <Text style={[styles.modeSubText, { color: mode === "full" ? theme.tint + "99" : theme.textTertiary }]}>
-                Buy & sell
+                {canUseFullRebalance ? "Buy & sell" : "Investor+"}
               </Text>
             </TouchableOpacity>
           </View>

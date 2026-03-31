@@ -25,7 +25,7 @@ import {
   type BrokerConfig,
   type ParsedHolding,
 } from "@/services/csvImport";
-import PremiumModal from "@/components/PremiumModal";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { resolveExchangeFromISIN } from "@/services/priceService";
 
 type DuplicateAction = "skip" | "merge" | "replace";
@@ -362,6 +362,16 @@ export default function ImportScreen() {
   const { holdings, holdingCount, addHolding, updateHolding, deleteHolding } =
     usePortfolio();
 
+  const { canImportCSV, showPaywall } = useSubscription();
+
+  // Redirect to paywall immediately if CSV import is not available on this tier
+  React.useEffect(() => {
+    if (!canImportCSV) {
+      showPaywall("import");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedBroker, setSelectedBroker] = useState<BrokerConfig | null>(
     null,
@@ -373,7 +383,6 @@ export default function ImportScreen() {
   const [parsing, setParsing] = useState(false);
   const [importItems, setImportItems] = useState<ImportItem[]>([]);
   const [importing, setImporting] = useState(false);
-  const [showPremium, setShowPremium] = useState(false);
 
   // ── File picking ────────────────────────────────────────────────────────────
 
@@ -953,10 +962,6 @@ export default function ImportScreen() {
         </KeyboardAvoidingView>
       )}
 
-      <PremiumModal
-        visible={showPremium}
-        onClose={() => setShowPremium(false)}
-      />
     </View>
   );
 }

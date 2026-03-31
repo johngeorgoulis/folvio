@@ -16,9 +16,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
 import Colors from "@/constants/colors";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { formatEUR, formatPct } from "@/utils/format";
 import AddHoldingModal, { type AddHoldingInitialValues } from "@/components/AddHoldingModal";
-import PremiumModal from "@/components/PremiumModal";
 
 const theme = Colors.dark;
 
@@ -44,8 +44,9 @@ export default function HoldingsScreen() {
     totalPortfolioValue,
   } = usePortfolio();
 
-  const [showAdd, setShowAdd]         = useState(false);
-  const [showPremium, setShowPremium] = useState(false);
+  const { canAddUnlimitedHoldings, showPaywall } = useSubscription();
+
+  const [showAdd, setShowAdd]             = useState(false);
   const [prefillValues, setPrefillValues] = useState<AddHoldingInitialValues | undefined>();
 
   const params = useLocalSearchParams<{
@@ -54,6 +55,8 @@ export default function HoldingsScreen() {
     prefillExchange?: string;
   }>();
   const processedTickerRef = useRef<string | null>(null);
+
+  const isHardLimited = isAtLimit && !canAddUnlimitedHoldings;
 
   useEffect(() => {
     if (params.prefillTicker && params.prefillTicker !== processedTickerRef.current) {
@@ -64,13 +67,13 @@ export default function HoldingsScreen() {
         exchange: params.prefillExchange ?? "XETRA",
       };
       setPrefillValues(iv);
-      if (!isAtLimit) setShowAdd(true);
-      else setShowPremium(true);
+      if (!isHardLimited) setShowAdd(true);
+      else showPaywall("holdings");
     }
-  }, [params.prefillTicker, params.prefillName, params.prefillExchange, isAtLimit]);
+  }, [params.prefillTicker, params.prefillName, params.prefillExchange, isHardLimited, showPaywall]);
 
   function handleAddPress() {
-    if (isAtLimit) setShowPremium(true);
+    if (isHardLimited) showPaywall("holdings");
     else setShowAdd(true);
   }
 
@@ -109,7 +112,7 @@ export default function HoldingsScreen() {
             <Text style={styles.pageTitle}>Holdings</Text>
             <Text style={styles.pageSubtitle}>
               {holdings.length} holding{holdings.length !== 1 ? "s" : ""}
-              {holdings.length >= FREE_TIER_LIMIT && (
+              {isHardLimited && (
                 <Text style={{ color: theme.tint }}> · Upgrade for unlimited</Text>
               )}
             </Text>
@@ -253,7 +256,6 @@ export default function HoldingsScreen() {
         onClose={() => { setShowAdd(false); setPrefillValues(undefined); }}
         initialValues={prefillValues}
       />
-      <PremiumModal visible={showPremium} onClose={() => setShowPremium(false)} />
     </View>
   );
 }

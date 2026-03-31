@@ -21,8 +21,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import { useAllocation, THRESHOLD_OPTIONS, type ThresholdOption } from "@/context/AllocationContext";
+import { useSubscription, tierLabel, PRICES, type SubscriptionTier } from "@/context/SubscriptionContext";
 import { formatEUR } from "@/utils/format";
-import PremiumModal from "@/components/PremiumModal";
 import {
   NOTIF_KEY,
   checkPermissionStatus,
@@ -47,7 +47,6 @@ const ASYNC_KEYS = {
   showCostBasis: "folvio_show_cost_basis",
   showDividends: "folvio_show_dividends",
   defaultBenchmark: "folvio_default_benchmark",
-  isPremium: "folvio_is_premium",
 };
 
 export default function SettingsScreen() {
@@ -61,11 +60,12 @@ export default function SettingsScreen() {
   const { targets, rebalanceThreshold, setRebalanceThreshold, upsertTarget, removeTarget } =
     useAllocation();
 
+  const { tier, billingPeriod, canImportCSV, canExportCSV, canUsePushNotifications, showPaywall, setSubscription, clearSubscription } = useSubscription();
+
   // ── Persisted settings ───────────────────────────────────────────────────
   const [showCostBasis, setShowCostBasis] = useState(true);
   const [showDividends, setShowDividends] = useState(true);
   const [defaultBenchmark, setDefaultBenchmark] = useState<BenchmarkSymbol>("^GSPC");
-  const [isPremium, setIsPremium] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   // ── Notification state ────────────────────────────────────────────────────
@@ -78,7 +78,6 @@ export default function SettingsScreen() {
   const [showDcaDayPicker, setShowDcaDayPicker] = useState(false);
 
   // ── UI state ─────────────────────────────────────────────────────────────
-  const [showPremium, setShowPremium] = useState(false);
   const [editingTicker, setEditingTicker] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
   const [addTicker, setAddTicker] = useState("");
@@ -92,11 +91,10 @@ export default function SettingsScreen() {
   // Load settings from AsyncStorage on mount
   useEffect(() => {
     (async () => {
-      const [cb, sd, bm, ip, dcaE, driftE, weeklyE, dcaDayStr, dcaAmtStr] = await Promise.all([
+      const [cb, sd, bm, dcaE, driftE, weeklyE, dcaDayStr, dcaAmtStr] = await Promise.all([
         AsyncStorage.getItem(ASYNC_KEYS.showCostBasis),
         AsyncStorage.getItem(ASYNC_KEYS.showDividends),
         AsyncStorage.getItem(ASYNC_KEYS.defaultBenchmark),
-        AsyncStorage.getItem(ASYNC_KEYS.isPremium),
         AsyncStorage.getItem(NOTIF_KEY.DCA_ENABLED),
         AsyncStorage.getItem(NOTIF_KEY.DRIFT_ENABLED),
         AsyncStorage.getItem(NOTIF_KEY.WEEKLY_ENABLED),
@@ -109,7 +107,6 @@ export default function SettingsScreen() {
         const validSymbols: string[] = BENCHMARKS.map((b) => b.symbol);
         if (validSymbols.includes(bm)) setDefaultBenchmark(bm as BenchmarkSymbol);
       }
-      if (ip !== null) setIsPremium(ip === "true");
 
       // Notification preferences (default: all ON)
       if (dcaE !== null) setDcaNotifEnabled(dcaE === "true");
@@ -242,15 +239,8 @@ export default function SettingsScreen() {
   }
 
   function handleExportCSV() {
-    if (!isPremium) {
-      Alert.alert(
-        "Premium Feature",
-        "CSV export is available on Folvio Premium.",
-        [
-          { text: "Maybe Later", style: "cancel" },
-          { text: "Upgrade", onPress: () => setShowPremium(true) },
-        ]
-      );
+    if (!canExportCSV) {
+      showPaywall("export");
       return;
     }
     Alert.alert("Export CSV", "Export functionality coming soon.");
@@ -488,8 +478,26 @@ export default function SettingsScreen() {
       {/* ── 3. NOTIFICATIONS ─────────────────────────────────────────────── */}
       <Text style={labelStyle}>NOTIFICATIONS</Text>
 
+      {/* Investor+ gate banner */}
+      {!canUsePushNotifications && (
+        <TouchableOpacity
+          style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.tint + "44", padding: 14, flexDirection: "row", alignItems: "center", gap: 12 }]}
+          onPress={() => showPaywall("notifications")}
+          activeOpacity={0.85}
+        >
+          <Feather name="lock" size={16} color={theme.tint} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.rowLabel, { color: theme.tint }]}>Investor plan required</Text>
+            <Text style={[styles.notifRowSub, { color: theme.textSecondary }]}>
+              Push notifications are available on the Investor plan.
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={14} color={theme.tint} />
+        </TouchableOpacity>
+      )}
+
       {/* Permission denied banner */}
-      {notifPermission === "denied" && Platform.OS !== "web" && (
+      {canUsePushNotifications && notifPermission === "denied" && Platform.OS !== "web" && (
         <View style={[styles.permDeniedBanner, { backgroundColor: theme.backgroundElevated, borderColor: theme.border }]}>
           <Feather name="bell-off" size={15} color={theme.textSecondary} style={{ marginRight: 8 }} />
           <View style={{ flex: 1 }}>
@@ -503,7 +511,7 @@ export default function SettingsScreen() {
         </View>
       )}
 
-      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+      {canUsePushNotifications && <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
 
         {/* DCA Reminder */}
         <View style={[styles.notifRow, { borderBottomColor: theme.border }]}>
@@ -571,7 +579,7 @@ export default function SettingsScreen() {
             <Feather name="chevron-right" size={14} color={theme.textTertiary} style={{ marginLeft: 4 }} />
           </View>
         </TouchableOpacity>
-      </View>
+      </View>}
 
       {/* DCA Day Picker Modal */}
       <Modal
@@ -623,15 +631,26 @@ export default function SettingsScreen() {
         {/* Import from CSV */}
         <TouchableOpacity
           style={[styles.dataRow, { borderBottomColor: theme.border }]}
-          onPress={() => router.push("/import" as never)}
+          onPress={() => {
+            if (!canImportCSV) {
+              showPaywall("import");
+            } else {
+              router.push("/import" as never);
+            }
+          }}
         >
           <View style={styles.dataRowLeft}>
             <Feather name="upload" size={17} color={theme.tint} />
             <Text style={[styles.rowLabel, { color: theme.text }]}>Import from CSV</Text>
           </View>
-          <View style={[styles.premiumPill, { backgroundColor: theme.tint + "22" }]}>
-            <Text style={[styles.premiumPillText, { color: theme.tint }]}>Premium</Text>
-          </View>
+          {!canImportCSV && (
+            <View style={[styles.premiumPill, { backgroundColor: theme.tint + "22" }]}>
+              <Text style={[styles.premiumPillText, { color: theme.tint }]}>Pro+</Text>
+            </View>
+          )}
+          {canImportCSV && (
+            <Feather name="chevron-right" size={16} color={theme.textTertiary} />
+          )}
         </TouchableOpacity>
 
         {/* Export CSV */}
@@ -643,9 +662,13 @@ export default function SettingsScreen() {
             <Feather name="download" size={17} color={theme.tint} />
             <Text style={[styles.rowLabel, { color: theme.text }]}>Export to CSV</Text>
           </View>
-          <View style={[styles.premiumPill, { backgroundColor: theme.tint + "22" }]}>
-            <Text style={[styles.premiumPillText, { color: theme.tint }]}>Premium</Text>
-          </View>
+          {!canExportCSV ? (
+            <View style={[styles.premiumPill, { backgroundColor: theme.tint + "22" }]}>
+              <Text style={[styles.premiumPillText, { color: theme.tint }]}>Pro+</Text>
+            </View>
+          ) : (
+            <Feather name="chevron-right" size={16} color={theme.textTertiary} />
+          )}
         </TouchableOpacity>
 
         {/* Refresh All Prices */}
@@ -682,9 +705,9 @@ export default function SettingsScreen() {
       </View>
 
       {/* ── 4. PREMIUM ───────────────────────────────────────────────────── */}
-      <Text style={labelStyle}>PREMIUM</Text>
+      <Text style={labelStyle}>SUBSCRIPTION</Text>
 
-      {/* Tier card with gradient + progress bar */}
+      {/* Current tier card */}
       <LinearGradient
         colors={["#1C2333", "#0F1929"]}
         start={{ x: 0, y: 0 }}
@@ -693,26 +716,34 @@ export default function SettingsScreen() {
       >
         <View style={styles.premiumCardTop}>
           <View style={{ flex: 1, gap: 6 }}>
-            <Text style={styles.premiumCardTier}>
-              {isPremium ? "Folvio Pro" : "Folvio — Free Tier"}
-            </Text>
-            <Text style={styles.premiumCardSub}>
-              {holdingCount} of {FREE_TIER_LIMIT} holdings used
-            </Text>
-            {/* Usage progress bar */}
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${Math.min(100, (holdingCount / FREE_TIER_LIMIT) * 100)}%` as any },
-                ]}
-              />
-            </View>
+            <Text style={styles.premiumCardTier}>{tierLabel(tier)}</Text>
+            {tier === "free" ? (
+              <>
+                <Text style={styles.premiumCardSub}>
+                  {holdingCount} of {FREE_TIER_LIMIT} holdings used
+                </Text>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${Math.min(100, (holdingCount / FREE_TIER_LIMIT) * 100)}%` as any },
+                    ]}
+                  />
+                </View>
+              </>
+            ) : (
+              <Text style={styles.premiumCardSub}>
+                {billingPeriod === "yearly"
+                  ? `€${PRICES[tier as "investor" | "pro"].yearly.toFixed(2).replace(".", ",")}/year`
+                  : `€${PRICES[tier as "investor" | "pro"].monthly.toFixed(2).replace(".", ",")}/month`}
+                {" · "}Billed {billingPeriod ?? "monthly"}
+              </Text>
+            )}
           </View>
-          {!isPremium && (
+          {tier === "free" && (
             <TouchableOpacity
               style={styles.upgradeBtn}
-              onPress={() => setShowPremium(true)}
+              onPress={() => showPaywall()}
               activeOpacity={0.85}
             >
               <Text style={styles.upgradeBtnText}>Upgrade</Text>
@@ -721,48 +752,90 @@ export default function SettingsScreen() {
         </View>
       </LinearGradient>
 
-      {/* Feature list */}
-      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-        {[
-          "Unlimited holdings",
-          "Benchmark comparison charts",
-          "CSV import & export",
-          "Priority support",
-          "Advanced projections",
-        ].map((f, idx, arr) => (
-          <View
-            key={f}
-            style={[
-              styles.featureItem,
-              { borderBottomWidth: idx < arr.length - 1 ? 1 : 0, borderBottomColor: theme.border },
-            ]}
-          >
-            <Feather name="check-circle" size={16} color={theme.tint} />
-            <Text style={styles.featureText}>{f}</Text>
+      {/* Tier comparison cards — only show when on free */}
+      {tier === "free" && (
+        <>
+          <View style={[styles.tierCard, { borderColor: theme.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tierName}>Investor</Text>
+              <Text style={styles.tierDesc}>Unlimited holdings · DCA log · Projections · Rebalancing · Notifications</Text>
+            </View>
+            <View style={{ alignItems: "flex-end", gap: 2 }}>
+              <Text style={styles.tierPrice}>€4,99</Text>
+              <Text style={styles.tierPeriod}>/month</Text>
+            </View>
           </View>
-        ))}
-      </View>
+          <View style={[styles.tierCard, styles.tierCardPro]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tierName}>Pro</Text>
+              <Text style={styles.tierDesc}>Everything in Investor · CSV import/export · Benchmark comparison</Text>
+            </View>
+            <View style={{ alignItems: "flex-end", gap: 2 }}>
+              <Text style={styles.tierPrice}>€8,99</Text>
+              <Text style={styles.tierPeriod}>/month</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={[styles.upgradeFullBtn, { backgroundColor: theme.tint }]}
+            onPress={() => showPaywall()}
+          >
+            <Text style={styles.upgradeFullBtnText}>View Plans & Upgrade</Text>
+          </TouchableOpacity>
+        </>
+      )}
 
-      {/* Tier cards */}
-      <View style={[styles.tierCard, { borderColor: theme.border }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.tierName}>Investor</Text>
-          <Text style={styles.tierDesc}>Up to 10 holdings · All features</Text>
+      {/* Manage subscription when subscribed */}
+      {tier !== "free" && (
+        <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+          <TouchableOpacity
+            style={[styles.dataRow, { borderBottomColor: theme.border }]}
+            onPress={() => showPaywall()}
+          >
+            <View style={styles.dataRowLeft}>
+              <Feather name="arrow-up-circle" size={17} color={theme.tint} />
+              <Text style={[styles.rowLabel, { color: theme.text }]}>
+                {tier === "investor" ? "Upgrade to Pro" : "Manage Subscription"}
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={theme.textTertiary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.dataRow, { borderBottomColor: "transparent" }]}
+            onPress={() => {
+              Alert.alert(
+                "Cancel Subscription",
+                "To cancel, go to your App Store or Google Play subscription settings.",
+                [{ text: "OK" }]
+              );
+            }}
+          >
+            <View style={styles.dataRowLeft}>
+              <Feather name="x-circle" size={17} color={theme.negative} />
+              <Text style={[styles.rowLabel, { color: theme.negative }]}>Cancel Subscription</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={theme.textTertiary} />
+          </TouchableOpacity>
         </View>
-        <View style={{ alignItems: "flex-end", gap: 2 }}>
-          <Text style={styles.tierPrice}>€4.99</Text>
-          <Text style={styles.tierPeriod}>/month</Text>
-        </View>
-      </View>
-      <View style={[styles.tierCard, styles.tierCardPro]}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.tierName}>Pro</Text>
-          <Text style={styles.tierDesc}>Unlimited holdings · Priority support</Text>
-        </View>
-        <View style={{ alignItems: "flex-end", gap: 2 }}>
-          <Text style={styles.tierPrice}>€8.99</Text>
-          <Text style={styles.tierPeriod}>/month</Text>
-        </View>
+      )}
+
+      {/* ── DEV MENU ─────────────────────────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { color: "#F59E0B", marginTop: 10 }]}>DEV — TEST SUBSCRIPTION</Text>
+      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: "#F59E0B44" }]}>
+        {(["free", "investor", "pro"] as SubscriptionTier[]).map((t, i, arr) => (
+          <TouchableOpacity
+            key={t}
+            style={[styles.settingRow, { borderBottomColor: i < arr.length - 1 ? theme.border : "transparent" }]}
+            onPress={() => {
+              if (t === "free") clearSubscription();
+              else setSubscription(t, "monthly");
+            }}
+          >
+            <Text style={[styles.rowLabel, { color: tier === t ? theme.tint : theme.text }]}>
+              {t === "free" ? "Free" : t === "investor" ? "Investor (€4,99/mo)" : "Pro (€8,99/mo)"}
+            </Text>
+            {tier === t && <Feather name="check" size={16} color={theme.tint} />}
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* ── 5. ABOUT ─────────────────────────────────────────────────────── */}
@@ -784,7 +857,6 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      <PremiumModal visible={showPremium} onClose={() => setShowPremium(false)} />
     </ScrollView>
   );
 }
@@ -1000,6 +1072,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Inter_400Regular",
     color: "#475569",
+  },
+  upgradeFullBtn: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  upgradeFullBtnText: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    color: "#0A0F1E",
   },
 
   // Notification rows
