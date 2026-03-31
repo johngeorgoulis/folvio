@@ -139,8 +139,19 @@ const FMP_EXCHANGE_FALLBACKS: Partial<Record<string, string[]>> = {
   ".AS": [".L", ".DE", ".PA"],          // Amsterdam → London → XETRA → Paris
   ".PA": [".DE", ".AS", ".L"],          // Paris → XETRA → Amsterdam → London
   ".L":  [".DE", ".AS", ".PA"],         // London → XETRA → Amsterdam → Paris
-  ".MI": [".PA", ".AS", ".DE", ".L"],   // Milan → Paris → Amsterdam → XETRA → London
+  ".MI": [".L", ".DE", ".AS", ".PA"],   // Milan → London first (best iShares coverage) → XETRA → Amsterdam → Paris
   ".SW": [".DE", ".AS", ".L"],          // Swiss → XETRA → Amsterdam → London
+};
+
+// Per-ticker overrides for ETFs whose cross-listed symbols differ from the
+// primary ticker (iShares often uses different tickers on different exchanges).
+// Each entry is the full ordered list of symbols to try, most-likely first.
+// These are checked BEFORE the generic suffix-swap fallback.
+const FMP_TICKER_OVERRIDES: Record<string, string[]> = {
+  // iShares Euro Govt Bond 0-1yr (IE00B3FH7618) — LSE ticker differs from MI/AS
+  "IEGE":   ["IEGE.MI", "IEGE.L", "IEGE.DE", "IEGE.AS", "IBGS.L", "IEGE"],
+  // iShares Euro Govt Bond 3-7yr (IE00B3VTML14) — SIX ticker, try all exchanges
+  "CSBGE7": ["CSBGE7.SW", "CSBGE7.DE", "CSBGE7.AS", "CSBGE7.L", "IBGM.L", "CSBGE7"],
 };
 
 /** Low-level: fetch a single FMP profile by exact symbol. Returns null if not found. */
@@ -176,7 +187,9 @@ async function fmpFetchProfileSingle(symbol: string): Promise<FMPProfileData | n
  * Fetch the FMP /stable/profile for any symbol, with automatic fallback to
  * cross-listed exchanges when the primary symbol returns no data.
  *
- * Four-tier fallback strategy:
+ * Five-tier fallback strategy:
+ *   0. Ticker override: FMP_TICKER_OVERRIDES lists explicit symbol variants for
+ *      ETFs where cross-listed tickers differ (e.g. IEGE.MI vs IBGS.L)
  *   1. Primary: try symbol as-is (Yahoo-style suffix = correct FMP format)
  *   2. Exchange swap: all European suffixes have cross-listing fallbacks
  *      (e.g. VWCE.DE → tries .AS → .L → .PA before giving up)
@@ -185,11 +198,27 @@ async function fmpFetchProfileSingle(symbol: string): Promise<FMPProfileData | n
  *   4. Suffix probe: for bare tickers (no suffix stored), probe all EU venues
  */
 async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
+  // 0. Per-ticker override — explicit symbol list for ETFs with divergent tickers
+  const baseTicker = symbol.replace(/\.[A-Z0-9]+$/, "");
+  const overrides = FMP_TICKER_OVERRIDES[baseTicker];
+  if (overrides) {
+    for (const s of overrides) {
+      const result = await fmpFetchProfileSingle(s);
+      if (result) {
+        console.log(`[fmp] ${symbol} → resolved via ticker override ${s} (${result.currency})`);
+        return result;
+      }
+    }
+    // Overrides exhausted — skip generic fallback to avoid duplicate requests
+    console.warn(`[fmp] profile not found for ${symbol} (tried all ticker overrides)`);
+    return null;
+  }
+
   // 1. Primary: try the symbol as-is
   const primary = await fmpFetchProfileSingle(symbol);
   if (primary) return primary;
 
-  const suffixMatch = symbol.match(/(\.[A-Z0-9]+)$/);
+  const suffixMatch = symbol.match(/(\.[A-Z0-9]+$)/);
 
   if (suffixMatch) {
     const suffix    = suffixMatch[1];
