@@ -25,13 +25,19 @@ export const NOTIF_KEY = {
 // ── Foreground handler ────────────────────────────────────────────────────────
 export function configureNotificationHandler() {
   if (Platform.OS === "web") return;
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  } catch (e) {
+    console.warn("[notifications] setNotificationHandler failed:", e);
+  }
 }
 
 // ── Permissions ───────────────────────────────────────────────────────────────
