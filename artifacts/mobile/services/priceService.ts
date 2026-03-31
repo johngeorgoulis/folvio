@@ -146,7 +146,8 @@ const FMP_EXCHANGE_FALLBACKS: Partial<Record<string, string[]>> = {
 /** Low-level: fetch a single FMP profile by exact symbol. Returns null if not found. */
 async function fmpFetchProfileSingle(symbol: string): Promise<FMPProfileData | null> {
   const url = fmpUrl(`profile/${encodeURIComponent(symbol)}`);
-  console.log(`[fmp:debug] fmpFetchProfileSingle(${symbol}) → ${url}`);
+  const keyPreview = (process.env.EXPO_PUBLIC_FMP_API_KEY ?? "").slice(0, 4) || "(not set)";
+  console.log(`[fmp:debug] fmpFetchProfileSingle(${symbol}) url=${url} key=${keyPreview}***`);
   try {
     const res = await fetch(url, FMP_FETCH_OPTS);
     console.log(`[fmp:debug] ${symbol} HTTP ${res.status} ok=${res.ok}`);
