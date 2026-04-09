@@ -5,6 +5,7 @@
   },
   "build": {
     "preview": {
+      "node": "20.0.0",
       "distribution": "internal",
       "channel": "preview",
       "ios": {
@@ -16,6 +17,7 @@
       }
     },
     "simulator": {
+      "node": "20.0.0",
       "ios": {
         "simulator": true,
         "resourceClass": "m-medium"
@@ -26,6 +28,7 @@
       }
     },
     "production": {
+      "node": "20.0.0",
       "channel": "production",
       "ios": {
         "resourceClass": "m-medium"
