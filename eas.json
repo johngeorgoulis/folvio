@@ -7,7 +7,6 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
-      "projectRootDirectory": "artifacts/mobile",
       "ios": {
         "resourceClass": "m-medium"
       },
@@ -21,7 +20,6 @@
         "simulator": true,
         "resourceClass": "m-medium"
       },
-      "projectRootDirectory": "artifacts/mobile",
       "env": {
         "EXPO_PUBLIC_ENV": "preview",
         "EXPO_PUBLIC_FMP_API_KEY": "YOUR_FMP_API_KEY"
@@ -29,7 +27,6 @@
     },
     "production": {
       "channel": "production",
-      "projectRootDirectory": "artifacts/mobile",
       "ios": {
         "resourceClass": "m-medium"
       },
