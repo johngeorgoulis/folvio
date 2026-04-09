@@ -47,3 +47,16 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Expo / React Native
+ios/
+android/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
