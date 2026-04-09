@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Folvio",
+    "slug": "folvio",
+    "owner": "ioannisgg",
+    "extra": {
+      "eas": {
+        "projectId": "2f491a45-5399-4e19-9802-2c76148ed1ed"
+      }
+    },
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./artifacts/mobile/assets/images/icon.png",
+    "scheme": "folvio",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./artifacts/mobile/assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F1923"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.folvio.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./artifacts/mobile/assets/images/adaptive-icon.png",
+        "backgroundColor": "#0F1923"
+      },
+      "package": "com.folvio.app"
+    },
+    "web": {
+      "favicon": "./artifacts/mobile/assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "expo-document-picker",
+      "expo-file-system",
+      [
+        "expo-notifications",
+        {
+          "icon": "./artifacts/mobile/assets/images/icon.png",
+          "color": "#0F1923",
+          "sounds": [],
+          "iosDisplayInForeground": true
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
