@@ -1,13 +1,15 @@
 name: EAS Build
+
 on:
   workflow_dispatch:
     inputs:
       profile:
         description: 'Build profile'
         required: true
-        default: 'preview'
+        default: 'simulator'
         type: choice
         options:
+          - simulator
           - preview
           - production
 
@@ -26,16 +28,7 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-      - name: Write ASC API Key
-        run: echo "$ASC_KEY" > /tmp/AuthKey.p8
-        env:
-          ASC_KEY: ${{ secrets.ASC_API_KEY_CONTENT }}
       - run: pnpm install --no-frozen-lockfile --filter .
       - run: eas build --platform ios --profile ${{ inputs.profile }} --non-interactive --no-wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          EXPO_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          EXPO_ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
-          EXPO_ASC_API_KEY_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
-          EXPO_ASC_API_KEY_PATH: /tmp/AuthKey.p8
