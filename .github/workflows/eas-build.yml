@@ -6,11 +6,11 @@ on:
       profile:
         description: 'Build profile'
         required: true
-        default: 'simulator'
+        default: 'preview'
         type: choice
         options:
-          - simulator
           - preview
+          - simulator
           - production
 
 jobs:
@@ -28,7 +28,15 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+      - name: Write ASC API Key
+        run: echo "$ASC_KEY" > /tmp/AuthKey.p8
+        env:
+          ASC_KEY: ${{ secrets.ASC_API_KEY_CONTENT }}
       - run: pnpm install --no-frozen-lockfile --filter .
       - run: eas build --platform ios --profile ${{ inputs.profile }} --non-interactive --no-wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_APPLE_TEAM_ID: LPA2V9NMY5
+          EXPO_ASC_API_KEY_ID: Q2USX46URB
+          EXPO_ASC_API_KEY_ISSUER_ID: f92e2d2d-dc20-466e-a119-cb687b96bf69
+          EXPO_ASC_API_KEY_PATH: /tmp/AuthKey.p8
