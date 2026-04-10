@@ -19,9 +19,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
       - uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-      - run: npm install
+      - run: pnpm install
       - run: eas build --platform ios --profile ${{ inputs.profile }} --non-interactive
