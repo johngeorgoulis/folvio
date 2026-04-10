@@ -27,4 +27,4 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - run: pnpm install --no-frozen-lockfile --filter .
-      - run: eas build --platform ios --profile ${{ inputs.profile }} --non-interactive
+      - run: eas build --platform ios --profile ${{ inputs.profile }} --non-interactive --no-wait
