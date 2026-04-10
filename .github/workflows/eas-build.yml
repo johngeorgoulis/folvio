@@ -28,3 +28,8 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       - run: pnpm install --no-frozen-lockfile --filter .
       - run: eas build --platform ios --profile ${{ inputs.profile }} --non-interactive --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
