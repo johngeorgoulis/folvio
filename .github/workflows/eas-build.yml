@@ -33,7 +33,7 @@ jobs:
         env:
           ASC_KEY: ${{ secrets.ASC_API_KEY_CONTENT }}
       - run: pnpm install --no-frozen-lockfile --filter .
-      - run: eas build --platform ios --profile ${{ inputs.profile }} --non-interactive --no-auto-submit
+      - run: eas build --platform ios --profile ${{ inputs.profile }} --non-interactive --no-wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
