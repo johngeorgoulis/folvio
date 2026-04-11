@@ -36,6 +36,8 @@ jobs:
       - run: eas build --platform ios --profile ${{ inputs.profile }} --non-interactive --no-wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           EXPO_APPLE_TEAM_ID: LPA2V9NMY5
           EXPO_ASC_API_KEY_ID: Q2USX46URB
           EXPO_ASC_API_KEY_ISSUER_ID: f92e2d2d-dc20-466e-a119-cb687b96bf69
