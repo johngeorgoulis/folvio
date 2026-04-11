@@ -1,0 +1,19 @@
+workflows:
+  ios-preview:
+    name: iOS Preview Build
+    max_build_duration: 60
+    integrations:
+      app_store_connect: codemagic
+    environment:
+      ios_signing:
+        distribution_type: ad_hoc
+        bundle_identifier: com.folvio.app
+      node: 20.0.0
+    scripts:
+      - name: Install dependencies
+        script: npm install -g pnpm && pnpm install --no-frozen-lockfile --filter .
+      - name: EAS Build
+        script: |
+          npx eas-cli build --platform ios --profile preview --non-interactive --no-wait
+    artifacts:
+      - build/**/*.ipa
