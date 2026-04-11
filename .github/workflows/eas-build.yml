@@ -33,7 +33,8 @@ jobs:
           mkdir -p ~/.eas
           echo "${{ secrets.ASC_API_KEY_CONTENT }}" > /tmp/AuthKey.p8
       - run: pnpm install --no-frozen-lockfile --filter .
-      - run: eas build --platform ios --profile ${{ inputs.profile }} --non-interactive --no-wait
+      - name: Run EAS Build
+        run: eas build --platform ios --profile preview --non-interactive --no-wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}

@@ -7,9 +7,10 @@
     "preview": {
       "node": "20.0.0",
       "distribution": "internal",
-      "credentialsSource": "local",
+      "credentialsSource": "remote",
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "autoIncrement": true
       },
       "env": {
         "EXPO_PUBLIC_ENV": "preview",
