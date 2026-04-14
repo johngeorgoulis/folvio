@@ -182,7 +182,7 @@ export default function DashboardScreen() {
                 color={totalGain >= 0 ? theme.positive : theme.negative}
               />
               <Text style={[styles.heroBadgeText, { color: totalGain >= 0 ? theme.positive : theme.negative }]}>
-                {totalGain >= 0 ? "+" : ""}{formatPct(totalGainPct)} all time
+                {formatPct(totalGainPct)} all time
               </Text>
             </View>
             {annualizedReturn !== null && (
