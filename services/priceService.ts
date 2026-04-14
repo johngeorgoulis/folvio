@@ -317,84 +317,6 @@ export function normalizeToEUR(
   }
 }
 
-/**
- * Fallback price fetch via Yahoo Finance chart endpoint (native only).
- * Uses `meta.regularMarketPrice` from the same endpoint already used for
- * historical charts — no server proxy required.
- * Tries the primary symbol first, then European exchange suffixes for bare tickers.
- */
-async function fetchLivePriceFromYahoo(
-  ticker: string,
-  exchange: string
-): Promise<PriceResult | null> {
-  if (Platform.OS === "web") return null; // web must route through server proxy
-
-  const primarySymbol = buildYahooSymbol(ticker, exchange);
-
-  async function trySymbol(symbol: string): Promise<PriceResult | null> {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
-    try {
-      const res = await fetch(url, { headers: YAHOO_HEADERS });
-      if (!res.ok) return null;
-      const data = await res.json();
-      const meta = data?.chart?.result?.[0]?.meta;
-      const price: number | undefined = meta?.regularMarketPrice;
-      if (!price || price <= 0) return null;
-
-      const currency: string = meta?.currency ?? symbolCurrency(symbol);
-      let fxRate = 1;
-      if (currency !== "EUR") {
-        const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-        if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-          try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
-        }
-      }
-      const priceEUR = normalizeToEUR(price, currency, { [currency]: fxRate });
-      console.log(`[yahoo] ${symbol}: ${price} ${currency} → ${priceEUR.toFixed(4)} EUR`);
-      return {
-        ticker,
-        priceEUR,
-        currency,
-        source: "api",
-        lastFetched: new Date().toISOString(),
-        isStale: false,
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  // 1. Try primary symbol
-  const primary = await trySymbol(primarySymbol);
-  if (primary) return primary;
-
-  const suffixMatch = primarySymbol.match(/(\.[A-Z0-9]+)$/);
-
-  if (suffixMatch) {
-    // 2. Exchange swap — same cross-listing table as FMP
-    const suffix    = suffixMatch[1];
-    const fallbacks = FMP_EXCHANGE_FALLBACKS[suffix];
-    if (fallbacks) {
-      for (const alt of fallbacks) {
-        const result = await trySymbol(ticker + alt);
-        if (result) return result;
-      }
-    }
-    // 3. Bare ticker fallback
-    const bareResult = await trySymbol(ticker);
-    if (bareResult) return bareResult;
-  } else {
-    // 4. Bare ticker — probe common European exchanges
-    for (const suffix of [".DE", ".AS", ".PA", ".L", ".MI", ".SW"]) {
-      const result = await trySymbol(ticker + suffix);
-      if (result) return result;
-    }
-  }
-
-  console.warn(`[yahoo] fetchLivePrice failed for ${ticker} (${primarySymbol})`);
-  return null;
-}
-
 export async function fetchLivePrice(
   ticker: string,
   exchange: string
@@ -425,8 +347,7 @@ export async function fetchLivePrice(
     };
   } catch (err) {
     console.warn(`[fmp] fetchLivePrice failed for ${ticker} (${symbol}):`, err);
-    // Fallback: try Yahoo Finance directly (works on native without server proxy)
-    return fetchLivePriceFromYahoo(ticker, exchange);
+    return null;
   }
 }
 
@@ -686,8 +607,33 @@ export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null
     const profile = await fmpFetchProfile(symbol);
 
     if (!profile?.price) {
-      console.warn(`[fmp] fetchTickerMeta: no profile returned for ${symbol}`);
-      return null;
+      console.warn(`[fmp] fetchTickerMeta: no profile for ${symbol}, trying fetchLivePrice fallback`);
+      // Derive ticker + exchange from symbol so fetchLivePrice can try cross-listing variants
+      const ticker = symbol.replace(/\.[A-Z0-9]+$/, "");
+      const suffix = symbol.match(/(\.[A-Z0-9]+$)/)?.[1] ?? "";
+      const exchange = Object.entries(EXCHANGE_SUFFIXES).find(([, s]) => s === suffix)?.[0] ?? "Other";
+      const price = await fetchLivePrice(ticker, exchange);
+      if (!price) {
+        console.warn(`[fmp] fetchTickerMeta: fetchLivePrice fallback also failed for ${symbol}`);
+        return null;
+      }
+      return {
+        symbol,
+        shortName:    ticker,
+        longName:     ticker,
+        currency:     price.currency,
+        exchangeName: "",
+        quoteType:    "EQUITY",
+        regularMarketPrice:         price.priceEUR,
+        previousClose:              0,
+        regularMarketChange:        0,
+        regularMarketChangePercent: 0,
+        fiftyTwoWeekHigh:           0,
+        fiftyTwoWeekLow:            0,
+        regularMarketVolume:        0,
+        averageDailyVolume3Month:   0,
+        isin:                       null,
+      };
     }
 
     const currency = profile.currency ?? symbolCurrency(symbol);
