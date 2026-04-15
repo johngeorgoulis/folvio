@@ -211,6 +211,42 @@ function parseRevolut(content: string): ParsedHolding[] {
   return aggregate(txs);
 }
 
+function parseLightyear(content: string): ParsedHolding[] {
+  const rows = parseRows(content);
+  const txs: RawTransaction[] = [];
+  for (const row of rows) {
+    const type = col(row, "Type", "type").toUpperCase();
+    const isBuy = type === "BUY" || type.includes("BUY");
+    const isSell = type === "SELL" || type.includes("SELL");
+    if (!isBuy && !isSell) continue;
+    const ticker = col(row, "Ticker", "ticker").trim();
+    if (!ticker) continue;
+    const isin = col(row, "ISIN", "isin").trim();
+    const qty = parseNum(col(row, "Quantity", "quantity"));
+    const price = parseNum(col(row, "Price", "price"));
+    const currency = (col(row, "Currency", "currency") || "EUR").toUpperCase();
+    const fxRate = parseNum(col(row, "FX Rate", "fx rate", "FX_Rate", "FxRate")) || 1;
+    const amountRaw = col(row, "Amount", "amount");
+    const amount = Math.abs(parseNum(amountRaw));
+    const date = normalizeDate(col(row, "Date", "date"));
+    if (qty <= 0) continue;
+
+    // Prefer Amount/Quantity for EUR avg cost (Amount is always in account currency EUR).
+    // Fall back to Price * FX Rate for non-EUR instruments, then raw Price.
+    let priceEUR: number;
+    if (amount > 0 && qty > 0) {
+      priceEUR = amount / qty;
+    } else if (currency !== "EUR" && fxRate !== 1) {
+      priceEUR = price * fxRate;
+    } else {
+      priceEUR = price;
+    }
+
+    txs.push({ ticker, isin, qty, price: priceEUR, currency: "EUR", date, isBuy });
+  }
+  return aggregate(txs);
+}
+
 function parseGeneric(content: string): ParsedHolding[] {
   const rows = parseRows(content);
   const results: ParsedHolding[] = [];
@@ -279,6 +315,19 @@ export const BROKER_CONFIGS: BrokerConfig[] = [
     parse: parseRevolut,
   },
   {
+    key: "lightyear",
+    name: "Lightyear",
+    emoji: "🟡",
+    label: "Portfolio CSV",
+    instructions: [
+      "Open the Lightyear app",
+      "Go to Account → Statements",
+      "Export transaction history CSV",
+      "Upload the downloaded CSV below",
+    ],
+    parse: parseLightyear,
+  },
+  {
     key: "generic",
     name: "Generic CSV",
     emoji: "📄",
@@ -300,4 +349,36 @@ export function parseCSV(brokerKey: string, content: string): ParsedHolding[] {
   const holdings = broker.parse(content);
   if (holdings.length === 0) throw new Error("NO_BUYS");
   return holdings;
+}
+
+/**
+ * Inspect the CSV header row and return the matching BrokerConfig, or null
+ * if the format cannot be determined automatically.
+ *
+ * Detection order (most-specific first to avoid false positives):
+ *   1. IBKR        — "ActivityDescription" or "TradeDate"
+ *   2. Lightyear   — "FX Rate" (unique to Lightyear exports)
+ *   3. Revolut     — "State" (unique) or "Quantity" fallback
+ *   4. Trading 212 — "Action" or "Ticker"
+ */
+export function detectBroker(content: string): BrokerConfig | null {
+  const firstLine = content.trim().split(/\r?\n/)[0];
+  const parsed = Papa.parse<string[]>(firstLine, { header: false });
+  const headers = new Set(
+    ((parsed.data[0] as unknown as string[]) ?? []).map((h) => h.trim().toLowerCase())
+  );
+
+  if (headers.has("activitydescription") || headers.has("tradedate")) {
+    return BROKER_CONFIGS.find((b) => b.key === "ibkr") ?? null;
+  }
+  if (headers.has("fx rate") || headers.has("fx_rate") || headers.has("fxrate")) {
+    return BROKER_CONFIGS.find((b) => b.key === "lightyear") ?? null;
+  }
+  if (headers.has("state") || headers.has("quantity")) {
+    return BROKER_CONFIGS.find((b) => b.key === "revolut") ?? null;
+  }
+  if (headers.has("action") || headers.has("ticker")) {
+    return BROKER_CONFIGS.find((b) => b.key === "trading212") ?? null;
+  }
+  return null;
 }

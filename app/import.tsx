@@ -21,6 +21,7 @@ import Colors from "@/constants/colors";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import {
   BROKER_CONFIGS,
+  detectBroker,
   parseCSV,
   type BrokerConfig,
   type ParsedHolding,
@@ -373,9 +374,9 @@ export default function ImportScreen() {
   }, []);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [selectedBroker, setSelectedBroker] = useState<BrokerConfig | null>(
-    null,
-  );
+  const [selectedBroker, setSelectedBroker] = useState<BrokerConfig | null>(null);
+  const [detectedBroker, setDetectedBroker] = useState<BrokerConfig | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileSize, setFileSize] = useState<number>(0);
   const [csvContent, setCsvContent] = useState<string>("");
@@ -427,6 +428,15 @@ export default function ImportScreen() {
       setFileName(asset.name);
       setFileSize((asset.size as number | undefined) ?? content.length);
       setCsvContent(content);
+
+      // Auto-detect broker from headers and skip straight to preview if found
+      const detected = detectBroker(content);
+      if (detected) {
+        setSelectedBroker(detected);
+        setDetectedBroker(detected);
+        setBannerDismissed(false);
+        await runPreview(detected, content);
+      }
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
       console.log("ERROR TYPE:", e.constructor?.name);
@@ -437,17 +447,19 @@ export default function ImportScreen() {
     } finally {
       setPickingFile(false);
     }
-  }, []);
+  }, [runPreview]);
 
   // ── Parse + build import items ───────────────────────────────────────────────
 
-  const handlePreview = useCallback(async () => {
-    if (!selectedBroker || !csvContent) return;
+  // Core parsing logic — accepts explicit broker/content so it can be called
+  // both from the manual "Preview" button and from auto-detection on file pick.
+  const runPreview = useCallback(async (broker: BrokerConfig, content: string) => {
+    if (!broker || !content) return;
     try {
       setParsing(true);
-      const parsed = parseCSV(selectedBroker.key, csvContent);
+      const parsed = parseCSV(broker.key, content);
 
-      // Resolve correct exchange for each holding via Yahoo Finance ISIN lookup
+      // Resolve correct exchange for each holding via ISIN lookup
       const parsedWithExchange = await Promise.all(
         parsed.map(async (h) => ({
           ...h,
@@ -455,9 +467,6 @@ export default function ImportScreen() {
         }))
       );
 
-      const existingTickers = new Set(
-        holdings.map((h) => h.ticker.toUpperCase()),
-      );
       const items: ImportItem[] = parsedWithExchange.map((h) => {
         const upperTicker = h.ticker.toUpperCase();
         const existing = holdings.find(
@@ -468,7 +477,7 @@ export default function ImportScreen() {
           editedTicker: upperTicker,
           isDuplicate: !!existing,
           existingId: existing?.id,
-          duplicateAction: "skip",
+          duplicateAction: "skip" as DuplicateAction,
         };
       });
       setImportItems(items);
@@ -480,18 +489,23 @@ export default function ImportScreen() {
       } else if (msg === "NO_BUYS") {
         Alert.alert(
           "No Transactions Found",
-          `No BUY transactions found.\n\nThis might not be a ${selectedBroker.name} CSV. Try selecting "Generic CSV" instead.`,
+          `No BUY transactions found.\n\nThis might not be a ${broker.name} CSV. Try selecting "Generic CSV" instead.`,
         );
       } else {
         Alert.alert(
           "Parse Error",
-          `This doesn't look like a ${selectedBroker.name} CSV.\n\nTry selecting "Generic CSV" instead.`,
+          `This doesn't look like a ${broker.name} CSV.\n\nTry selecting "Generic CSV" instead.`,
         );
       }
     } finally {
       setParsing(false);
     }
-  }, [selectedBroker, csvContent, holdings]);
+  }, [holdings]);
+
+  const handlePreview = useCallback(async () => {
+    if (!selectedBroker || !csvContent) return;
+    await runPreview(selectedBroker, csvContent);
+  }, [selectedBroker, csvContent, runPreview]);
 
   // ── Import count logic ───────────────────────────────────────────────────────
 
@@ -882,6 +896,40 @@ export default function ImportScreen() {
                 {importItems.length !== 1 ? "s" : ""} found — review before
                 importing
               </Text>
+              {detectedBroker && !bannerDismissed && (
+                <View
+                  style={[
+                    styles.detectionBanner,
+                    { backgroundColor: theme.tint + "18", borderColor: theme.tint + "33" },
+                  ]}
+                >
+                  <Feather name="check-circle" size={14} color={theme.tint} />
+                  <Text style={[styles.detectionBannerText, { color: theme.tint }]}>
+                    Detected: {detectedBroker.name}
+                  </Text>
+                  <Text style={[styles.detectionBannerSub, { color: theme.textSecondary }]}>
+                    {" — not right? "}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setDetectedBroker(null);
+                      setBannerDismissed(false);
+                      setStep(1);
+                    }}
+                  >
+                    <Text style={[styles.detectionBannerLink, { color: theme.tint }]}>
+                      Change broker
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setBannerDismissed(true)}
+                    style={{ marginLeft: "auto" }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Feather name="x" size={14} color={theme.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              )}
               {importItems.some((i) => i.holding.needsTickerConfirmation) && (
                 <View
                   style={[
@@ -1144,6 +1192,21 @@ const styles = StyleSheet.create({
   },
   segBtn: { paddingHorizontal: 7, paddingVertical: 4 },
   segBtnText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+
+  // Detection banner (auto-detected broker)
+  detectionBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  detectionBannerText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  detectionBannerSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  detectionBannerLink: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
 
   // Warning banner
   warnBanner: {
