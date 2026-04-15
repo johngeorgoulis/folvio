@@ -37,7 +37,7 @@ export const BENCHMARKS = [
   { label: "DAX",           symbol: "^GDAXI",    description: "30 largest German companies" },
 ] as const;
 export type BenchmarkItem = typeof BENCHMARKS[number];
-const DEFAULT_BENCHMARK = BENCHMARKS[0];
+const DEFAULT_BENCHMARK = BENCHMARKS[1]; // MSCI World
 
 const BENCH_RANGES = ["1W", "1M", "3M", "1Y", "All"] as const;
 type BenchRange = (typeof BENCH_RANGES)[number];

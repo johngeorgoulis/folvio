@@ -65,7 +65,7 @@ export default function SettingsScreen() {
   // ── Persisted settings ───────────────────────────────────────────────────
   const [showCostBasis, setShowCostBasis] = useState(true);
   const [showDividends, setShowDividends] = useState(true);
-  const [defaultBenchmark, setDefaultBenchmark] = useState<BenchmarkSymbol>("^GSPC");
+  const [defaultBenchmark, setDefaultBenchmark] = useState<BenchmarkSymbol>("URTH");
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   // ── Notification state ────────────────────────────────────────────────────
