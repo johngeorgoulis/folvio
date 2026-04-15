@@ -4,6 +4,7 @@
   "private": true,
   "main": "expo-router/entry",
   "license": "MIT",
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "concurrently --raw --names ports,expo 'bash mobile-scripts/kill-ports.sh' 'bash mobile-scripts/expo-loop.sh'",
     "stability-check": "bash mobile-scripts/stability-check.sh",
