@@ -138,7 +138,7 @@ const FMP_EXCHANGE_FALLBACKS: Partial<Record<string, string[]>> = {
   ".DE": [".AS", ".L", ".PA"],          // XETRA → Amsterdam → London → Paris
   ".AS": [".L", ".DE", ".PA"],          // Amsterdam → London → XETRA → Paris
   ".PA": [".DE", ".AS", ".L"],          // Paris → XETRA → Amsterdam → London
-  ".L":  [".DE", ".AS", ".PA"],         // London → XETRA → Amsterdam → Paris
+  ".L":  [".DE", ".AS", ".PA", ".SW"],   // London → XETRA → Amsterdam → Paris → Swiss
   ".MI": [".L", ".DE", ".AS", ".PA"],   // Milan → London first (best iShares coverage) → XETRA → Amsterdam → Paris
   ".SW": [".DE", ".AS", ".L"],          // Swiss → XETRA → Amsterdam → London
 };
@@ -607,33 +607,8 @@ export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null
     const profile = await fmpFetchProfile(symbol);
 
     if (!profile?.price) {
-      console.warn(`[fmp] fetchTickerMeta: no profile for ${symbol}, trying fetchLivePrice fallback`);
-      // Derive ticker + exchange from symbol so fetchLivePrice can try cross-listing variants
-      const ticker = symbol.replace(/\.[A-Z0-9]+$/, "");
-      const suffix = symbol.match(/(\.[A-Z0-9]+$)/)?.[1] ?? "";
-      const exchange = Object.entries(EXCHANGE_SUFFIXES).find(([, s]) => s === suffix)?.[0] ?? "Other";
-      const price = await fetchLivePrice(ticker, exchange);
-      if (!price) {
-        console.warn(`[fmp] fetchTickerMeta: fetchLivePrice fallback also failed for ${symbol}`);
-        return null;
-      }
-      return {
-        symbol,
-        shortName:    ticker,
-        longName:     ticker,
-        currency:     price.currency,
-        exchangeName: "",
-        quoteType:    "EQUITY",
-        regularMarketPrice:         price.priceEUR,
-        previousClose:              0,
-        regularMarketChange:        0,
-        regularMarketChangePercent: 0,
-        fiftyTwoWeekHigh:           0,
-        fiftyTwoWeekLow:            0,
-        regularMarketVolume:        0,
-        averageDailyVolume3Month:   0,
-        isin:                       null,
-      };
+      console.warn(`[fmp] fetchTickerMeta: no profile for ${symbol}`);
+      return null;
     }
 
     const currency = profile.currency ?? symbolCurrency(symbol);
@@ -743,7 +718,10 @@ export async function fetchChartHistory(symbol: string, range: string): Promise<
   const cfg = CHART_INTERVALS[range] ?? { interval: "1d", range: "1mo" };
   const url = yahooChartUrl(symbol, cfg.interval, cfg.range);
   try {
-    const res = await fetch(url, { headers: YAHOO_HEADERS });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    const res = await fetch(url, { headers: YAHOO_HEADERS, signal: controller.signal })
+      .finally(() => clearTimeout(timer));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const result = data?.chart?.result?.[0];
@@ -860,12 +838,17 @@ export async function fetchPeriodReturn(
   const yahooUrl = yahooChartUrlByPeriod(symbol, "1d", period1Unix);
 
   try {
-    // Parallel: FMP live price + Yahoo historical closes for the period
-    const [profile, yRes] = await Promise.all([
-      fmpFetchProfile(symbol),
-      fetch(yahooUrl, { headers: YAHOO_HEADERS }),
-    ]);
+    // Check FMP first — bail before Yahoo if no live price data exists for this symbol.
+    // This avoids hanging on Yahoo when FMP has no coverage (e.g. ERNE.L on LSE).
+    const profile = await fmpFetchProfile(symbol);
     if (!profile?.price) return null;
+
+    // FMP has data — fetch Yahoo historical with a 10s timeout so a blocked/slow
+    // Yahoo response never permanently freezes the loading spinner.
+    const yController = new AbortController();
+    const yTimer = setTimeout(() => yController.abort(), 10_000);
+    const yRes = await fetch(yahooUrl, { headers: YAHOO_HEADERS, signal: yController.signal })
+      .finally(() => clearTimeout(yTimer));
     if (!yRes.ok) throw new Error(`Yahoo ${yRes.status}`);
 
     const yData = await yRes.json();
