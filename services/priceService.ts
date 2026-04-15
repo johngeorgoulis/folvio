@@ -1,6 +1,8 @@
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { upsertPrice, getPrice as dbGetPrice } from "@/services/db";
 import type { HoldingRow } from "@/services/db";
+import { lookupByTicker, initETFDatabase } from "@/services/etfDatabaseService";
 
 function yahooChartUrl(symbol: string, interval: string, range: string): string {
   if (Platform.OS === "web") {
@@ -19,17 +21,35 @@ function yahooSearchUrl(q: string): string {
 }
 
 export const EXCHANGE_SUFFIXES: Record<string, string> = {
+  // Internal exchange codes
   "XETRA": ".DE",
   "EURONEXT_AMS": ".AS",
   "EURONEXT_PAR": ".PA",
   "LSE": ".L",
   "BORSA_IT": ".MI",
   "SIX": ".SW",
+  "EURONEXT_BRU": ".BR",
+  "BME": ".MC",
+  "NASDAQ_HEL": ".HE",
+  "NASDAQ_STO": ".ST",
+  "OSLO": ".OL",
+  "NASDAQ_CPH": ".CO",
+  // Display names (used in ETF database exchanges[] field)
   "Euronext Paris": ".PA",
   "Euronext Amsterdam": ".AS",
+  "Euronext Brussels": ".BR",
   "Euronext": ".PA",
   "Borsa Italiana": ".MI",
   "SIX Swiss": ".SW",
+  "SIX Swiss Exchange": ".SW",
+  "Bolsa de Madrid": ".MC",
+  "Madrid Stock Exchange": ".MC",
+  "Nasdaq Helsinki": ".HE",
+  "Nasdaq Stockholm": ".ST",
+  "Oslo Bors": ".OL",
+  "Oslo Børs": ".OL",
+  "Nasdaq Copenhagen": ".CO",
+  "Cboe Denmark": ".CO",
   "Other": "",
 };
 
@@ -135,12 +155,19 @@ function parseRange(range: string | undefined): { yearLow: number; yearHigh: num
 //
 // Fallback order per exchange (most → least reliable FMP coverage):
 const FMP_EXCHANGE_FALLBACKS: Partial<Record<string, string[]>> = {
-  ".DE": [".AS", ".L", ".PA"],          // XETRA → Amsterdam → London → Paris
-  ".AS": [".L", ".DE", ".PA"],          // Amsterdam → London → XETRA → Paris
-  ".PA": [".DE", ".AS", ".L"],          // Paris → XETRA → Amsterdam → London
-  ".L":  [".DE", ".AS", ".PA", ".SW"],   // London → XETRA → Amsterdam → Paris → Swiss
-  ".MI": [".L", ".DE", ".AS", ".PA"],   // Milan → London first (best iShares coverage) → XETRA → Amsterdam → Paris
-  ".SW": [".DE", ".AS", ".L"],          // Swiss → XETRA → Amsterdam → London
+  ".DE": [".AS", ".L", ".PA"],
+  ".AS": [".L", ".DE", ".PA"],
+  ".PA": [".DE", ".AS", ".L"],
+  ".L":  [".DE", ".AS", ".PA", ".SW"],
+  ".MI": [".L", ".DE", ".AS", ".PA"],
+  ".SW": [".DE", ".AS", ".L"],
+  // Smaller exchanges fall back to main EU hubs
+  ".BR": [".DE", ".AS", ".PA", ".L"],
+  ".MC": [".DE", ".AS", ".PA", ".L"],
+  ".HE": [".DE", ".AS", ".L", ".PA"],
+  ".ST": [".DE", ".AS", ".L", ".PA"],
+  ".OL": [".DE", ".AS", ".L", ".PA"],
+  ".CO": [".DE", ".AS", ".L", ".PA"],
 };
 
 // Per-ticker overrides for ETFs whose cross-listed symbols differ from the
@@ -258,6 +285,65 @@ async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
   return null;
 }
 
+// ─── Symbol Resolution Cache ──────────────────────────────────────────────────
+// AsyncStorage cache mapping bare ticker → the FMP symbol that last succeeded
+// (e.g. "VHYL" → "VHYL.AS"). This lets subsequent fetches skip the waterfall.
+const SYMBOL_CACHE_PREFIX = "folvio_sym_";
+
+async function getResolvedSymbol(ticker: string): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(SYMBOL_CACHE_PREFIX + ticker.toUpperCase());
+  } catch {
+    return null;
+  }
+}
+
+async function setResolvedSymbol(ticker: string, symbol: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(SYMBOL_CACHE_PREFIX + ticker.toUpperCase(), symbol);
+  } catch {
+    // Ignore storage errors — cache is best-effort
+  }
+}
+
+// ─── ISIN Lookup via FMP Search ───────────────────────────────────────────────
+// Last-resort fallback when all exchange-suffix attempts fail.
+// Only works for native (direct FMP) — web proxy doesn't expose a search route.
+async function fmpSearchByISIN(isin: string): Promise<FMPProfileData | null> {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+  const apiKey = process.env.EXPO_PUBLIC_FMP_API_KEY ?? "";
+  // Skip for web proxy mode (no /api/fmp/search proxy route) and when no key
+  if (domain || !apiKey) return null;
+
+  const url = `${FMP_DIRECT_BASE}/search?query=${encodeURIComponent(isin)}&apikey=${apiKey}`;
+  try {
+    const res = await fetch(url, FMP_FETCH_OPTS);
+    if (!res.ok) return null;
+    const results: Array<{ symbol?: string }> = await res.json();
+    if (!Array.isArray(results) || results.length === 0) return null;
+
+    // Prefer EU exchange suffixes (most reliable coverage)
+    const EU_ORDER = [".DE", ".AS", ".PA", ".L", ".MI", ".SW", ".BR", ".MC", ".HE", ".ST", ".OL", ".CO"];
+    const sorted = [...results].sort((a, b) => {
+      const ai = EU_ORDER.findIndex(s => (a.symbol ?? "").endsWith(s));
+      const bi = EU_ORDER.findIndex(s => (b.symbol ?? "").endsWith(s));
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+
+    for (const r of sorted.slice(0, 6)) {
+      if (!r.symbol) continue;
+      const profile = await fmpFetchProfileSingle(r.symbol);
+      if (profile) {
+        console.log(`[fmp] ISIN ${isin} → resolved via FMP search: ${r.symbol}`);
+        return profile;
+      }
+    }
+  } catch (err) {
+    console.warn(`[fmp] fmpSearchByISIN failed for ${isin}:`, err);
+  }
+  return null;
+}
+
 export interface PriceResult {
   ticker: string;
   priceEUR: number;
@@ -321,34 +407,66 @@ export async function fetchLivePrice(
   ticker: string,
   exchange: string
 ): Promise<PriceResult | null> {
-  const symbol = buildYahooSymbol(ticker, exchange);
-  try {
-    const profile = await fmpFetchProfile(symbol);
-    if (!profile?.price) throw new Error(`No FMP profile for ${symbol}`);
+  let profile: FMPProfileData | null = null;
 
-    const currency = profile.currency ?? symbolCurrency(symbol);
-    let fxRate = 1;
-    if (currency !== "EUR") {
-      const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-        fxRate = await fetchFXRate(fxFrom, "EUR");
+  // ── Step 1: Try the cached winning symbol first (skip waterfall) ─────────
+  const cachedSymbol = await getResolvedSymbol(ticker);
+  if (cachedSymbol) {
+    profile = await fmpFetchProfileSingle(cachedSymbol);
+    if (profile) {
+      console.log(`[fmp] ${ticker} → cache hit: ${cachedSymbol}`);
+    }
+  }
+
+  // ── Step 2: Full waterfall (primary symbol → exchange swaps → bare → probe) ─
+  if (!profile) {
+    const primarySymbol = buildYahooSymbol(ticker, exchange);
+    profile = await fmpFetchProfile(primarySymbol);
+
+    // ── Step 3: ISIN lookup via FMP search (last resort) ─────────────────
+    if (!profile) {
+      try {
+        await initETFDatabase();
+        const etfEntry = lookupByTicker(ticker);
+        if (etfEntry?.isin) {
+          profile = await fmpSearchByISIN(etfEntry.isin);
+        }
+      } catch {
+        // ignore — ISIN lookup is best-effort
       }
     }
-    const priceEUR = normalizeToEUR(profile.price, currency, { [currency]: fxRate });
-    console.log(`[fmp] ${symbol}: ${profile.price} ${currency} → ${priceEUR.toFixed(4)} EUR`);
 
-    return {
-      ticker,
-      priceEUR,
-      currency,
-      source: "api",
-      lastFetched: new Date().toISOString(),
-      isStale: false,
-    };
-  } catch (err) {
-    console.warn(`[fmp] fetchLivePrice failed for ${ticker} (${symbol}):`, err);
+    // Cache the winning symbol so we skip the waterfall next time
+    if (profile?.symbol) {
+      await setResolvedSymbol(ticker, profile.symbol);
+    }
+  }
+
+  if (!profile?.price) {
+    console.warn(`[fmp] fetchLivePrice: no price found for ${ticker}`);
     return null;
   }
+
+  const usedSymbol = profile.symbol ?? buildYahooSymbol(ticker, exchange);
+  const currency = profile.currency ?? symbolCurrency(usedSymbol);
+  let fxRate = 1;
+  if (currency !== "EUR") {
+    const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+    if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+      fxRate = await fetchFXRate(fxFrom, "EUR");
+    }
+  }
+  const priceEUR = normalizeToEUR(profile.price, currency, { [currency]: fxRate });
+  console.log(`[fmp] ${ticker} (${usedSymbol}): ${profile.price} ${currency} → ${priceEUR.toFixed(4)} EUR`);
+
+  return {
+    ticker,
+    priceEUR,
+    currency,
+    source: "api",
+    lastFetched: new Date().toISOString(),
+    isStale: false,
+  };
 }
 
 export async function getCachedPrice(ticker: string): Promise<PriceResult | null> {

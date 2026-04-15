@@ -18,6 +18,8 @@ interface PriceChartProps {
   width: number;
   height?: number;
   range: string;
+  /** Optional avg cost price in EUR — draws a horizontal reference line (holdings only). */
+  avgCostEUR?: number;
 }
 
 function formatXLabel(ts: number, range: string): string {
@@ -54,7 +56,7 @@ function buildSmoothPath(pts: { x: number; y: number }[]): string {
 
 const PAD = { top: 24, bottom: 32, left: 8, right: 8 };
 
-export default function PriceChart({ data, width, height = 200, range }: PriceChartProps) {
+export default function PriceChart({ data, width, height = 200, range, avgCostEUR }: PriceChartProps) {
   const theme = Colors.dark;
   const [touchIdx, setTouchIdx] = useState<number | null>(null);
 
@@ -72,8 +74,10 @@ export default function PriceChart({ data, width, height = 200, range }: PriceCh
   }
 
   const prices = data.map((p) => p.priceEUR);
-  const minP = Math.min(...prices);
-  const maxP = Math.max(...prices);
+  // Include avgCostEUR in price range so the reference line is always visible
+  const allPrices = avgCostEUR != null ? [...prices, avgCostEUR] : prices;
+  const minP = Math.min(...allPrices);
+  const maxP = Math.max(...allPrices);
   const priceRange = maxP - minP || 1;
 
   const toX = (i: number) => PAD.left + (i / (data.length - 1)) * cW;
@@ -129,6 +133,45 @@ export default function PriceChart({ data, width, height = 200, range }: PriceCh
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+
+        {/* Avg Cost reference line (holdings only) */}
+        {avgCostEUR != null && (() => {
+          const avgY = toY(avgCostEUR);
+          const avgLabel = formatPrice(avgCostEUR);
+          return (
+            <>
+              <Line
+                x1={PAD.left}
+                y1={avgY}
+                x2={PAD.left + cW}
+                y2={avgY}
+                stroke="#94A3B8"
+                strokeWidth={1}
+                strokeDasharray="5 4"
+                strokeOpacity={0.7}
+              />
+              <Rect
+                x={PAD.left + cW - 58}
+                y={avgY - 10}
+                width={58}
+                height={14}
+                rx={4}
+                fill={theme.backgroundElevated}
+                opacity={0.85}
+              />
+              <SvgText
+                x={PAD.left + cW - 4}
+                y={avgY + 3}
+                fontSize={9}
+                fill="#94A3B8"
+                textAnchor="end"
+                fontFamily="Inter_600SemiBold"
+              >
+                Avg {avgLabel}
+              </SvgText>
+            </>
+          );
+        })()}
 
         {labelIndices.map((idx, i) => {
           const x = toX(idx);

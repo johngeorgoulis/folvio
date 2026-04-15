@@ -17,8 +17,21 @@ import { Swipeable } from "react-native-gesture-handler";
 import Colors from "@/constants/colors";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { useAllocation } from "@/context/AllocationContext";
 import { formatEUR, formatPct } from "@/utils/format";
 import AddHoldingModal, { type AddHoldingInitialValues } from "@/components/AddHoldingModal";
+
+/**
+ * Returns true when at least one major European market is likely open.
+ * Uses UTC offset: CET=UTC+1, CEST=UTC+2 — we cover both with an 8-18 UTC window.
+ */
+function isEuropeanMarketHours(): boolean {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0=Sun, 6=Sat
+  if (day === 0 || day === 6) return false;
+  const h = now.getUTCHours();
+  return h >= 8 && h < 18; // covers 9:00–17:30 CET and CEST
+}
 
 const theme = Colors.dark;
 
@@ -45,6 +58,7 @@ export default function HoldingsScreen() {
   } = usePortfolio();
 
   const { canAddUnlimitedHoldings, showPaywall } = useSubscription();
+  const { targets, rebalanceThreshold } = useAllocation();
 
   const [showAdd, setShowAdd]             = useState(false);
   const [prefillValues, setPrefillValues] = useState<AddHoldingInitialValues | undefined>();
@@ -163,6 +177,21 @@ export default function HoldingsScreen() {
           const distBadge   = getDistBadge(h.name ?? "", h.ticker);
           const isLast      = idx === holdings.length - 1;
 
+          // ── Warning icon: stale-during-market-hours OR drift beyond threshold ──
+          const targetAlloc = targets.find(t => t.ticker.toUpperCase() === h.ticker.toUpperCase());
+          const driftPct    = targetAlloc ? Math.abs(weight - targetAlloc.target_pct) : 0;
+          const hasDrift    = targetAlloc != null && driftPct > rebalanceThreshold;
+          const showWarning = (h.hasPrice && h.priceIsStale && isEuropeanMarketHours()) || hasDrift;
+
+          // ── PRICE color: green above avg cost, red below, neutral at par ────
+          const priceColor = !h.hasPrice
+            ? theme.text
+            : h.currentPrice > h.avg_cost_eur
+            ? theme.positive
+            : h.currentPrice < h.avg_cost_eur
+            ? theme.negative
+            : theme.text;
+
           return (
             <Swipeable
               key={h.id}
@@ -184,8 +213,8 @@ export default function HoldingsScreen() {
                   <View style={{ flex: 1 }}>
                     <View style={styles.tickerRow}>
                       <Text style={styles.holdingTicker}>{h.ticker}</Text>
-                      {h.hasPrice && h.priceIsStale && (
-                        <Text style={{ fontSize: 12, color: "#FBBF24" }}>⚠</Text>
+                      {showWarning && (
+                        <Text style={{ fontSize: 12, color: theme.warning }}>⚠</Text>
                       )}
                       {!h.hasPrice && (
                         <Text style={styles.noPrice}>no price</Text>
@@ -236,7 +265,7 @@ export default function HoldingsScreen() {
                   </View>
                   <View style={styles.detailItem}>
                     <Text style={styles.detailLabel}>PRICE</Text>
-                    <Text style={[styles.detailValue, h.priceIsStale ? { color: "#FBBF24" } : {}]}>
+                    <Text style={[styles.detailValue, { color: priceColor }]}>
                       {h.hasPrice ? formatEUR(h.currentPrice) : "—"}
                     </Text>
                   </View>

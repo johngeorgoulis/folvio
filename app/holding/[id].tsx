@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
+import { useAllocation } from "@/context/AllocationContext";
 import { formatEUR, formatPct } from "@/utils/format";
 import { getExchangeLabel } from "@/components/ExchangePicker";
 import EditHoldingModal from "@/components/EditHoldingModal";
@@ -75,6 +76,7 @@ export default function HoldingDetailScreen() {
   const bottomPad = Platform.OS === "web" ? 16 : insets.bottom + 16;
 
   const { holdings, deleteHolding, refreshPrices, totalPortfolioValue } = usePortfolio();
+  const { targets } = useAllocation();
   const holding = holdings.find((h) => h.id === id);
   const [showEdit, setShowEdit] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -115,6 +117,17 @@ export default function HoldingDetailScreen() {
 
   const exchangeLabel = getExchangeLabel(holding.exchange);
   const ter = getTER(holding.ticker);
+
+  // Target allocation
+  const targetAlloc = targets.find(t => t.ticker.toUpperCase() === holding.ticker.toUpperCase());
+  const targetPct   = targetAlloc?.target_pct ?? null;
+  const driftPct    = targetPct != null ? weight - targetPct : null;
+  const driftAbs    = driftPct != null ? Math.abs(driftPct) : 0;
+  const driftColor  = driftPct == null
+    ? theme.textSecondary
+    : driftAbs <= 2  ? theme.positive
+    : driftAbs <= 5  ? theme.tint
+    : theme.negative;
 
   function handleEditAssetClass() {
     Alert.alert(
@@ -274,6 +287,52 @@ export default function HoldingDetailScreen() {
             />
           </View>
         </View>
+
+        {/* ── Target Allocation ────────────────────────────────────────── */}
+        {targetPct != null && (
+          <View style={styles.card}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Current</Text>
+              <Text style={styles.infoValue}>{weight.toFixed(1)}%</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Target</Text>
+              <Text style={styles.infoValue}>{targetPct.toFixed(1)}%</Text>
+            </View>
+            <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+              <Text style={styles.infoLabel}>Drift</Text>
+              <Text style={[styles.infoValue, { color: driftColor }]}>
+                {driftPct != null ? `${driftPct >= 0 ? "+" : ""}${driftPct.toFixed(1)}%` : "—"}
+              </Text>
+            </View>
+            {/* Progress bar */}
+            <View style={styles.allocBarWrap}>
+              <View style={styles.allocBarTrack}>
+                {/* Current allocation fill */}
+                <View
+                  style={[
+                    styles.allocBarFill,
+                    { width: `${Math.min(weight, 100)}%`, backgroundColor: driftColor },
+                  ]}
+                />
+              </View>
+              {/* Target marker */}
+              {targetPct <= 100 && (
+                <View
+                  style={[
+                    styles.allocTargetMarker,
+                    { left: `${Math.min(targetPct, 100)}%` },
+                  ]}
+                />
+              )}
+            </View>
+            <View style={styles.allocBarLabels}>
+              <Text style={styles.allocBarLabel}>0%</Text>
+              <Text style={styles.allocBarLabel}>Target: {targetPct.toFixed(0)}%</Text>
+              <Text style={styles.allocBarLabel}>100%</Text>
+            </View>
+          </View>
+        )}
 
         {/* ── Additional Info ───────────────────────────────────────────── */}
         <View style={styles.card}>
@@ -512,4 +571,42 @@ const styles = StyleSheet.create({
 
   notFoundWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   notFoundText: { fontSize: 14, fontFamily: "Inter_400Regular", color: theme.textSecondary },
+
+  allocBarWrap: {
+    position: "relative",
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 4,
+    height: 8,
+  },
+  allocBarTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.backgroundElevated,
+    overflow: "hidden",
+  },
+  allocBarFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  allocTargetMarker: {
+    position: "absolute",
+    top: -3,
+    width: 2,
+    height: 14,
+    borderRadius: 1,
+    backgroundColor: theme.textSecondary,
+    marginLeft: -1,
+  },
+  allocBarLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  allocBarLabel: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    color: theme.textTertiary,
+  },
 });

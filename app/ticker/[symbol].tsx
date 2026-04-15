@@ -371,8 +371,72 @@ export default function TickerDetailScreen() {
     );
   }
 
-  // ── Error ──────────────────────────────────────────────────────────────────
+  // ── Error — show local holding data if available, otherwise full error ─────
   if (metaError || !meta) {
+    if (existingHolding) {
+      const hVal = existingHolding.quantity * existingHolding.currentPrice;
+      const hInv = existingHolding.quantity * existingHolding.avg_cost_eur;
+      const hGain = hVal - hInv;
+      const hGainPct = hInv > 0 ? (hGain / hInv) * 100 : 0;
+      const hPositive = hGain >= 0;
+      return (
+        <View style={[styles.root, { backgroundColor: theme.background }]}>
+          <ScrollView
+            contentContainerStyle={[styles.scroll, { paddingTop: topPad, paddingBottom: 32 }]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.topBar}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backBtnInline}>
+                <Feather name="arrow-left" size={22} color={theme.text} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={loadMeta} style={styles.refreshBtnInline}>
+                <Feather name="refresh-cw" size={18} color={theme.tint} />
+              </TouchableOpacity>
+            </View>
+            {/* Stale header card */}
+            <View style={styles.headerCard}>
+              <View style={styles.headerTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.symbolText}>{ticker}</Text>
+                  <Text style={styles.nameText} numberOfLines={1}>{existingHolding.name || ticker}</Text>
+                </View>
+                <View style={[styles.exchBadge, { backgroundColor: "#F59E0B22", borderWidth: 1, borderColor: "#F59E0B44" }]}>
+                  <Text style={[styles.exchBadgeText, { color: "#F59E0B" }]}>⚠ Stale</Text>
+                </View>
+              </View>
+              <Text style={styles.priceText}>
+                {existingHolding.hasPrice ? `€${existingHolding.currentPrice.toFixed(2)}` : `€${existingHolding.avg_cost_eur.toFixed(2)}`}
+              </Text>
+              <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 4 }}>
+                {existingHolding.hasPrice ? "Last known price — live data unavailable" : "Avg cost shown — no price data"}
+              </Text>
+            </View>
+            {/* Local holding metrics */}
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Your Position</Text>
+              <View style={styles.statsGrid}>
+                <StatCell label="Quantity" value={`${existingHolding.quantity} units`} />
+                <StatCell label="Avg Cost" value={`€${existingHolding.avg_cost_eur.toFixed(2)}`} />
+                <StatCell label="Total Invested" value={`€${hInv.toFixed(2)}`} />
+                <StatCell label="Current Value" value={existingHolding.hasPrice ? `€${hVal.toFixed(2)}` : "—"} />
+                <StatCell
+                  label="Return (€)"
+                  value={existingHolding.hasPrice ? `${hPositive ? "+" : ""}€${Math.abs(hGain).toFixed(2)}` : "—"}
+                />
+                <StatCell
+                  label="Return (%)"
+                  value={existingHolding.hasPrice ? `${hPositive ? "+" : ""}${hGainPct.toFixed(2)}%` : "—"}
+                />
+              </View>
+            </View>
+            <TouchableOpacity style={styles.retryBtn} onPress={loadMeta}>
+              <Feather name="refresh-cw" size={14} color={theme.tint} />
+              <Text style={styles.retryText}>Retry loading live data</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      );
+    }
     return (
       <View style={[styles.loadingScreen, { backgroundColor: theme.background, paddingTop: topPad }]}>
         <TouchableOpacity style={[styles.backBtn, { top: topPad + 4 }]} onPress={() => router.back()}>
@@ -484,7 +548,13 @@ export default function TickerDetailScreen() {
               <ActivityIndicator color={theme.tint} />
             </View>
           ) : (
-            <PriceChart data={chartData} width={CHART_W - 32} height={200} range={range} />
+            <PriceChart
+              data={chartData}
+              width={CHART_W - 32}
+              height={200}
+              range={range}
+              avgCostEUR={existingHolding?.avg_cost_eur}
+            />
           )}
           {rangePerf !== null && (
             <View style={{ alignItems: "center", marginTop: 8 }}>
