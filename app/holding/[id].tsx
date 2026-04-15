@@ -108,6 +108,11 @@ export default function HoldingDetailScreen() {
       ? holding.quantity * holding.currentPrice * (holding.yield_pct / 100)
       : null;
 
+  const isAccumulating =
+    holding.isin === "IE00BK5BQT80" ||
+    (holding.name + " " + holding.ticker).toLowerCase().includes("acc") ||
+    (holding.name + " " + holding.ticker).toLowerCase().includes("accumul");
+
   const exchangeLabel = getExchangeLabel(holding.exchange);
   const ter = getTER(holding.ticker);
 
@@ -276,10 +281,17 @@ export default function HoldingDetailScreen() {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Trailing Yield</Text>
               <Text style={styles.infoValue}>
-                {holding.yield_pct.toFixed(2)}%
-                {estimatedAnnualIncome != null && (
-                  <Text style={styles.infoSub}> → est. {formatEUR(estimatedAnnualIncome)}/yr</Text>
-                )}
+                {holding.yield_pct === 0 && isAccumulating
+                  ? "Acc. — no distributions"
+                  : (
+                    <>
+                      {holding.yield_pct.toFixed(2)}%
+                      {estimatedAnnualIncome != null && (
+                        <Text style={styles.infoSub}> → est. {formatEUR(estimatedAnnualIncome)}/yr</Text>
+                      )}
+                    </>
+                  )
+                }
               </Text>
             </View>
           )}
