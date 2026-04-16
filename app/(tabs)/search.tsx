@@ -56,16 +56,6 @@ const POPULAR_ETFS = [
   { symbol: "VAGF.L",  ticker: "VAGF", name: "Vanguard Global Agg Bond" },
 ];
 
-const POPULAR_STOCKS = [
-  { symbol: "AAPL",      ticker: "AAPL",   name: "Apple Inc." },
-  { symbol: "MSFT",      ticker: "MSFT",   name: "Microsoft Corp." },
-  { symbol: "NVDA",      ticker: "NVDA",   name: "NVIDIA Corporation" },
-  { symbol: "ASML.AS",   ticker: "ASML",   name: "ASML Holding N.V." },
-  { symbol: "NOVO-B.CO", ticker: "NOVO-B", name: "Novo Nordisk A/S" },
-  { symbol: "SAP.DE",    ticker: "SAP",    name: "SAP SE" },
-  { symbol: "NESN.SW",   ticker: "NESN",   name: "Nestlé S.A." },
-  { symbol: "MC.PA",     ticker: "MC",     name: "LVMH Moët Hennessy" },
-];
 
 const ISIN_REGEX = /^[A-Z]{2}[A-Z0-9]{10}$/;
 function isISIN(q: string): boolean { return ISIN_REGEX.test(q.trim().toUpperCase()); }
@@ -227,7 +217,7 @@ export default function SearchScreen() {
 
   // ── Popular prices ────────────────────────────────────────────────────────
   useEffect(() => {
-    const all = [...POPULAR_ETFS, ...POPULAR_STOCKS];
+    const all = [...POPULAR_ETFS];
     Promise.allSettled(all.map((item) => fetchSymbolPrice(item.symbol))).then((settled) => {
       const map: Record<string, PopularPrice | null> = {};
       all.forEach((item, i) => {
@@ -359,7 +349,7 @@ export default function SearchScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Explore</Text>
-          <Text style={styles.subtitle}>Search ETFs, funds &amp; stocks</Text>
+          <Text style={styles.subtitle}>Search UCITS ETFs &amp; funds</Text>
         </View>
 
         {/* Search bar */}
@@ -393,7 +383,7 @@ export default function SearchScreen() {
           )}
         </View>
 
-        {/* ── Home: Popular ETFs + Stocks ────────────────────────────────── */}
+        {/* ── Home: ETFs ─────────────────────────────────────────────────── */}
         {showHome && (
           <>
             <View style={styles.sectionHeader}>
@@ -405,22 +395,6 @@ export default function SearchScreen() {
               keyboardShouldPersistTaps="handled"
             >
               {displayETFs.map((item) => (
-                <PopularCard
-                  key={item.symbol} {...item}
-                  price={item.symbol in popularPrices ? popularPrices[item.symbol] : undefined}
-                />
-              ))}
-            </ScrollView>
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Major Stocks</Text>
-            </View>
-            <ScrollView
-              horizontal showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-              keyboardShouldPersistTaps="handled"
-            >
-              {POPULAR_STOCKS.map((item) => (
                 <PopularCard
                   key={item.symbol} {...item}
                   price={item.symbol in popularPrices ? popularPrices[item.symbol] : undefined}

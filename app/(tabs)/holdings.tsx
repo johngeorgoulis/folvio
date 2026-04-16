@@ -15,23 +15,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
 import Colors from "@/constants/colors";
+import { isExchangeOpen } from "@/utils/marketHours";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAllocation } from "@/context/AllocationContext";
 import { formatEUR, formatPct } from "@/utils/format";
 import AddHoldingModal, { type AddHoldingInitialValues } from "@/components/AddHoldingModal";
-
-/**
- * Returns true when at least one major European market is likely open.
- * Uses UTC offset: CET=UTC+1, CEST=UTC+2 — we cover both with an 8-18 UTC window.
- */
-function isEuropeanMarketHours(): boolean {
-  const now = new Date();
-  const day = now.getUTCDay(); // 0=Sun, 6=Sat
-  if (day === 0 || day === 6) return false;
-  const h = now.getUTCHours();
-  return h >= 8 && h < 18; // covers 9:00–17:30 CET and CEST
-}
 
 const theme = Colors.dark;
 
@@ -178,10 +167,12 @@ export default function HoldingsScreen() {
           const isLast      = idx === holdings.length - 1;
 
           // ── Warning icon: stale-during-market-hours OR drift beyond threshold ──
+          // Uses exchange-specific timezone so e.g. BORSA_IT doesn't trigger a
+          // false stale-warning after 17:30 CET when Xetra/LSE are still open.
           const targetAlloc = targets.find(t => t.ticker.toUpperCase() === h.ticker.toUpperCase());
           const driftPct    = targetAlloc ? Math.abs(weight - targetAlloc.target_pct) : 0;
           const hasDrift    = targetAlloc != null && driftPct > rebalanceThreshold;
-          const showWarning = (h.hasPrice && h.priceIsStale && isEuropeanMarketHours()) || hasDrift;
+          const showWarning = (h.hasPrice && h.priceIsStale && isExchangeOpen(h.exchange)) || hasDrift;
 
           // ── PRICE color: green above avg cost, red below, neutral at par ────
           const priceColor = !h.hasPrice

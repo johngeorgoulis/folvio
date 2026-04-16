@@ -19,6 +19,7 @@ import { usePortfolio } from "@/context/PortfolioContext";
 import PriceChart from "@/components/PriceChart";
 import {
   fetchChartHistory,
+  fetchFMPChartHistory,
   fetchETFDataBySymbol,
   fetchETFDataFromServer,
   fetchPeriodReturn,
@@ -45,7 +46,7 @@ const KNOWN_YIELDS_MAP: Record<string, number> = {
 };
 const SCREEN_W = Dimensions.get("window").width;
 const CHART_W = SCREEN_W - 32;
-const RANGES = ["1D", "1W", "1M", "3M", "6M", "1Y", "All"] as const;
+const RANGES = ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "All"] as const;
 type Range = (typeof RANGES)[number];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -202,12 +203,14 @@ export default function TickerDetailScreen() {
     setMetaError(false);
     try {
       // All network calls fire in parallel to minimise total load time.
-      // fetchPeriodReturn uses explicit period1 timestamps throughout, so every
-      // result uses the live price as end and the exact calendar date as start.
+      // Chart data uses FMP as primary source (better UCITS ETF coverage) with
+      // Yahoo as fallback. fetchPeriodReturn uses explicit period1 timestamps.
       const [m, yd, monthData, initPerf, r1w, r3m, r1y] = await Promise.all([
         fetchTickerMeta(safeSymbol),
-        fetchChartHistory(safeSymbol, "1Y"),
-        fetchChartHistory(safeSymbol, "1M"),
+        fetchFMPChartHistory(safeSymbol, "1Y")
+          .then((pts) => pts.length >= 2 ? pts : fetchChartHistory(safeSymbol, "1Y")),
+        fetchFMPChartHistory(safeSymbol, "1M")
+          .then((pts) => pts.length >= 2 ? pts : fetchChartHistory(safeSymbol, "1M")),
         fetchPeriodReturn(safeSymbol, "1M"),   // initial range display (1M selected by default)
         fetchPeriodReturn(safeSymbol, "1W"),   // perf card
         fetchPeriodReturn(safeSymbol, "3M"),   // perf card
@@ -251,20 +254,14 @@ export default function TickerDetailScreen() {
     setRange(r);
     setLoadingChart(true);
     try {
-      // For 1Y we already have the chart data in state — skip the redundant fetch.
-      // For all other ranges we fetch chart and period return in parallel.
-      const chartPromise = r === "1Y"
+      // For 1Y we already have year data in state — reuse it.
+      // For all other ranges, prefer FMP chart data (more coverage for UCITS ETFs)
+      // with Yahoo as fallback for intraday.
+      const chartPromise: Promise<ChartPoint[]> = r === "1Y"
         ? Promise.resolve(yearData)
-        : fetchChartHistory(safeSymbol, r);
+        : fetchFMPChartHistory(safeSymbol, r)
+            .then((pts) => pts.length >= 2 ? pts : fetchChartHistory(safeSymbol, r));
 
-      // fetchPeriodReturn now handles every range natively:
-      //   1D  → (live - prevClose) / prevClose  (meta opts fast-path, else 5d fallback)
-      //   1W  → period1=7d, closes[0] as start, live price as end
-      //   1M  → period1=30d, same pattern
-      //   3M  → period1=91d
-      //   6M  → period1=182d
-      //   1Y  → period1=365d
-      //   All → period1=epoch, monthly candles
       const returnPromise = fetchPeriodReturn(
         safeSymbol,
         r,
@@ -526,7 +523,12 @@ export default function TickerDetailScreen() {
         {/* ── Chart ─────────────────────────────────────────────────────── */}
         <View style={[styles.chartCard]}>
           {/* Range selector */}
-          <View style={styles.rangeRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.rangeRow}
+            style={{ marginBottom: 4 }}
+          >
             {RANGES.map((r) => (
               <TouchableOpacity
                 key={r}
@@ -541,7 +543,7 @@ export default function TickerDetailScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
 
           {loadingChart ? (
             <View style={{ height: 200, alignItems: "center", justifyContent: "center" }}>
@@ -835,8 +837,8 @@ const styles = StyleSheet.create({
   },
   rangeRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 12,
+    gap: 4,
+    paddingBottom: 8,
   },
   rangeBtn: {
     paddingHorizontal: 10,

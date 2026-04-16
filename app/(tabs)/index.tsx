@@ -158,9 +158,6 @@ export default function DashboardScreen() {
           <Text style={styles.headerDate}>{currentMonthLabel()}</Text>
           <Text style={styles.headerTitle}>Folvio</Text>
         </View>
-        <View style={styles.euBadge}>
-          <Text style={styles.euBadgeText}>EU</Text>
-        </View>
       </View>
 
       {/* ── Hero Card ────────────────────────────────────────────────────── */}
@@ -458,8 +455,6 @@ const styles = StyleSheet.create({
   header:       { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 2 },
   headerDate:   { fontSize: 12, fontFamily: "Inter_500Medium", color: theme.textTertiary, letterSpacing: 0.3 },
   headerTitle:  { fontSize: 26, fontFamily: "Inter_700Bold", color: theme.text, letterSpacing: -0.8 },
-  euBadge:      { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: theme.backgroundElevated, borderWidth: 1, borderColor: theme.border },
-  euBadgeText:  { color: theme.tint, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 1.2 },
 
   // Hero card
   heroCard: {

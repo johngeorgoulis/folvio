@@ -307,24 +307,41 @@ async function setResolvedSymbol(ticker: string, symbol: string): Promise<void> 
 }
 
 // ─── ISIN Lookup via FMP Search ───────────────────────────────────────────────
-// Last-resort fallback when all exchange-suffix attempts fail.
-// Only works for native (direct FMP) — web proxy doesn't expose a search route.
+// Primary resolution strategy: search FMP by ISIN to find the best-matching
+// listing before attempting the suffix waterfall.
+// Works in both native (direct FMP key) and web (proxy) modes.
+
+function fmpSearchQueryUrl(query: string): string {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+  const apiKey = process.env.EXPO_PUBLIC_FMP_API_KEY ?? "";
+  if (domain) {
+    // Proxy mode: forward query to /api/fmp/search
+    return `https://${domain}/api/fmp/search?query=${encodeURIComponent(query)}`;
+  }
+  return `${FMP_DIRECT_BASE}/search?query=${encodeURIComponent(query)}&apikey=${apiKey}`;
+}
+
 async function fmpSearchByISIN(isin: string): Promise<FMPProfileData | null> {
   const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
   const apiKey = process.env.EXPO_PUBLIC_FMP_API_KEY ?? "";
-  // Skip for web proxy mode (no /api/fmp/search proxy route) and when no key
-  if (domain || !apiKey) return null;
+  // Need either a proxy domain or a direct API key
+  if (!domain && !apiKey) return null;
 
-  const url = `${FMP_DIRECT_BASE}/search?query=${encodeURIComponent(isin)}&apikey=${apiKey}`;
+  const url = fmpSearchQueryUrl(isin);
   try {
     const res = await fetch(url, FMP_FETCH_OPTS);
     if (!res.ok) return null;
-    const results: Array<{ symbol?: string }> = await res.json();
+    const results: Array<{ symbol?: string; currency?: string }> = await res.json();
     if (!Array.isArray(results) || results.length === 0) return null;
 
-    // Prefer EU exchange suffixes (most reliable coverage)
+    // Prefer EUR-denominated listings, then any EU exchange suffix
     const EU_ORDER = [".DE", ".AS", ".PA", ".L", ".MI", ".SW", ".BR", ".MC", ".HE", ".ST", ".OL", ".CO"];
     const sorted = [...results].sort((a, b) => {
+      // EUR-denominated first
+      const aEUR = (a.currency ?? "").toUpperCase() === "EUR" ? 0 : 1;
+      const bEUR = (b.currency ?? "").toUpperCase() === "EUR" ? 0 : 1;
+      if (aEUR !== bEUR) return aEUR - bEUR;
+      // Then by EU exchange suffix order
       const ai = EU_ORDER.findIndex(s => (a.symbol ?? "").endsWith(s));
       const bi = EU_ORDER.findIndex(s => (b.symbol ?? "").endsWith(s));
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
@@ -409,7 +426,7 @@ export async function fetchLivePrice(
 ): Promise<PriceResult | null> {
   let profile: FMPProfileData | null = null;
 
-  // ── Step 1: Try the cached winning symbol first (skip waterfall) ─────────
+  // ── Step 1: Try the cached winning symbol first (skip all lookups) ───────
   const cachedSymbol = await getResolvedSymbol(ticker);
   if (cachedSymbol) {
     profile = await fmpFetchProfileSingle(cachedSymbol);
@@ -418,22 +435,28 @@ export async function fetchLivePrice(
     }
   }
 
-  // ── Step 2: Full waterfall (primary symbol → exchange swaps → bare → probe) ─
   if (!profile) {
-    const primarySymbol = buildYahooSymbol(ticker, exchange);
-    profile = await fmpFetchProfile(primarySymbol);
-
-    // ── Step 3: ISIN lookup via FMP search (last resort) ─────────────────
-    if (!profile) {
-      try {
-        await initETFDatabase();
-        const etfEntry = lookupByTicker(ticker);
-        if (etfEntry?.isin) {
-          profile = await fmpSearchByISIN(etfEntry.isin);
+    // ── Step 2: ISIN-first resolution (primary strategy) ─────────────────
+    // Look up the ETF's ISIN from our local database and search FMP by ISIN.
+    // This is more reliable than ticker+suffix guessing for UCITS ETFs which
+    // may trade under different ticker names on different exchanges.
+    try {
+      await initETFDatabase();
+      const etfEntry = lookupByTicker(ticker);
+      if (etfEntry?.isin) {
+        profile = await fmpSearchByISIN(etfEntry.isin);
+        if (profile) {
+          console.log(`[fmp] ${ticker} → resolved via ISIN ${etfEntry.isin}: ${profile.symbol}`);
         }
-      } catch {
-        // ignore — ISIN lookup is best-effort
       }
+    } catch {
+      // ignore — ISIN lookup is best-effort
+    }
+
+    // ── Step 3: Suffix waterfall fallback (only if ISIN search failed) ───
+    if (!profile) {
+      const primarySymbol = buildYahooSymbol(ticker, exchange);
+      profile = await fmpFetchProfile(primarySymbol);
     }
 
     // Cache the winning symbol so we skip the waterfall next time
@@ -620,9 +643,134 @@ const CHART_INTERVALS: Record<string, { interval: string; range: string }> = {
   "1M":  { interval: "1d",  range: "1mo" },
   "3M":  { interval: "1d",  range: "3mo" },
   "6M":  { interval: "1d",  range: "6mo" },
+  "YTD": { interval: "1d",  range: "ytd" },
   "1Y":  { interval: "1d",  range: "1y"  },
-  "All": { interval: "1mo", range: "5y"  },
+  "3Y":  { interval: "1wk", range: "3y"  },
+  "5Y":  { interval: "1wk", range: "5y"  },
+  "All": { interval: "1mo", range: "max" },
 };
+
+// ─── FMP Historical Chart Helpers ─────────────────────────────────────────────
+// FMP endpoints:
+//   Intraday hourly: GET /stable/historical-chart/1hour?symbol={s}&apikey={k}
+//   Daily/weekly:    GET /stable/historical-price-full?symbol={s}&from={d}&apikey={k}
+//
+// Works in both web (proxy via EXPO_PUBLIC_DOMAIN) and native (direct key) modes.
+
+function fmpHistoricalUrl(endpoint: string, symbol: string, extraParams?: string): string {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+  const apiKey = process.env.EXPO_PUBLIC_FMP_API_KEY ?? "";
+  const extra = extraParams ? `&${extraParams}` : "";
+  if (domain) {
+    return `https://${domain}/api/fmp/${endpoint}?symbol=${encodeURIComponent(symbol)}${extra}`;
+  }
+  return `${FMP_DIRECT_BASE}/${endpoint}?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}${extra}`;
+}
+
+function dateStringDaysAgo(days: number): string {
+  const d = new Date(Date.now() - days * 86_400_000);
+  return d.toISOString().split("T")[0];
+}
+
+function ytdFromDate(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-01-01`;
+}
+
+interface FMPDailyBar {
+  date: string;
+  close: number;
+}
+
+interface FMPHourlyBar {
+  date: string;   // "2024-04-16 14:30:00"
+  close: number;
+}
+
+/**
+ * Fetch FMP historical chart data and convert to ChartPoint[].
+ *
+ * For 1D  → /historical-chart/1hour (intraday, last ~24h)
+ * For all other ranges → /historical-price-full with from= date param
+ */
+export async function fetchFMPChartHistory(
+  symbol: string,
+  range: string,
+): Promise<ChartPoint[]> {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+  const apiKey = process.env.EXPO_PUBLIC_FMP_API_KEY ?? "";
+  if (!domain && !apiKey) return []; // No way to call FMP
+
+  const currency = symbolCurrency(symbol);
+  let fxRate = 1;
+  if (currency !== "EUR") {
+    const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+    if (["GBP", "USD", "CHF"].includes(fxFrom)) {
+      try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+    }
+  }
+  const toEUR = (p: number) =>
+    currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
+
+  try {
+    if (range === "1D") {
+      // Intraday: hourly bars for the last trading day
+      const url = fmpHistoricalUrl("historical-chart/1hour", symbol);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10_000);
+      const res = await fetch(url, { headers: FMP_FETCH_OPTS.headers, signal: controller.signal })
+        .finally(() => clearTimeout(timer));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const bars: FMPHourlyBar[] = await res.json();
+      if (!Array.isArray(bars)) return [];
+
+      // FMP returns newest-first; reverse and filter to today only
+      const today = new Date().toISOString().split("T")[0];
+      return bars
+        .filter((b) => b.date?.startsWith(today) && b.close > 0)
+        .reverse()
+        .map((b) => ({
+          timestamp: new Date(b.date.replace(" ", "T")).getTime(),
+          priceEUR:  toEUR(b.close),
+        }));
+    }
+
+    // Daily / weekly: /historical-price-full with date range
+    const fromDate =
+      range === "YTD" ? ytdFromDate()       :
+      range === "1W"  ? dateStringDaysAgo(7)  :
+      range === "1M"  ? dateStringDaysAgo(31) :
+      range === "3M"  ? dateStringDaysAgo(92) :
+      range === "6M"  ? dateStringDaysAgo(183):
+      range === "1Y"  ? dateStringDaysAgo(366):
+      range === "3Y"  ? dateStringDaysAgo(3 * 366) :
+      range === "5Y"  ? dateStringDaysAgo(5 * 366) :
+      dateStringDaysAgo(10 * 366); // All
+
+    const url = fmpHistoricalUrl("historical-price-full", symbol, `from=${fromDate}`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    const res = await fetch(url, { headers: FMP_FETCH_OPTS.headers, signal: controller.signal })
+      .finally(() => clearTimeout(timer));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const historical: FMPDailyBar[] = data?.historical ?? [];
+    if (!Array.isArray(historical)) return [];
+
+    // FMP returns newest-first; sort ascending
+    return historical
+      .filter((b) => b.close > 0)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((b) => ({
+        timestamp: new Date(b.date).getTime(),
+        priceEUR:  toEUR(b.close),
+      }));
+  } catch (err) {
+    console.warn(`[fetchFMPChartHistory] failed for ${symbol} range=${range}:`, err);
+    return [];
+  }
+}
 
 const YAHOO_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -903,7 +1051,7 @@ function yahooChartUrlByPeriod(
 
 export async function fetchPeriodReturn(
   symbol: string,
-  period: "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "All",
+  period: "1D" | "1W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "3Y" | "5Y" | "All",
   _opts?: { previousCloseEUR?: number; currentPriceEUR?: number }
 ): Promise<PeriodReturn | null> {
 
@@ -939,19 +1087,25 @@ export async function fetchPeriodReturn(
     }
   }
 
-  // ── 1W / 1M / 3M / 6M / 1Y / All ────────────────────────────────────────
+  // ── 1W / 1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / All ───────────────────────
   // Strategy: FMP profile for the live end price (accurate), Yahoo historical
   // for the start price (period1 forward-rolls to the first trading day).
   const PERIOD_CALENDAR_DAYS: Partial<Record<string, number>> = {
     "1W": 7, "1M": 30, "3M": 91, "6M": 182, "1Y": 365,
+    "3Y": 3 * 365, "5Y": 5 * 365,
   };
-  const calendarDays = PERIOD_CALENDAR_DAYS[period];
-  const period1Unix = period === "All"
-    ? 0
-    : calendarDays != null
-      ? Math.floor((Date.now() - calendarDays * 86_400_000) / 1000)
-      : null;
-  if (period1Unix === null) return null;
+
+  let period1Unix: number;
+  if (period === "All") {
+    period1Unix = 0;
+  } else if (period === "YTD") {
+    const ytdStart = new Date(new Date().getFullYear(), 0, 1);
+    period1Unix = Math.floor(ytdStart.getTime() / 1000);
+  } else {
+    const calendarDays = PERIOD_CALENDAR_DAYS[period];
+    if (calendarDays == null) return null;
+    period1Unix = Math.floor((Date.now() - calendarDays * 86_400_000) / 1000);
+  }
 
   const yahooUrl = yahooChartUrlByPeriod(symbol, "1d", period1Unix);
 

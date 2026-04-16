@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { getPriceStatusLabel, isExchangeOpen } from "@/utils/marketHours";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useAllocation } from "@/context/AllocationContext";
 import { formatEUR, formatPct } from "@/utils/format";
@@ -30,17 +31,6 @@ import {
 import { upsertPrice } from "@/services/db";
 
 const theme = Colors.dark;
-
-function staleLabelFor(lastFetched: string): string {
-  if (!lastFetched) return "";
-  const ageMs = Date.now() - new Date(lastFetched).getTime();
-  const mins = Math.floor(ageMs / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
 
 function formatDate(iso: string): string {
   if (!iso) return "—";
@@ -222,13 +212,25 @@ export default function HoldingDetailScreen() {
             )}
           </View>
           <View style={styles.priceStatusRow}>
-            {holding.priceIsStale ? (
-              <Text style={styles.staleLabel}>⚠ Stale · {staleLabelFor(holding.priceLastFetched)}</Text>
-            ) : holding.hasPrice ? (
-              <Text style={styles.liveLabel}>● Live · {staleLabelFor(holding.priceLastFetched)}</Text>
-            ) : (
-              <Text style={styles.noPriceLabel}>No live price</Text>
-            )}
+            {(() => {
+              const label = getPriceStatusLabel(
+                holding.exchange,
+                holding.priceLastFetched,
+                holding.hasPrice,
+                holding.priceIsStale,
+              );
+              const marketOpen = isExchangeOpen(holding.exchange);
+              if (!holding.hasPrice) {
+                return <Text style={styles.noPriceLabel}>{label}</Text>;
+              }
+              if (!marketOpen) {
+                return <Text style={styles.liveLabel}>● {label}</Text>;
+              }
+              if (holding.priceIsStale) {
+                return <Text style={styles.staleLabel}>⚠ {label}</Text>;
+              }
+              return <Text style={styles.liveLabel}>● {label}</Text>;
+            })()}
             <TouchableOpacity
               style={styles.refreshBtn}
               onPress={handleRefreshPrice}
