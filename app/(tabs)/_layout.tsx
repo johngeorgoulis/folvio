@@ -107,12 +107,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="projections"
+        name="insights"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="clock" label="Forecast" color={color} focused={focused} />
+            <TabIcon name="zap" label="Insights" color={color} focused={focused} />
           ),
         }}
+      />
+      <Tabs.Screen
+        name="projections"
+        options={{ tabBarButton: () => null }}
       />
       <Tabs.Screen
         name="settings"
