@@ -117,8 +117,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="projections"
         options={{
-          tabBarButton: () => null,
-          tabBarItemStyle: { width: 0, flex: 0 },
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="clock" label="Forecast" color={color} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
