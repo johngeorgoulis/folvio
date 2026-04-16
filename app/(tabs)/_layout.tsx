@@ -116,7 +116,10 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="projections"
-        options={{ tabBarButton: () => null }}
+        options={{
+          tabBarButton: () => null,
+          tabBarItemStyle: { width: 0, flex: 0 },
+        }}
       />
       <Tabs.Screen
         name="settings"

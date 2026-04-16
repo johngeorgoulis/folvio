@@ -588,7 +588,7 @@ function AIInsightsSection({
           <Text style={[aiStyles.errorText, { color: theme.textSecondary }]}>
             {error.includes("not configured")
               ? "Add EXPO_PUBLIC_ANTHROPIC_API_KEY to enable AI insights."
-              : "Could not load insights. Tap ↻ to retry."}
+              : `Could not load insights. Tap ↻ to retry.\n\n${error}`}
           </Text>
         </View>
       ) : holdings.length === 0 ? (
