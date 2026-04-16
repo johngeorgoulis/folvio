@@ -63,7 +63,9 @@ const MAX_CONCURRENT = 5;
 const EODHD_BASE = "https://eodhd.com/api";
 
 function eodhdApiKey(): string {
-  return process.env.EXPO_PUBLIC_EODHD_API_KEY ?? "";
+  const key = process.env.EXPO_PUBLIC_EODHD_API_KEY ?? "";
+  console.log(`[eodhdApiKey] key ${key ? `present (length=${key.length})` : "MISSING or empty"}`);
+  return key;
 }
 
 interface EodhdRealtimeData {
