@@ -158,6 +158,13 @@ export default function DashboardScreen() {
           <Text style={styles.headerDate}>{currentMonthLabel()}</Text>
           <Text style={styles.headerTitle}>Folvio</Text>
         </View>
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)/settings" as never)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={[styles.settingsBtn, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}
+        >
+          <Feather name="settings" size={19} color={theme.textSecondary} />
+        </TouchableOpacity>
       </View>
 
       {/* ── Hero Card ────────────────────────────────────────────────────── */}
@@ -319,7 +326,7 @@ export default function DashboardScreen() {
           style={[styles.card, styles.dcaCard, {
             borderColor: dcaCompletedThisMonth ? theme.border : theme.tint + "55",
           }]}
-          onPress={() => router.push("/(tabs)/projections" as never)}
+          onPress={() => router.push("/(tabs)/insights" as never)}
           activeOpacity={0.8}
         >
           <View style={[styles.dcaIcon, {
@@ -453,6 +460,7 @@ const styles = StyleSheet.create({
 
   // Header
   header:       { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 2 },
+  settingsBtn:  { width: 40, height: 40, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   headerDate:   { fontSize: 12, fontFamily: "Inter_500Medium", color: theme.textTertiary, letterSpacing: 0.3 },
   headerTitle:  { fontSize: 26, fontFamily: "Inter_700Bold", color: theme.text, letterSpacing: -0.8 },
 
