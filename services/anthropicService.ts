@@ -29,6 +29,14 @@ const ETF_TER: Record<string, number> = {
   EGLN: 0.19,
 };
 
+function getServerUrl(): string {
+  const full = process.env.EXPO_PUBLIC_API_SERVER_URL;
+  if (full) return full.replace(/\/$/, "");
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  if (domain) return `https://${domain}`;
+  throw new Error("EXPO_PUBLIC_API_SERVER_URL is not configured");
+}
+
 export async function generatePortfolioInsights(
   holdings: Array<{
     ticker: string;
@@ -43,9 +51,7 @@ export async function generatePortfolioInsights(
   totalPortfolioValue: number,
   dcaAmount: number
 ): Promise<AIInsight[]> {
-  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
-  console.log("[Anthropic] key present:", !!apiKey, "length:", apiKey?.length ?? 0);
-  if (!apiKey) throw new Error("EXPO_PUBLIC_ANTHROPIC_API_KEY not configured");
+  const serverUrl = getServerUrl();
 
   const priced = holdings.filter(h => h.hasPrice && h.currentPrice > 0 && h.quantity > 0);
 
@@ -92,64 +98,38 @@ export async function generatePortfolioInsights(
     dcaMonthlyEUR: dcaAmount,
   };
 
-  const requestBody = {
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 1024,
-    system:
-      "You are a portfolio analyst for European passive investors. " +
-      "Generate exactly 4 concise, specific portfolio insights based on the data provided. " +
-      "Focus on: geographic concentration, cost efficiency, asset allocation vs typical EU passive investor, " +
-      "and one actionable suggestion. Be specific with numbers. Maximum 2 sentences per insight. " +
-      "Respond ONLY with a JSON array, no other text.",
-    messages: [
-      {
-        role: "user",
-        content:
-          `Analyze this portfolio and generate 4 insights as JSON:\n\n` +
-          `${JSON.stringify(portfolioContext, null, 2)}\n\n` +
-          `Respond with: [{"title": "...", "body": "...", "type": "neutral|positive|warning"}, ...]`,
-      },
-    ],
-  };
-
-  console.log("[Anthropic] sending request, model:", requestBody.model);
+  console.log("[Anthropic] calling server:", `${serverUrl}/api/insights`);
 
   let response: Response;
   try {
-    response = await fetch("https://api.anthropic.com/v1/messages", {
+    response = await fetch(`${serverUrl}/api/insights`, {
       method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ portfolioContext }),
     });
   } catch (networkErr) {
     console.log("[Anthropic] network error:", networkErr);
     throw new Error(`Network error: ${networkErr instanceof Error ? networkErr.message : String(networkErr)}`);
   }
 
-  console.log("[Anthropic] response status:", response.status);
+  console.log("[Anthropic] server response status:", response.status);
 
   if (!response.ok) {
     const body = await response.text();
-    console.log("[Anthropic] error body:", body);
-    throw new Error(`Anthropic API error ${response.status}: ${body}`);
+    console.log("[Anthropic] server error body:", body);
+    throw new Error(`Server error ${response.status}: ${body}`);
   }
 
-  const data = await response.json();
-  const text = data.content?.[0]?.text ?? "[]";
-  console.log("[Anthropic] raw response text:", text);
+  const data = await response.json() as { insights?: AIInsight[]; error?: string };
 
-  try {
-    const insights: AIInsight[] = JSON.parse(text);
-    console.log("[Anthropic] parsed insights count:", insights.length);
-    return insights;
-  } catch (parseErr) {
-    console.log("[Anthropic] JSON parse error:", parseErr);
-    throw new Error(`Failed to parse Claude response: ${text}`);
+  if (data.error) {
+    console.log("[Anthropic] server returned error:", data.error);
+    throw new Error(data.error);
   }
+
+  const insights = data.insights ?? [];
+  console.log("[Anthropic] received insights count:", insights.length);
+  return insights;
 }
 
 export async function getCachedInsights(): Promise<AIInsight[] | null> {
