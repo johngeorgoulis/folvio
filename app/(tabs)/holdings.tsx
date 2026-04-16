@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAllocation } from "@/context/AllocationContext";
 import { formatEUR, formatPct } from "@/utils/format";
+import { calculateAllocations, validateTargets } from "@/services/allocationService";
 import AddHoldingModal, { type AddHoldingInitialValues } from "@/components/AddHoldingModal";
 
 const theme = Colors.dark;
@@ -48,6 +49,15 @@ export default function HoldingsScreen() {
 
   const { canAddUnlimitedHoldings, showPaywall } = useSubscription();
   const { targets, rebalanceThreshold } = useAllocation();
+
+  const allocationRows = useMemo(
+    () => calculateAllocations(holdings, targets, rebalanceThreshold),
+    [holdings, targets, rebalanceThreshold]
+  );
+  const validation = useMemo(() => validateTargets(targets), [targets]);
+  const needsRebalancing = allocationRows.filter(
+    r => r.status === "overweight" || r.status === "underweight"
+  ).length;
 
   const [showAdd, setShowAdd]             = useState(false);
   const [prefillValues, setPrefillValues] = useState<AddHoldingInitialValues | undefined>();
@@ -137,6 +147,37 @@ export default function HoldingsScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* ── Rebalance entry card ────────────────────────────────────────── */}
+        <TouchableOpacity
+          style={[
+            rebalanceStyles.card,
+            { backgroundColor: theme.backgroundCard, borderColor: needsRebalancing > 0 ? "#FBBF24" : theme.border },
+          ]}
+          onPress={() => router.push("/rebalance" as never)}
+          activeOpacity={0.8}
+        >
+          <View style={rebalanceStyles.left}>
+            <View style={[rebalanceStyles.icon, { backgroundColor: needsRebalancing > 0 ? "#FBBF2422" : theme.backgroundElevated }]}>
+              <Feather name="sliders" size={20} color={needsRebalancing > 0 ? "#FBBF24" : theme.tint} />
+            </View>
+            <View>
+              <Text style={[rebalanceStyles.title, { color: theme.text }]}>Rebalance Calculator</Text>
+              {validation.valid ? (
+                <Text style={[rebalanceStyles.sub, { color: needsRebalancing > 0 ? "#FBBF24" : theme.positive }]}>
+                  {needsRebalancing > 0
+                    ? `${needsRebalancing} holding${needsRebalancing > 1 ? "s" : ""} outside ±${rebalanceThreshold}% threshold`
+                    : "Portfolio is balanced"}
+                </Text>
+              ) : (
+                <Text style={[rebalanceStyles.sub, { color: theme.textSecondary }]}>
+                  Set target allocations in Settings
+                </Text>
+              )}
+            </View>
+          </View>
+          <Feather name="chevron-right" size={18} color={theme.textTertiary} />
+        </TouchableOpacity>
 
         {/* ── Empty state ─────────────────────────────────────────────────── */}
         {holdings.length === 0 && (
@@ -279,6 +320,22 @@ export default function HoldingsScreen() {
     </View>
   );
 }
+
+// ── Rebalance banner styles ─────────────────────────────────────────────────────
+const rebalanceStyles = StyleSheet.create({
+  card: {
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  left: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  icon: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  title: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  sub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+});
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
