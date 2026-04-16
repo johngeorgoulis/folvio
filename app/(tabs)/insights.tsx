@@ -591,7 +591,7 @@ function AIInsightsSection({
           <Feather name="alert-circle" size={18} color={theme.negative} />
           <Text style={[aiStyles.errorText, { color: theme.textSecondary }]}>
             {error.includes("not configured")
-              ? "Add EXPO_PUBLIC_ANTHROPIC_API_KEY to enable AI insights."
+              ? "ANTHROPIC_API_KEY is not set on the server. Contact support."
               : `Could not load insights. Tap ↻ to retry.\n\n${error}`}
           </Text>
         </View>
