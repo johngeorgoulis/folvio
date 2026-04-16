@@ -2,7 +2,6 @@ import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { upsertPrice, getPrice as dbGetPrice } from "@/services/db";
 import type { HoldingRow } from "@/services/db";
-import { lookupByTicker, initETFDatabase } from "@/services/etfDatabaseService";
 
 function yahooChartUrl(symbol: string, interval: string, range: string): string {
   if (Platform.OS === "web") {
@@ -56,308 +55,198 @@ export const EXCHANGE_SUFFIXES: Record<string, string> = {
 const CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_CONCURRENT = 5;
 
-// ─── FMP Data Source ──────────────────────────────────────────────────────────
-// Two modes depending on platform and env:
-//
-//   WEB / native-with-server:
-//     EXPO_PUBLIC_DOMAIN is set → route through the API proxy so the key is
-//     kept server-side.  URL: https://<domain>/api/fmp/profile/<symbol>
-//
-//   NATIVE without server (EAS preview / production builds):
-//     EXPO_PUBLIC_DOMAIN is NOT set → call FMP /stable directly using the
-//     EXPO_PUBLIC_FMP_API_KEY build secret (set in eas.json env or EAS Secrets).
-//     URL: https://financialmodelingprep.com/stable/profile?symbol=<symbol>&apikey=<key>
-//
-// eas.json env to add: "EXPO_PUBLIC_FMP_API_KEY": "<your-key>"
+// ─── EODHD Data Source ────────────────────────────────────────────────────────
+// Direct EODHD API calls using EXPO_PUBLIC_EODHD_API_KEY.
+//   Real-time:  GET /real-time/{symbol}?api_token={key}&fmt=json
+//   Historical: GET /eod/{symbol}?api_token={key}&fmt=json&from={date}
 
-const FMP_DIRECT_BASE = "https://financialmodelingprep.com/stable";
+const EODHD_BASE = "https://eodhd.com/api";
 
-function fmpUrl(path: string): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-  if (domain) {
-    // Proxy path: keep API key server-side
-    return `https://${domain}/api/fmp/${path}`;
-  }
-  // Direct path: extract symbol from path like "profile/VWCE.DE"
-  // and rebuild as /stable/profile?symbol=VWCE.DE&apikey=<key>
-  const apiKey = process.env.EXPO_PUBLIC_FMP_API_KEY ?? "";
-  const [endpoint, symbol] = path.split("/");
-  if (symbol) {
-    return `${FMP_DIRECT_BASE}/${endpoint}?symbol=${encodeURIComponent(decodeURIComponent(symbol))}&apikey=${apiKey}`;
-  }
-  return `${FMP_DIRECT_BASE}/${path}?apikey=${apiKey}`;
+function eodhdApiKey(): string {
+  return process.env.EXPO_PUBLIC_EODHD_API_KEY ?? "";
 }
 
-const FMP_FETCH_OPTS = { headers: { Accept: "application/json" } };
-
-/**
- * FMP /stable/profile response shape.
- * This is the primary data source: works for all symbols including European ETFs.
- * `range` is a "yearLow-yearHigh" string, e.g. "107.9-151.36".
- * `previousClose` is not returned directly; compute it as `price - change`.
- */
-interface FMPProfileData {
-  symbol: string;
-  companyName: string;
-  price: number;
-  change: number;
-  changePercentage: number;
+interface EodhdRealtimeData {
+  code: string;
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
   volume: number;
-  averageVolume: number;
-  marketCap: number | null;
-  currency: string;
-  exchange: string;
-  exchangeFullName: string;
-  range: string;            // "yearLow-yearHigh"
-  isin: string | null;
-  isEtf: boolean;
-  isFund: boolean;
-  ipoDate: string | null;
+  previousClose: number;
+  change: number;
+  change_p: number;
+}
+
+interface EodhdHistoricalBar {
+  date: string;           // "YYYY-MM-DD"
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  adjusted_close: number;
+  volume: number;
 }
 
 /**
- * Infer the native currency from the Yahoo-style symbol suffix.
- * Accurate for all UCITS ETFs; avoids an extra network round-trip.
- * NOTE: this is used only when FMP itself returns no `currency` field.
+ * Infer the native currency from an EODHD exchange suffix.
+ * All major EU exchanges trade in EUR; LSE in GBP; SIX in CHF.
  */
 function symbolCurrency(symbol: string): string {
-  if (symbol.endsWith(".L")) return "GBP";
-  if (symbol.endsWith(".SW")) return "CHF";
-  return "EUR"; // .DE .AS .PA .MI → always EUR
+  const up = symbol.toUpperCase();
+  if (up.endsWith(".LSE") || up.endsWith(".L")) return "GBP";
+  if (up.endsWith(".SW") || up.endsWith(".SWX")) return "CHF";
+  if (up.endsWith(".ST") || up.endsWith(".STO")) return "SEK";
+  if (up.endsWith(".OL") || up.endsWith(".OSL")) return "NOK";
+  if (up.endsWith(".CO") || up.endsWith(".CSE")) return "DKK";
+  // .XETRA .DE .AS .AMS .PA .EPA .MI .MIL .BIT .BR .MC .HE → EUR
+  return "EUR";
 }
 
-/** Parse FMP's "yearLow-yearHigh" range string into numeric parts. */
-function parseRange(range: string | undefined): { yearLow: number; yearHigh: number } {
-  if (!range || typeof range !== "string") return { yearLow: 0, yearHigh: 0 };
-  // Format: "107.9-151.36"  (dash separator; prices are always positive)
-  const dash = range.lastIndexOf("-");
-  if (dash <= 0) return { yearLow: 0, yearHigh: 0 };
-  const low  = Number(range.slice(0, dash).trim());
-  const high = Number(range.slice(dash + 1).trim());
-  if (isNaN(low) || isNaN(high)) return { yearLow: 0, yearHigh: 0 };
-  return { yearLow: low, yearHigh: high };
-}
+// ─── EODHD Suffix Waterfall ───────────────────────────────────────────────────
+// For every ETF, try these EODHD exchange suffixes in order until the real-time
+// endpoint returns close > 0.  The winning suffix is cached in AsyncStorage as
+// "eodhd_symbol_cache_{TICKER}" so subsequent fetches skip the waterfall.
+//
+// Xetra gets both .XETRA (native EODHD) and .DE (Yahoo-compatible alias).
 
-// ─── FMP Symbol resolution ────────────────────────────────────────────────────
-//
-// FMP uses Yahoo Finance–style exchange suffixes for European ETFs:
-//   .DE (XETRA)  .AS (Euronext Amsterdam)  .PA (Euronext Paris)
-//   .L  (LSE)    .SW (SIX Swiss)           .MI (Borsa Italiana)
-//
-// The ".AMS", ".XETR", ".PAR", ".MIL" formats were tested and do NOT work in
-// FMP's /stable API. Yahoo-style suffixes are the correct primary format.
-//
-// However, FMP has uneven ETF coverage across European exchanges.  A UCITS ETF
-// listed on XETRA may only appear in FMP under its Amsterdam or London listing
-// (and vice-versa).  The fallback table below encodes cross-listing order for
-// every EU exchange so a single failed lookup automatically retries the other
-// venues before giving up.
-//
-// Fallback order per exchange (most → least reliable FMP coverage):
-const FMP_EXCHANGE_FALLBACKS: Partial<Record<string, string[]>> = {
-  ".DE": [".AS", ".L", ".PA"],
-  ".AS": [".L", ".DE", ".PA"],
-  ".PA": [".DE", ".AS", ".L"],
-  ".L":  [".DE", ".AS", ".PA", ".SW"],
-  ".MI": [".L", ".DE", ".AS", ".PA"],
-  ".SW": [".DE", ".AS", ".L"],
-  // Smaller exchanges fall back to main EU hubs
-  ".BR": [".DE", ".AS", ".PA", ".L"],
-  ".MC": [".DE", ".AS", ".PA", ".L"],
-  ".HE": [".DE", ".AS", ".L", ".PA"],
-  ".ST": [".DE", ".AS", ".L", ".PA"],
-  ".OL": [".DE", ".AS", ".L", ".PA"],
-  ".CO": [".DE", ".AS", ".L", ".PA"],
+const EXCHANGE_EODHD_SUFFIXES: Record<string, string[]> = {
+  "XETRA":        [".XETRA", ".DE"],
+  "LSE":          [".LSE", ".L"],
+  "EURONEXT_AMS": [".AS", ".AMS"],
+  "EURONEXT_PAR": [".PA", ".EPA"],
+  "BORSA_IT":     [".MI", ".MIL", ".BIT"],
+  "SIX":          [".SW", ".SWX"],
+  "EURONEXT_BRU": [".BR"],
+  "BME":          [".MC"],
+  "NASDAQ_HEL":   [".HE"],
+  "NASDAQ_STO":   [".ST"],
+  "OSLO":         [".OL"],
+  "NASDAQ_CPH":   [".CO"],
 };
 
-// Per-ticker overrides for ETFs whose cross-listed symbols differ from the
-// primary ticker (iShares often uses different tickers on different exchanges).
-// Each entry is the full ordered list of symbols to try, most-likely first.
-// These are checked BEFORE the generic suffix-swap fallback.
-const FMP_TICKER_OVERRIDES: Record<string, string[]> = {
-  // iShares Euro Govt Bond 0-1yr (IE00B3FH7618) — LSE ticker differs from MI/AS
-  "IEGE":   ["IEGE.MI", "IEGE.L", "IEGE.DE", "IEGE.AS", "IBGS.L", "IEGE"],
-  // iShares Euro Govt Bond 3-7yr (IE00B3VTML14) — SIX ticker, try all exchanges
-  "CSBGE7": ["CSBGE7.SW", "CSBGE7.DE", "CSBGE7.AS", "CSBGE7.L", "IBGM.L", "CSBGE7"],
-};
+const ALL_EODHD_SUFFIXES: string[] = [
+  ".XETRA", ".DE",
+  ".LSE", ".L",
+  ".AS", ".AMS",
+  ".PA", ".EPA",
+  ".MI", ".MIL", ".BIT",
+  ".SW", ".SWX",
+  ".BR",
+  ".MC",
+  ".HE",
+  ".ST",
+  ".OL",
+  ".CO",
+  "",   // bare ticker — last resort
+];
 
-/** Low-level: fetch a single FMP profile by exact symbol. Returns null if not found. */
-async function fmpFetchProfileSingle(symbol: string): Promise<FMPProfileData | null> {
-  const url = fmpUrl(`profile/${encodeURIComponent(symbol)}`);
-  const keyPreview = (process.env.EXPO_PUBLIC_FMP_API_KEY ?? "").slice(0, 4) || "(not set)";
-  console.log(`[fmp:debug] fmpFetchProfileSingle(${symbol}) url=${url} key=${keyPreview}***`);
-  try {
-    const res = await fetch(url, FMP_FETCH_OPTS);
-    console.log(`[fmp:debug] ${symbol} HTTP ${res.status} ok=${res.ok}`);
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.warn(`[fmp:debug] ${symbol} non-OK body:`, body.slice(0, 300));
-      throw new Error(`HTTP ${res.status}`);
-    }
-    const data = await res.json();
-    console.log(`[fmp:debug] ${symbol} raw response:`, JSON.stringify(data).slice(0, 400));
-    // /stable/profile returns an array [{...}]; handle single-object defensively
-    const profile: FMPProfileData = Array.isArray(data) ? data[0] : data;
-    if (!profile?.price) {
-      console.warn(`[fmp:debug] ${symbol} → null (no price). profile keys:`, profile ? Object.keys(profile) : "null/undefined");
-      return null;
-    }
-    console.log(`[fmp:debug] ${symbol} → price=${profile.price} currency=${profile.currency}`);
-    return profile;
-  } catch (err) {
-    console.error(`[fmp:debug] ${symbol} caught error:`, err);
-    return null;
-  }
-}
-
-/**
- * Fetch the FMP /stable/profile for any symbol, with automatic fallback to
- * cross-listed exchanges when the primary symbol returns no data.
- *
- * Five-tier fallback strategy:
- *   0. Ticker override: FMP_TICKER_OVERRIDES lists explicit symbol variants for
- *      ETFs where cross-listed tickers differ (e.g. IEGE.MI vs IBGS.L)
- *   1. Primary: try symbol as-is (Yahoo-style suffix = correct FMP format)
- *   2. Exchange swap: all European suffixes have cross-listing fallbacks
- *      (e.g. VWCE.DE → tries .AS → .L → .PA before giving up)
- *   3. Bare ticker: for suffixed symbols, try the ticker without any suffix
- *      (some ETFs are indexed by FMP without an exchange code)
- *   4. Suffix probe: for bare tickers (no suffix stored), probe all EU venues
- */
-async function fmpFetchProfile(symbol: string): Promise<FMPProfileData | null> {
-  // 0. Per-ticker override — explicit symbol list for ETFs with divergent tickers
-  const baseTicker = symbol.replace(/\.[A-Z0-9]+$/, "");
-  const overrides = FMP_TICKER_OVERRIDES[baseTicker];
-  if (overrides) {
-    for (const s of overrides) {
-      const result = await fmpFetchProfileSingle(s);
-      if (result) {
-        console.log(`[fmp] ${symbol} → resolved via ticker override ${s} (${result.currency})`);
-        return result;
-      }
-    }
-    // Overrides exhausted — skip generic fallback to avoid duplicate requests
-    console.warn(`[fmp] profile not found for ${symbol} (tried all ticker overrides)`);
-    return null;
-  }
-
-  // 1. Primary: try the symbol as-is
-  const primary = await fmpFetchProfileSingle(symbol);
-  if (primary) return primary;
-
-  const suffixMatch = symbol.match(/(\.[A-Z0-9]+$)/);
-
-  if (suffixMatch) {
-    const suffix    = suffixMatch[1];
-    const base      = symbol.slice(0, -suffix.length);
-
-    // 2. Exchange swap — try every cross-listed venue for this exchange
-    const fallbacks = FMP_EXCHANGE_FALLBACKS[suffix];
-    if (fallbacks) {
-      for (const alt of fallbacks) {
-        const result = await fmpFetchProfileSingle(base + alt);
-        if (result) {
-          console.log(`[fmp] ${symbol} → no data; resolved via ${base + alt} (${result.currency})`);
-          return result;
-        }
-      }
-    }
-
-    // 3. Bare ticker — some ETFs are in FMP without an exchange suffix
-    const bareResult = await fmpFetchProfileSingle(base);
-    if (bareResult) {
-      console.log(`[fmp] ${symbol} → resolved via bare ticker ${base} (${bareResult.currency})`);
-      return bareResult;
-    }
-  } else {
-    // 4. Bare ticker (no exchange suffix stored) — probe all EU/UK venues
-    const suffixOrder = [".DE", ".AS", ".PA", ".L", ".MI", ".SW"];
-    for (const alt of suffixOrder) {
-      const result = await fmpFetchProfileSingle(symbol + alt);
-      if (result) {
-        console.log(`[fmp] bare ticker ${symbol} resolved via ${symbol + alt} (${result.currency})`);
-        return result;
-      }
-    }
-  }
-
-  console.warn(`[fmp] profile not found for ${symbol} (tried all fallbacks)`);
-  return null;
+function buildSuffixWaterfall(exchange?: string): string[] {
+  const preferred = exchange ? (EXCHANGE_EODHD_SUFFIXES[exchange] ?? []) : [];
+  const rest = ALL_EODHD_SUFFIXES.filter(s => !preferred.includes(s));
+  return [...preferred, ...rest];
 }
 
 // ─── Symbol Resolution Cache ──────────────────────────────────────────────────
-// AsyncStorage cache mapping bare ticker → the FMP symbol that last succeeded
-// (e.g. "VHYL" → "VHYL.AS"). This lets subsequent fetches skip the waterfall.
-const SYMBOL_CACHE_PREFIX = "folvio_sym_";
+// AsyncStorage: "eodhd_symbol_cache_{TICKER}" → winning EODHD symbol
+// (e.g. "VWCE" → "VWCE.XETRA"). Bypasses the waterfall on every subsequent fetch.
 
-async function getResolvedSymbol(ticker: string): Promise<string | null> {
+const EODHD_CACHE_PREFIX = "eodhd_symbol_cache_";
+
+async function getCachedEodhdSymbol(ticker: string): Promise<string | null> {
   try {
-    return await AsyncStorage.getItem(SYMBOL_CACHE_PREFIX + ticker.toUpperCase());
+    return await AsyncStorage.getItem(EODHD_CACHE_PREFIX + ticker.toUpperCase());
   } catch {
     return null;
   }
 }
 
-async function setResolvedSymbol(ticker: string, symbol: string): Promise<void> {
+async function setCachedEodhdSymbol(ticker: string, symbol: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(SYMBOL_CACHE_PREFIX + ticker.toUpperCase(), symbol);
-  } catch {
-    // Ignore storage errors — cache is best-effort
-  }
+    await AsyncStorage.setItem(EODHD_CACHE_PREFIX + ticker.toUpperCase(), symbol);
+  } catch { /* ignore — cache is best-effort */ }
 }
 
-// ─── ISIN Lookup via FMP Search ───────────────────────────────────────────────
-// Primary resolution strategy: search FMP by ISIN to find the best-matching
-// listing before attempting the suffix waterfall.
-// Works in both native (direct FMP key) and web (proxy) modes.
+// ─── Core EODHD Fetchers ──────────────────────────────────────────────────────
 
-function fmpSearchQueryUrl(query: string): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-  const apiKey = process.env.EXPO_PUBLIC_FMP_API_KEY ?? "";
-  if (domain) {
-    // Proxy mode: forward query to /api/fmp/search
-    return `https://${domain}/api/fmp/search?query=${encodeURIComponent(query)}`;
-  }
-  return `${FMP_DIRECT_BASE}/search?query=${encodeURIComponent(query)}&apikey=${apiKey}`;
-}
-
-async function fmpSearchByISIN(isin: string): Promise<FMPProfileData | null> {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-  const apiKey = process.env.EXPO_PUBLIC_FMP_API_KEY ?? "";
-  // Need either a proxy domain or a direct API key
-  if (!domain && !apiKey) return null;
-
-  const url = fmpSearchQueryUrl(isin);
+/** Low-level: fetch EODHD real-time quote for an exact symbol. Returns null on any error. */
+async function eodhdFetchRealtime(symbol: string): Promise<EodhdRealtimeData | null> {
+  const key = eodhdApiKey();
+  if (!key) return null;
+  const url = `${EODHD_BASE}/real-time/${encodeURIComponent(symbol)}?api_token=${key}&fmt=json`;
   try {
-    const res = await fetch(url, FMP_FETCH_OPTS);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8_000);
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal })
+      .finally(() => clearTimeout(timer));
     if (!res.ok) return null;
-    const results: Array<{ symbol?: string; currency?: string }> = await res.json();
-    if (!Array.isArray(results) || results.length === 0) return null;
-
-    // Prefer EUR-denominated listings, then any EU exchange suffix
-    const EU_ORDER = [".DE", ".AS", ".PA", ".L", ".MI", ".SW", ".BR", ".MC", ".HE", ".ST", ".OL", ".CO"];
-    const sorted = [...results].sort((a, b) => {
-      // EUR-denominated first
-      const aEUR = (a.currency ?? "").toUpperCase() === "EUR" ? 0 : 1;
-      const bEUR = (b.currency ?? "").toUpperCase() === "EUR" ? 0 : 1;
-      if (aEUR !== bEUR) return aEUR - bEUR;
-      // Then by EU exchange suffix order
-      const ai = EU_ORDER.findIndex(s => (a.symbol ?? "").endsWith(s));
-      const bi = EU_ORDER.findIndex(s => (b.symbol ?? "").endsWith(s));
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-    });
-
-    for (const r of sorted.slice(0, 6)) {
-      if (!r.symbol) continue;
-      const profile = await fmpFetchProfileSingle(r.symbol);
-      if (profile) {
-        console.log(`[fmp] ISIN ${isin} → resolved via FMP search: ${r.symbol}`);
-        return profile;
-      }
-    }
-  } catch (err) {
-    console.warn(`[fmp] fmpSearchByISIN failed for ${isin}:`, err);
+    const data = await res.json();
+    const item: EodhdRealtimeData = Array.isArray(data) ? data[0] : data;
+    // Treat NA / 0 / null close as invalid
+    if (!item || !item.close || item.close <= 0 || (item.close as unknown) === "NA") return null;
+    return item;
+  } catch {
+    return null;
   }
+}
+
+/** Fetch EODHD EOD historical bars from fromDate onwards, sorted ascending by date. */
+async function eodhdFetchHistory(symbol: string, fromDate: string): Promise<EodhdHistoricalBar[]> {
+  const key = eodhdApiKey();
+  if (!key) return [];
+  const url = `${EODHD_BASE}/eod/${encodeURIComponent(symbol)}?api_token=${key}&fmt=json&from=${fromDate}`;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal })
+      .finally(() => clearTimeout(timer));
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return (data as EodhdHistoricalBar[])
+      .filter(b => b.close > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Resolve the best EODHD symbol for a bare ticker using the suffix waterfall.
+ * Uses the exchange hint to try that venue's suffixes first, minimising API calls.
+ * Caches the winner in AsyncStorage so the waterfall is only run once per ticker.
+ */
+async function resolveEodhdSymbol(
+  ticker: string,
+  exchange?: string,
+): Promise<{ symbol: string; data: EodhdRealtimeData } | null> {
+  const upper = ticker.toUpperCase();
+
+  // 1. Try cached symbol — skips the waterfall on every fetch after the first
+  const cached = await getCachedEodhdSymbol(upper);
+  if (cached) {
+    const data = await eodhdFetchRealtime(cached);
+    if (data) {
+      console.log(`[eodhd] ${upper} → cache hit: ${cached}`);
+      return { symbol: cached, data };
+    }
+    console.warn(`[eodhd] ${upper}: cached symbol ${cached} stale, re-resolving`);
+  }
+
+  // 2. Waterfall: try each suffix in exchange-biased order
+  const waterfall = buildSuffixWaterfall(exchange);
+  for (const suffix of waterfall) {
+    const sym = suffix ? `${upper}${suffix}` : upper;
+    const data = await eodhdFetchRealtime(sym);
+    if (data) {
+      await setCachedEodhdSymbol(upper, sym);
+      console.log(`[eodhd] ${upper} → resolved via ${sym}`);
+      return { symbol: sym, data };
+    }
+  }
+
+  console.warn(`[eodhd] ${upper}: all suffixes failed — price unavailable`);
   return null;
 }
 
@@ -403,17 +292,15 @@ export function normalizeToEUR(
   fxRates: Record<string, number>
 ): number {
   switch (currency) {
-    case "EUR":
-      return price;
+    case "EUR": return price;
     case "GBp":
-    case "GBX":
-      return (price / 100) * (fxRates["GBP"] ?? 1);
-    case "GBP":
-      return price * (fxRates["GBP"] ?? 1);
-    case "USD":
-      return price * (fxRates["USD"] ?? 1);
-    case "CHF":
-      return price * (fxRates["CHF"] ?? 1);
+    case "GBX": return (price / 100) * (fxRates["GBP"] ?? 1);
+    case "GBP": return price * (fxRates["GBP"] ?? 1);
+    case "USD": return price * (fxRates["USD"] ?? 1);
+    case "CHF": return price * (fxRates["CHF"] ?? 1);
+    case "SEK": return price * (fxRates["SEK"] ?? 1);
+    case "NOK": return price * (fxRates["NOK"] ?? 1);
+    case "DKK": return price * (fxRates["DKK"] ?? 1);
     default:
       console.warn(`[priceService] Unknown currency: ${currency}`);
       return price;
@@ -424,63 +311,21 @@ export async function fetchLivePrice(
   ticker: string,
   exchange: string
 ): Promise<PriceResult | null> {
-  let profile: FMPProfileData | null = null;
-
-  // ── Step 1: Try the cached winning symbol first (skip all lookups) ───────
-  const cachedSymbol = await getResolvedSymbol(ticker);
-  if (cachedSymbol) {
-    profile = await fmpFetchProfileSingle(cachedSymbol);
-    if (profile) {
-      console.log(`[fmp] ${ticker} → cache hit: ${cachedSymbol}`);
-    }
-  }
-
-  if (!profile) {
-    // ── Step 2: ISIN-first resolution (primary strategy) ─────────────────
-    // Look up the ETF's ISIN from our local database and search FMP by ISIN.
-    // This is more reliable than ticker+suffix guessing for UCITS ETFs which
-    // may trade under different ticker names on different exchanges.
-    try {
-      await initETFDatabase();
-      const etfEntry = lookupByTicker(ticker);
-      if (etfEntry?.isin) {
-        profile = await fmpSearchByISIN(etfEntry.isin);
-        if (profile) {
-          console.log(`[fmp] ${ticker} → resolved via ISIN ${etfEntry.isin}: ${profile.symbol}`);
-        }
-      }
-    } catch {
-      // ignore — ISIN lookup is best-effort
-    }
-
-    // ── Step 3: Suffix waterfall fallback (only if ISIN search failed) ───
-    if (!profile) {
-      const primarySymbol = buildYahooSymbol(ticker, exchange);
-      profile = await fmpFetchProfile(primarySymbol);
-    }
-
-    // Cache the winning symbol so we skip the waterfall next time
-    if (profile?.symbol) {
-      await setResolvedSymbol(ticker, profile.symbol);
-    }
-  }
-
-  if (!profile?.price) {
-    console.warn(`[fmp] fetchLivePrice: no price found for ${ticker}`);
+  const resolved = await resolveEodhdSymbol(ticker, exchange);
+  if (!resolved) {
+    console.warn(`[eodhd] fetchLivePrice: no price found for ${ticker}`);
     return null;
   }
 
-  const usedSymbol = profile.symbol ?? buildYahooSymbol(ticker, exchange);
-  const currency = profile.currency ?? symbolCurrency(usedSymbol);
+  const { symbol, data } = resolved;
+  const currency = symbolCurrency(symbol);
   let fxRate = 1;
   if (currency !== "EUR") {
     const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-    if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-      fxRate = await fetchFXRate(fxFrom, "EUR");
-    }
+    try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
   }
-  const priceEUR = normalizeToEUR(profile.price, currency, { [currency]: fxRate });
-  console.log(`[fmp] ${ticker} (${usedSymbol}): ${profile.price} ${currency} → ${priceEUR.toFixed(4)} EUR`);
+  const priceEUR = normalizeToEUR(data.close, currency, { [currency]: fxRate });
+  console.log(`[eodhd] ${ticker} (${symbol}): ${data.close} ${currency} → ${priceEUR.toFixed(4)} EUR`);
 
   return {
     ticker,
@@ -650,22 +495,7 @@ const CHART_INTERVALS: Record<string, { interval: string; range: string }> = {
   "All": { interval: "1mo", range: "max" },
 };
 
-// ─── FMP Historical Chart Helpers ─────────────────────────────────────────────
-// FMP endpoints:
-//   Intraday hourly: GET /stable/historical-chart/1hour?symbol={s}&apikey={k}
-//   Daily/weekly:    GET /stable/historical-price-full?symbol={s}&from={d}&apikey={k}
-//
-// Works in both web (proxy via EXPO_PUBLIC_DOMAIN) and native (direct key) modes.
-
-function fmpHistoricalUrl(endpoint: string, symbol: string, extraParams?: string): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-  const apiKey = process.env.EXPO_PUBLIC_FMP_API_KEY ?? "";
-  const extra = extraParams ? `&${extraParams}` : "";
-  if (domain) {
-    return `https://${domain}/api/fmp/${endpoint}?symbol=${encodeURIComponent(symbol)}${extra}`;
-  }
-  return `${FMP_DIRECT_BASE}/${endpoint}?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}${extra}`;
-}
+// ─── EODHD Historical Chart Helpers ──────────────────────────────────────────
 
 function dateStringDaysAgo(days: number): string {
   const d = new Date(Date.now() - days * 86_400_000);
@@ -677,100 +507,69 @@ function ytdFromDate(): string {
   return `${now.getFullYear()}-01-01`;
 }
 
-interface FMPDailyBar {
-  date: string;
-  close: number;
-}
-
-interface FMPHourlyBar {
-  date: string;   // "2024-04-16 14:30:00"
-  close: number;
-}
-
 /**
- * Fetch FMP historical chart data and convert to ChartPoint[].
+ * Fetch EODHD EOD chart data and convert to ChartPoint[].
  *
- * For 1D  → /historical-chart/1hour (intraday, last ~24h)
- * For all other ranges → /historical-price-full with from= date param
+ * Ranges 3Y / 5Y / All require a paid EODHD plan — return [] so the caller
+ * can show an "Upgrade to Pro" lock in the UI.
+ *
+ * For 1D the EOD endpoint only has yesterday + today (2 daily bars) which
+ * is enough to show the daily trend; the caller can fall back to Yahoo
+ * for intraday resolution when more points are needed.
  */
-export async function fetchFMPChartHistory(
+export async function fetchEodhdChartHistory(
   symbol: string,
   range: string,
 ): Promise<ChartPoint[]> {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-  const apiKey = process.env.EXPO_PUBLIC_FMP_API_KEY ?? "";
-  if (!domain && !apiKey) return []; // No way to call FMP
+  if (!eodhdApiKey()) return [];
+  // Premium ranges — caller should show upgrade lock
+  if (range === "3Y" || range === "5Y" || range === "All") return [];
 
-  const currency = symbolCurrency(symbol);
+  // Resolve the winning EODHD symbol from cache (or run waterfall)
+  const ticker = symbol.split(".")[0];
+  const cached = await getCachedEodhdSymbol(ticker);
+  // If we have a cache hit use it; otherwise try the symbol as passed, then waterfall
+  const eodhdSymbol = cached ?? symbol;
+
+  const fromDate =
+    range === "1D"  ? dateStringDaysAgo(2)   :
+    range === "1W"  ? dateStringDaysAgo(7)   :
+    range === "1M"  ? dateStringDaysAgo(31)  :
+    range === "3M"  ? dateStringDaysAgo(92)  :
+    range === "6M"  ? dateStringDaysAgo(183) :
+    range === "YTD" ? ytdFromDate()          :
+    range === "1Y"  ? dateStringDaysAgo(366) :
+    dateStringDaysAgo(366); // fallback
+
+  let bars = await eodhdFetchHistory(eodhdSymbol, fromDate);
+
+  // If the cached/passed symbol returned nothing, run a full waterfall resolve
+  if (bars.length === 0 && !cached) {
+    const resolved = await resolveEodhdSymbol(ticker);
+    if (resolved) {
+      bars = await eodhdFetchHistory(resolved.symbol, fromDate);
+    }
+  }
+
+  if (bars.length === 0) return [];
+
+  const currency = symbolCurrency(eodhdSymbol);
   let fxRate = 1;
   if (currency !== "EUR") {
     const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-    if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-      try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
-    }
+    try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
   }
   const toEUR = (p: number) =>
     currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
 
-  try {
-    if (range === "1D") {
-      // Intraday: hourly bars for the last trading day
-      const url = fmpHistoricalUrl("historical-chart/1hour", symbol);
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10_000);
-      const res = await fetch(url, { headers: FMP_FETCH_OPTS.headers, signal: controller.signal })
-        .finally(() => clearTimeout(timer));
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const bars: FMPHourlyBar[] = await res.json();
-      if (!Array.isArray(bars)) return [];
-
-      // FMP returns newest-first; reverse and filter to today only
-      const today = new Date().toISOString().split("T")[0];
-      return bars
-        .filter((b) => b.date?.startsWith(today) && b.close > 0)
-        .reverse()
-        .map((b) => ({
-          timestamp: new Date(b.date.replace(" ", "T")).getTime(),
-          priceEUR:  toEUR(b.close),
-        }));
-    }
-
-    // Daily / weekly: /historical-price-full with date range
-    const fromDate =
-      range === "YTD" ? ytdFromDate()       :
-      range === "1W"  ? dateStringDaysAgo(7)  :
-      range === "1M"  ? dateStringDaysAgo(31) :
-      range === "3M"  ? dateStringDaysAgo(92) :
-      range === "6M"  ? dateStringDaysAgo(183):
-      range === "1Y"  ? dateStringDaysAgo(366):
-      range === "3Y"  ? dateStringDaysAgo(3 * 366) :
-      range === "5Y"  ? dateStringDaysAgo(5 * 366) :
-      dateStringDaysAgo(10 * 366); // All
-
-    const url = fmpHistoricalUrl("historical-price-full", symbol, `from=${fromDate}`);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12_000);
-    const res = await fetch(url, { headers: FMP_FETCH_OPTS.headers, signal: controller.signal })
-      .finally(() => clearTimeout(timer));
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    const historical: FMPDailyBar[] = data?.historical ?? [];
-    if (!Array.isArray(historical)) return [];
-
-    // FMP returns newest-first; sort ascending
-    return historical
-      .filter((b) => b.close > 0)
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map((b) => ({
-        timestamp: new Date(b.date).getTime(),
-        priceEUR:  toEUR(b.close),
-      }));
-  } catch (err) {
-    console.warn(`[fetchFMPChartHistory] failed for ${symbol} range=${range}:`, err);
-    return [];
-  }
+  return bars.map(b => ({
+    timestamp: new Date(b.date).getTime(),
+    priceEUR:  toEUR(b.close),
+  }));
 }
+
+/** @deprecated Use fetchEodhdChartHistory instead */
+export const fetchFMPChartHistory = fetchEodhdChartHistory;
 
 const YAHOO_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -869,63 +668,108 @@ export async function resolveExchangeFromISIN(isin: string, ticker: string): Pro
 
 export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null> {
   try {
-    // Single call to FMP /stable/profile — includes price, change, currency, ISIN, isEtf
-    const profile = await fmpFetchProfile(symbol);
+    const ticker = symbol.split(".")[0];
+    // Infer exchange from Yahoo-style suffix so the waterfall starts at the right venue
+    const inferredExchange = exchangeFromYahooSuffix(symbol);
 
-    if (!profile?.price) {
-      console.warn(`[fmp] fetchTickerMeta: no profile for ${symbol}`);
+    const resolved = await resolveEodhdSymbol(ticker, inferredExchange);
+    if (!resolved) {
+      console.warn(`[eodhd] fetchTickerMeta: no price found for ${symbol}`);
       return null;
     }
 
-    const currency = profile.currency ?? symbolCurrency(symbol);
+    const { symbol: eodhdSymbol, data } = resolved;
+    const currency = symbolCurrency(eodhdSymbol);
+
     let fxRate = 1;
     if (currency !== "EUR") {
       const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-        try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
-      }
+      try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
     }
-    const toEUR = (price: number | undefined): number => {
-      if (price == null || isNaN(price)) return 0;
-      if (currency === "GBp" || currency === "GBX") return (price / 100) * fxRate;
-      return price * fxRate;
+    const toEUR = (p: number | undefined): number => {
+      if (p == null || isNaN(p) || (p as unknown) === "NA") return 0;
+      if (currency === "GBp" || currency === "GBX") return (p / 100) * fxRate;
+      return p * fxRate;
     };
 
-    const priceEUR   = toEUR(profile.price);
-    const changeEUR  = toEUR(profile.change);     // change from previous close (in EUR)
-    const prevEUR    = priceEUR - changeEUR;
-    // FMP changePercentage is in %, e.g. 1.00531 → +1.005%
-    const changePct  = profile.changePercentage ?? (prevEUR !== 0 ? (changeEUR / prevEUR) * 100 : 0);
+    const priceEUR  = toEUR(data.close);
+    const prevClose = data.previousClose > 0 ? data.previousClose : data.close - data.change;
+    const prevEUR   = toEUR(prevClose);
+    const changeEUR = toEUR(data.change);
+    const changePct = data.change_p !== 0
+      ? data.change_p
+      : (prevEUR !== 0 ? (changeEUR / prevEUR) * 100 : 0);
 
-    const { yearLow, yearHigh } = parseRange(profile.range);
-    const isEtf = profile.isEtf ?? profile.isFund ?? false;
+    // Fetch 1Y history to compute 52-week high/low from daily bars
+    const yearBars = await eodhdFetchHistory(eodhdSymbol, dateStringDaysAgo(366));
+    const yearHigh = yearBars.reduce((m, b) => Math.max(m, toEUR(b.high)), 0);
+    const yearLow  = yearBars.reduce(
+      (m, b) => (b.low > 0 ? Math.min(m, toEUR(b.low)) : m),
+      Infinity,
+    );
+
+    const exchangeName = exchangeNameFromEodhdSymbol(eodhdSymbol);
 
     return {
-      symbol:       profile.symbol ?? symbol,
-      shortName:    profile.companyName ?? symbol,
-      longName:     profile.companyName ?? symbol,
+      symbol:       ticker,
+      shortName:    ticker,
+      longName:     ticker,
       currency,
-      exchangeName: profile.exchangeFullName ?? profile.exchange ?? "",
-      quoteType:    isEtf ? "ETF" : "EQUITY",
+      exchangeName,
+      quoteType:    "ETF",
       regularMarketPrice:         priceEUR,
       previousClose:              prevEUR,
       regularMarketChange:        changeEUR,
       regularMarketChangePercent: changePct,
-      fiftyTwoWeekHigh:           toEUR(yearHigh),
-      fiftyTwoWeekLow:            toEUR(yearLow),
-      regularMarketVolume:        profile.volume        ?? 0,
-      averageDailyVolume3Month:   profile.averageVolume ?? 0,
+      fiftyTwoWeekHigh:           yearHigh > 0 ? yearHigh : 0,
+      fiftyTwoWeekLow:            yearLow  < Infinity ? yearLow : 0,
+      regularMarketVolume:        data.volume ?? 0,
+      averageDailyVolume3Month:   0,
       totalAssets:                undefined,
       trailingAnnualDividendYield: undefined,
-      marketCap:    profile.marketCap != null ? toEUR(profile.marketCap) : undefined,
+      marketCap:    undefined,
       trailingPE:   undefined,
-      isin:  (typeof profile.isin === "string" && profile.isin.length >= 12)
-               ? profile.isin.substring(0, 12) : null,
+      isin:         null,
     };
   } catch (err) {
-    console.warn(`[fmp] fetchTickerMeta failed for ${symbol}:`, err);
+    console.warn(`[eodhd] fetchTickerMeta failed for ${symbol}:`, err);
     return null;
   }
+}
+
+// ─── Exchange helpers used by fetchTickerMeta ─────────────────────────────────
+
+function exchangeFromYahooSuffix(symbol: string): string | undefined {
+  if (symbol.endsWith(".DE"))  return "XETRA";
+  if (symbol.endsWith(".AS"))  return "EURONEXT_AMS";
+  if (symbol.endsWith(".PA"))  return "EURONEXT_PAR";
+  if (symbol.endsWith(".L"))   return "LSE";
+  if (symbol.endsWith(".MI"))  return "BORSA_IT";
+  if (symbol.endsWith(".SW"))  return "SIX";
+  if (symbol.endsWith(".BR"))  return "EURONEXT_BRU";
+  if (symbol.endsWith(".MC"))  return "BME";
+  if (symbol.endsWith(".HE"))  return "NASDAQ_HEL";
+  if (symbol.endsWith(".ST"))  return "NASDAQ_STO";
+  if (symbol.endsWith(".OL"))  return "OSLO";
+  if (symbol.endsWith(".CO"))  return "NASDAQ_CPH";
+  return undefined;
+}
+
+function exchangeNameFromEodhdSymbol(symbol: string): string {
+  const up = symbol.toUpperCase();
+  if (up.endsWith(".XETRA") || up.endsWith(".DE"))  return "XETRA";
+  if (up.endsWith(".LSE")   || up.endsWith(".L"))   return "London Stock Exchange";
+  if (up.endsWith(".AS")    || up.endsWith(".AMS")) return "Euronext Amsterdam";
+  if (up.endsWith(".PA")    || up.endsWith(".EPA")) return "Euronext Paris";
+  if (up.endsWith(".MI")    || up.endsWith(".MIL") || up.endsWith(".BIT")) return "Borsa Italiana";
+  if (up.endsWith(".SW")    || up.endsWith(".SWX")) return "SIX Swiss Exchange";
+  if (up.endsWith(".BR"))  return "Euronext Brussels";
+  if (up.endsWith(".MC"))  return "Bolsa de Madrid";
+  if (up.endsWith(".HE"))  return "Nasdaq Helsinki";
+  if (up.endsWith(".ST"))  return "Nasdaq Stockholm";
+  if (up.endsWith(".OL"))  return "Oslo Børs";
+  if (up.endsWith(".CO"))  return "Nasdaq Copenhagen";
+  return "";
 }
 
 const KNOWN_YIELDS: Record<string, number> = {
@@ -1054,106 +898,64 @@ export async function fetchPeriodReturn(
   period: "1D" | "1W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "3Y" | "5Y" | "All",
   _opts?: { previousCloseEUR?: number; currentPriceEUR?: number }
 ): Promise<PeriodReturn | null> {
+  // Premium ranges — caller shows upgrade lock
+  if (period === "3Y" || period === "5Y" || period === "All") return null;
 
-  // ── 1D ───────────────────────────────────────────────────────────────────
-  // FMP profile includes `change` (from previous close) and `changePercentage`.
-  // previousClose = price - change; no historical fetch needed.
+  const ticker = symbol.split(".")[0];
+  const inferredExchange = exchangeFromYahooSuffix(symbol);
+
+  // Resolve the EODHD symbol (uses cache after first load)
+  const resolved = await resolveEodhdSymbol(ticker, inferredExchange);
+  if (!resolved) return null;
+
+  const { symbol: eodhdSymbol, data } = resolved;
+  const currency = symbolCurrency(eodhdSymbol);
+
+  let fxRate = 1;
+  if (currency !== "EUR") {
+    const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+    try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+  }
+  const toEUR = (p: number) =>
+    currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
+
+  const endPriceEUR = toEUR(data.close);
+
+  // ── 1D: use real-time change fields directly — no historical fetch needed ──
   if (period === "1D") {
-    try {
-      const profile = await fmpFetchProfile(symbol);
-      if (!profile?.price) return null;
-
-      const currency = profile.currency ?? symbolCurrency(symbol);
-      let fxRate = 1;
-      if (currency !== "EUR") {
-        const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-        if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-          try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
-        }
-      }
-      const toEUR = (p: number) =>
-        currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
-
-      const endPriceEUR   = toEUR(profile.price);
-      const changeEUR     = toEUR(profile.change);
-      const startPriceEUR = endPriceEUR - changeEUR;        // previousClose
-      if (startPriceEUR === 0) return null;
-      const changePct = profile.changePercentage ??
-        (startPriceEUR !== 0 ? (changeEUR / startPriceEUR) * 100 : 0);
-      return { changePct, changeAbs: changeEUR, startPriceEUR, endPriceEUR };
-    } catch (err) {
-      console.warn(`[fmp] fetchPeriodReturn 1D failed for ${symbol}:`, err);
-      return null;
-    }
+    const prevClose = data.previousClose > 0
+      ? data.previousClose
+      : data.close - data.change;
+    if (!prevClose || prevClose <= 0) return null;
+    const startPriceEUR = toEUR(prevClose);
+    const changeEUR     = endPriceEUR - startPriceEUR;
+    const changePct     = data.change_p !== 0
+      ? data.change_p
+      : (startPriceEUR !== 0 ? (changeEUR / startPriceEUR) * 100 : 0);
+    return { changePct, changeAbs: changeEUR, startPriceEUR, endPriceEUR };
   }
 
-  // ── 1W / 1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / All ───────────────────────
-  // Strategy: FMP profile for the live end price (accurate), Yahoo historical
-  // for the start price (period1 forward-rolls to the first trading day).
-  const PERIOD_CALENDAR_DAYS: Partial<Record<string, number>> = {
-    "1W": 7, "1M": 30, "3M": 91, "6M": 182, "1Y": 365,
-    "3Y": 3 * 365, "5Y": 5 * 365,
-  };
-
-  let period1Unix: number;
-  if (period === "All") {
-    period1Unix = 0;
-  } else if (period === "YTD") {
-    const ytdStart = new Date(new Date().getFullYear(), 0, 1);
-    period1Unix = Math.floor(ytdStart.getTime() / 1000);
-  } else {
-    const calendarDays = PERIOD_CALENDAR_DAYS[period];
-    if (calendarDays == null) return null;
-    period1Unix = Math.floor((Date.now() - calendarDays * 86_400_000) / 1000);
-  }
-
-  const yahooUrl = yahooChartUrlByPeriod(symbol, "1d", period1Unix);
+  // ── 1W / 1M / 3M / 6M / YTD / 1Y: fetch EOD history for start price ─────
+  const fromDate =
+    period === "1W"  ? dateStringDaysAgo(7)   :
+    period === "1M"  ? dateStringDaysAgo(31)  :
+    period === "3M"  ? dateStringDaysAgo(92)  :
+    period === "6M"  ? dateStringDaysAgo(183) :
+    period === "YTD" ? ytdFromDate()          :
+    dateStringDaysAgo(366); // 1Y
 
   try {
-    // Check FMP first — bail before Yahoo if no live price data exists for this symbol.
-    // This avoids hanging on Yahoo when FMP has no coverage (e.g. ERNE.L on LSE).
-    const profile = await fmpFetchProfile(symbol);
-    if (!profile?.price) return null;
+    const bars = await eodhdFetchHistory(eodhdSymbol, fromDate);
+    if (bars.length === 0) return null;
 
-    // FMP has data — fetch Yahoo historical with a 10s timeout so a blocked/slow
-    // Yahoo response never permanently freezes the loading spinner.
-    const yController = new AbortController();
-    const yTimer = setTimeout(() => yController.abort(), 10_000);
-    const yRes = await fetch(yahooUrl, { headers: YAHOO_HEADERS, signal: yController.signal })
-      .finally(() => clearTimeout(yTimer));
-    if (!yRes.ok) throw new Error(`Yahoo ${yRes.status}`);
-
-    const yData = await yRes.json();
-    const yResult = yData?.chart?.result?.[0];
-    if (!yResult) return null;
-
-    const currency = profile.currency ?? symbolCurrency(symbol);
-    let fxRate = 1;
-    if (currency !== "EUR") {
-      const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-        try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
-      }
-    }
-    const toEUR = (p: number) =>
-      currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
-
-    const rawCloses: (number | null)[] =
-      yResult.indicators?.quote?.[0]?.close ?? [];
-    const closesEUR = rawCloses
-      .filter((c): c is number => c != null && c > 0)
-      .map(toEUR);
-
-    if (closesEUR.length < 1) return null;
-    const startPriceEUR = closesEUR[0];           // first trading day on/after period1
-    const endPriceEUR   = toEUR(profile.price);   // live price from FMP
-
+    const startPriceEUR = toEUR(bars[0].close);
     if (startPriceEUR === 0) return null;
+
     const changeAbs = endPriceEUR - startPriceEUR;
     const changePct = (changeAbs / startPriceEUR) * 100;
     return { changePct, changeAbs, startPriceEUR, endPriceEUR };
   } catch (err) {
-    console.warn(`[fmp] fetchPeriodReturn ${period} failed for ${symbol}:`, err);
+    console.warn(`[eodhd] fetchPeriodReturn ${period} failed for ${symbol}:`, err);
     return null;
   }
 }
