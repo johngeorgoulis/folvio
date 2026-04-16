@@ -219,17 +219,15 @@ export default function HoldingDetailScreen() {
                 holding.hasPrice,
                 holding.priceIsStale,
               );
-              const marketOpen = isExchangeOpen(holding.exchange);
               if (!holding.hasPrice) {
                 return <Text style={styles.noPriceLabel}>{label}</Text>;
               }
-              if (!marketOpen) {
-                return <Text style={styles.liveLabel}>● {label}</Text>;
+              if (!label) {
+                // Market open — show live dot, no label text
+                return <Text style={styles.liveLabel}>● Live</Text>;
               }
-              if (holding.priceIsStale) {
-                return <Text style={styles.staleLabel}>⚠ {label}</Text>;
-              }
-              return <Text style={styles.liveLabel}>● {label}</Text>;
+              // Market closed or unavailable — show subtly in grey, never ⚠
+              return <Text style={styles.noPriceLabel}>{label}</Text>;
             })()}
             <TouchableOpacity
               style={styles.refreshBtn}

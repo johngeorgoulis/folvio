@@ -19,7 +19,7 @@ import { usePortfolio } from "@/context/PortfolioContext";
 import PriceChart from "@/components/PriceChart";
 import {
   fetchChartHistory,
-  fetchFMPChartHistory,
+  fetchEodhdChartHistory,
   fetchETFDataBySymbol,
   fetchETFDataFromServer,
   fetchPeriodReturn,
@@ -28,6 +28,7 @@ import {
   type ServerETFData,
   type TickerMeta,
 } from "@/services/priceService";
+import { useAllocation } from "@/context/AllocationContext";
 import { getAssetClass, getTER } from "@/services/assetClassService";
 import {
   initETFDatabase,
@@ -173,6 +174,8 @@ export default function TickerDetailScreen() {
   const [etfData, setEtfData] = useState<ServerETFData | null>(null);
   const [localETF, setLocalETF] = useState<ETFEntry | null>(null);
 
+  const { targets, rebalanceThreshold } = useAllocation();
+
   const safeSymbol = symbol ?? "";
 
   const ticker = symbolToTicker(safeSymbol);
@@ -207,9 +210,9 @@ export default function TickerDetailScreen() {
       // Yahoo as fallback. fetchPeriodReturn uses explicit period1 timestamps.
       const [m, yd, monthData, initPerf, r1w, r3m, r1y] = await Promise.all([
         fetchTickerMeta(safeSymbol),
-        fetchFMPChartHistory(safeSymbol, "1Y")
+        fetchEodhdChartHistory(safeSymbol, "1Y")
           .then((pts) => pts.length >= 2 ? pts : fetchChartHistory(safeSymbol, "1Y")),
-        fetchFMPChartHistory(safeSymbol, "1M")
+        fetchEodhdChartHistory(safeSymbol, "1M")
           .then((pts) => pts.length >= 2 ? pts : fetchChartHistory(safeSymbol, "1M")),
         fetchPeriodReturn(safeSymbol, "1M"),   // initial range display (1M selected by default)
         fetchPeriodReturn(safeSymbol, "1W"),   // perf card
@@ -252,14 +255,21 @@ export default function TickerDetailScreen() {
 
   async function handleRangeChange(r: Range) {
     setRange(r);
+    // Premium ranges — show lock immediately, no network call
+    if (r === "3Y" || r === "5Y" || r === "All") {
+      setChartData([]);
+      setRangePerf(null);
+      setRangeChange(null);
+      setLoadingChart(false);
+      return;
+    }
     setLoadingChart(true);
     try {
       // For 1Y we already have year data in state — reuse it.
-      // For all other ranges, prefer FMP chart data (more coverage for UCITS ETFs)
-      // with Yahoo as fallback for intraday.
+      // For all other ranges, prefer EODHD chart data with Yahoo as fallback.
       const chartPromise: Promise<ChartPoint[]> = r === "1Y"
         ? Promise.resolve(yearData)
-        : fetchFMPChartHistory(safeSymbol, r)
+        : fetchEodhdChartHistory(safeSymbol, r)
             .then((pts) => pts.length >= 2 ? pts : fetchChartHistory(safeSymbol, r));
 
       const returnPromise = fetchPeriodReturn(
@@ -397,8 +407,8 @@ export default function TickerDetailScreen() {
                   <Text style={styles.symbolText}>{ticker}</Text>
                   <Text style={styles.nameText} numberOfLines={1}>{existingHolding.name || ticker}</Text>
                 </View>
-                <View style={[styles.exchBadge, { backgroundColor: "#F59E0B22", borderWidth: 1, borderColor: "#F59E0B44" }]}>
-                  <Text style={[styles.exchBadgeText, { color: "#F59E0B" }]}>⚠ Stale</Text>
+                <View style={[styles.exchBadge, { backgroundColor: theme.backgroundElevated }]}>
+                  <Text style={[styles.exchBadgeText, { color: theme.textTertiary }]}>Last close price unavailable</Text>
                 </View>
               </View>
               <Text style={styles.priceText}>
@@ -545,7 +555,17 @@ export default function TickerDetailScreen() {
             ))}
           </ScrollView>
 
-          {loadingChart ? (
+          {(range === "3Y" || range === "5Y" || range === "All") ? (
+            <View style={{ height: 200, alignItems: "center", justifyContent: "center", gap: 10 }}>
+              <Feather name="lock" size={28} color={theme.textTertiary} />
+              <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: theme.textSecondary }}>
+                Upgrade to Pro
+              </Text>
+              <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textTertiary, textAlign: "center", paddingHorizontal: 24 }}>
+                Extended history requires a Pro subscription
+              </Text>
+            </View>
+          ) : loadingChart ? (
             <View style={{ height: 200, alignItems: "center", justifyContent: "center" }}>
               <ActivityIndicator color={theme.tint} />
             </View>
@@ -644,6 +664,67 @@ export default function TickerDetailScreen() {
             <PerfCard label="1Y" changePct={perf1Y} />
           </View>
         </View>
+
+        {/* ── Target Allocation ─────────────────────────────────────── */}
+        {(() => {
+          if (!existingHolding) return null;
+          const targetRow = targets.find(t => t.ticker.toUpperCase() === ticker.toUpperCase());
+          if (!targetRow) return null;
+
+          // Current weight in portfolio
+          const totalValue = holdings.reduce((s, h) => s + h.quantity * h.currentPrice, 0);
+          const holdingValue = existingHolding.quantity * existingHolding.currentPrice;
+          const currentPct = totalValue > 0 ? (holdingValue / totalValue) * 100 : 0;
+          const targetPct  = targetRow.target_pct;
+          const drift      = currentPct - targetPct;
+          const absDrift   = Math.abs(drift);
+          const beyondThreshold = absDrift > rebalanceThreshold;
+          const driftColor = beyondThreshold ? "#F59E0B" : theme.positive;
+          const barFill = Math.min(currentPct / Math.max(targetPct * 1.5, 1), 1);
+          const targetFill = Math.min(targetPct / Math.max(targetPct * 1.5, 1), 1);
+
+          return (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Target Allocation</Text>
+              <View style={{ gap: 10 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <View style={{ gap: 2 }}>
+                    <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: theme.textSecondary }}>CURRENT</Text>
+                    <Text style={{ fontSize: 18, fontFamily: "Inter_700Bold", color: theme.text }}>{currentPct.toFixed(1)}%</Text>
+                  </View>
+                  <View style={{ gap: 2, alignItems: "center" }}>
+                    <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: theme.textSecondary }}>TARGET</Text>
+                    <Text style={{ fontSize: 18, fontFamily: "Inter_700Bold", color: theme.text }}>{targetPct.toFixed(1)}%</Text>
+                  </View>
+                  <View style={{ gap: 2, alignItems: "flex-end" }}>
+                    <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: theme.textSecondary }}>DRIFT</Text>
+                    <Text style={{ fontSize: 18, fontFamily: "Inter_700Bold", color: driftColor }}>
+                      {drift >= 0 ? "+" : ""}{drift.toFixed(1)}%
+                    </Text>
+                  </View>
+                </View>
+                {/* Progress bar */}
+                <View style={{ height: 6, backgroundColor: theme.backgroundElevated, borderRadius: 3, overflow: "hidden" }}>
+                  {/* Target marker */}
+                  <View style={{
+                    position: "absolute", left: `${targetFill * 100}%`,
+                    width: 2, height: "100%", backgroundColor: theme.textTertiary,
+                  }} />
+                  {/* Current fill */}
+                  <View style={{
+                    width: `${barFill * 100}%`, height: "100%",
+                    backgroundColor: driftColor, borderRadius: 3,
+                  }} />
+                </View>
+                {beyondThreshold && (
+                  <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: "#F59E0B" }}>
+                    {absDrift.toFixed(1)}% outside {rebalanceThreshold}% threshold — consider rebalancing
+                  </Text>
+                )}
+              </View>
+            </View>
+          );
+        })()}
 
         {etfData?.description && (
           <View style={[styles.sectionCard, { gap: 6 }]}>
