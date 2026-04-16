@@ -34,7 +34,7 @@ jobs:
           echo "${{ secrets.ASC_API_KEY_CONTENT }}" > /tmp/AuthKey.p8
       - run: pnpm install --no-frozen-lockfile --filter .
       - name: Run EAS Build
-        run: eas build --platform ios --profile preview --non-interactive --no-wait --build-secret "EXPO_PUBLIC_EODHD_API_KEY=$EXPO_PUBLIC_EODHD_API_KEY"
+        run: eas build --platform ios --profile preview --non-interactive --no-wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -42,4 +42,3 @@ jobs:
           ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
           ASC_API_KEY_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
           ASC_API_KEY_PATH: /tmp/AuthKey.p8
-          EXPO_PUBLIC_EODHD_API_KEY: ${{ secrets.EXPO_PUBLIC_EODHD_API_KEY }}
