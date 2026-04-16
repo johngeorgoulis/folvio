@@ -44,6 +44,7 @@ export async function generatePortfolioInsights(
   dcaAmount: number
 ): Promise<AIInsight[]> {
   const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+  console.log("[Anthropic] key present:", !!apiKey, "length:", apiKey?.length ?? 0);
   if (!apiKey) throw new Error("EXPO_PUBLIC_ANTHROPIC_API_KEY not configured");
 
   const priced = holdings.filter(h => h.hasPrice && h.currentPrice > 0 && h.quantity > 0);
@@ -99,7 +100,7 @@ export async function generatePortfolioInsights(
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
       system:
         "You are a portfolio analyst for European passive investors. " +
@@ -119,15 +120,26 @@ export async function generatePortfolioInsights(
     }),
   });
 
+  console.log("[Anthropic] response status:", response.status);
+
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Anthropic API error ${response.status}: ${text}`);
+    const body = await response.text();
+    console.log("[Anthropic] error body:", body);
+    throw new Error(`Anthropic API error ${response.status}: ${body}`);
   }
 
   const data = await response.json();
   const text = data.content?.[0]?.text ?? "[]";
-  const insights: AIInsight[] = JSON.parse(text);
-  return insights;
+  console.log("[Anthropic] raw response text:", text);
+
+  try {
+    const insights: AIInsight[] = JSON.parse(text);
+    console.log("[Anthropic] parsed insights count:", insights.length);
+    return insights;
+  } catch (parseErr) {
+    console.log("[Anthropic] JSON parse error:", parseErr);
+    throw new Error(`Failed to parse Claude response: ${text}`);
+  }
 }
 
 export async function getCachedInsights(): Promise<AIInsight[] | null> {
