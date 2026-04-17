@@ -18,6 +18,14 @@ const router: IRouter = Router();
  *          assetMix, weightedAverageTER, dcaMonthlyEUR } }
  * Returns: { insights: Array<{ title, body, type }> }
  */
+router.get("/debug-env", (_req, res) => {
+  res.json({
+    ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
+    FMP_API_KEY: !!process.env.FMP_API_KEY,
+    NODE_ENV: process.env.NODE_ENV ?? null,
+  });
+});
+
 router.post("/insights", async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
