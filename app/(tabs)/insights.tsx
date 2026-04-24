@@ -589,11 +589,16 @@ function AIInsightsSection({
       ) : error ? (
         <View style={[aiStyles.errorBox, { backgroundColor: theme.backgroundElevated, borderColor: theme.border }]}>
           <Feather name="alert-circle" size={18} color={theme.negative} />
-          <Text style={[aiStyles.errorText, { color: theme.textSecondary }]}>
-            {error.includes("not configured")
-              ? "ANTHROPIC_API_KEY is not set on the server. Contact support."
-              : `Could not load insights. Tap ↻ to retry.\n\n${error}`}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[aiStyles.errorText, { color: theme.textSecondary }]}>
+              {error.includes("not configured")
+                ? "ANTHROPIC_API_KEY is not set on the server. Contact support."
+                : `Could not load insights. Tap ↻ to retry.\n\n${error}`}
+            </Text>
+            <Text style={[aiStyles.debugText, { color: theme.textTertiary }]}>
+              API_SERVER_URL: {process.env.EXPO_PUBLIC_API_SERVER_URL ?? "(not set)"}
+            </Text>
+          </View>
         </View>
       ) : holdings.length === 0 ? (
         <Text style={[crisisStyles.emptyHint, { color: theme.textSecondary }]}>
@@ -642,7 +647,8 @@ const aiStyles = StyleSheet.create({
   insightText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   skeletonLine: { height: 12, borderRadius: 6 },
   errorBox: { flexDirection: "row", alignItems: "flex-start", gap: 10, borderRadius: 12, borderWidth: 1, padding: 14 },
-  errorText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  errorText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  debugText: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 6 },
 });
 
 // ─── Forecast Section ──────────────────────────────────────────────────────────
