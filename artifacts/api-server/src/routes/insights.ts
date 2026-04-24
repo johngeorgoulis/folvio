@@ -79,7 +79,10 @@ router.post("/insights", async (req, res) => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = (await anthropicRes.json()) as any;
-  const text: string = data?.content?.[0]?.text ?? "[]";
+  const text: string = (data?.content?.[0]?.text ?? "[]")
+    .replace(/```json\n?/g, "")
+    .replace(/```\n?/g, "")
+    .trim();
 
   try {
     const insights = JSON.parse(text);
