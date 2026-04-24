@@ -5,7 +5,7 @@ const SYSTEM_PROMPT =
   "Generate exactly 4 concise, specific portfolio insights based on the data provided. " +
   "Focus on: geographic concentration, cost efficiency, asset allocation vs typical EU passive investor, " +
   "and one actionable suggestion. Be specific with numbers. Maximum 2 sentences per insight. " +
-  "Respond ONLY with a JSON array, no other text.";
+  "Respond ONLY with a valid JSON array. No markdown, no code blocks, no backticks, no preamble. Start directly with [ and end with ]";
 
 const router: IRouter = Router();
 
@@ -79,7 +79,9 @@ router.post("/insights", async (req, res) => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = (await anthropicRes.json()) as any;
-  const text: string = (data?.content?.[0]?.text ?? "[]")
+  const raw: string = data?.content?.[0]?.text ?? "[]";
+  console.log("[insights] raw Anthropic response:", raw);
+  const text = raw
     .replace(/```json\n?/g, "")
     .replace(/```\n?/g, "")
     .trim();
