@@ -645,7 +645,7 @@ export default function SettingsScreen() {
           </View>
           {!canImportCSV && (
             <View style={[styles.premiumPill, { backgroundColor: theme.tint + "22" }]}>
-              <Text style={[styles.premiumPillText, { color: theme.tint }]}>Pro+</Text>
+              <Text style={[styles.premiumPillText, { color: theme.tint }]}>Investor+</Text>
             </View>
           )}
           {canImportCSV && (

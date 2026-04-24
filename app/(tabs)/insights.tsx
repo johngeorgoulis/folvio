@@ -976,6 +976,76 @@ const fcStyles = StyleSheet.create({
   tableCell: { fontSize: 13, fontFamily: "Inter_500Medium" },
 });
 
+// ─── Pro locked placeholder ────────────────────────────────────────────────────
+
+function ProLockedSection({
+  icon,
+  title,
+  description,
+  trigger,
+}: {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  title: string;
+  description: string;
+  trigger: string;
+}) {
+  const theme = Colors.dark;
+  const { showPaywall } = useSubscription();
+
+  return (
+    <TouchableOpacity
+      style={[styles.card, lockedStyles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}
+      onPress={() => showPaywall(trigger)}
+      activeOpacity={0.85}
+    >
+      <View style={lockedStyles.header}>
+        <View style={[lockedStyles.iconWrap, { backgroundColor: theme.backgroundElevated }]}>
+          <Feather name={icon} size={24} color={theme.tint} />
+        </View>
+        <View style={[lockedStyles.proBadge, { backgroundColor: theme.tint + "22" }]}>
+          <Feather name="lock" size={10} color={theme.tint} />
+          <Text style={[lockedStyles.proBadgeText, { color: theme.tint }]}>PRO</Text>
+        </View>
+      </View>
+      <Text style={[lockedStyles.title, { color: theme.text }]}>{title}</Text>
+      <Text style={[lockedStyles.desc, { color: theme.textSecondary }]}>{description}</Text>
+      <View style={[lockedStyles.cta, { backgroundColor: theme.tint }]}>
+        <Text style={lockedStyles.ctaText}>Unlock with Pro</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const lockedStyles = StyleSheet.create({
+  card: { gap: 12 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  iconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  proBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  proBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  title: { fontSize: 16, fontFamily: "Inter_700Bold", letterSpacing: -0.3 },
+  desc: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
+  cta: {
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  ctaText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#0A0F1E" },
+});
+
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function InsightsScreen() {
@@ -985,6 +1055,7 @@ export default function InsightsScreen() {
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
   const { holdings, totalPortfolioValue } = usePortfolio();
+  const { canUseAIInsights, canUseCrisisBacktest, canUseWealthProjections } = useSubscription();
 
   const riskProfile = useMemo(() => computeRiskProfile(holdings), [holdings]);
 
@@ -1006,17 +1077,44 @@ export default function InsightsScreen() {
     >
       <Text style={[styles.pageTitle, { color: theme.text }]}>Insights</Text>
 
-      {/* ── AI Portfolio Insights ─────────────────────────────────────────── */}
-      <AIInsightsSection holdings={holdings} totalPortfolioValue={totalPortfolioValue} />
+      {/* ── AI Portfolio Insights (Pro) ───────────────────────────────────── */}
+      {canUseAIInsights ? (
+        <AIInsightsSection holdings={holdings} totalPortfolioValue={totalPortfolioValue} />
+      ) : (
+        <ProLockedSection
+          icon="cpu"
+          title="AI Portfolio Insights"
+          description="Personalised analysis of your UCITS ETF portfolio powered by Claude AI — diversification score, drift warnings, and actionable suggestions."
+          trigger="ai-insights"
+        />
+      )}
 
       {/* ── Risk Profile ─────────────────────────────────────────────────── */}
       {riskProfile && <RiskProfileCard profile={riskProfile} />}
 
-      {/* ── Crisis Backtest ───────────────────────────────────────────────── */}
-      <CrisisBacktestSection />
+      {/* ── Crisis Backtest (Pro) ─────────────────────────────────────────── */}
+      {canUseCrisisBacktest ? (
+        <CrisisBacktestSection />
+      ) : (
+        <ProLockedSection
+          icon="activity"
+          title="Crisis Backtest"
+          description="See how your portfolio would have performed during the dot-com crash, 2008 financial crisis, COVID collapse, and 2022 rate hike cycle."
+          trigger="crisis-backtest"
+        />
+      )}
 
-      {/* ── Forecast ─────────────────────────────────────────────────────── */}
-      <ForecastSection />
+      {/* ── Forecast / Wealth Projections (Pro) ──────────────────────────── */}
+      {canUseWealthProjections ? (
+        <ForecastSection />
+      ) : (
+        <ProLockedSection
+          icon="trending-up"
+          title="Wealth Projections"
+          description="Conservative, Base, and Optimistic growth scenarios with interactive DCA inputs, a 30-year chart, and a summary table across all horizons."
+          trigger="wealth-projections"
+        />
+      )}
 
       {/* ── Dividend Estimate ─────────────────────────────────────────────── */}
       <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
