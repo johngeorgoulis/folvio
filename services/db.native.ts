@@ -133,12 +133,29 @@ async function openAndInit(): Promise<SQLite.SQLiteDatabase> {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS imported_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      transaction_id TEXT UNIQUE NOT NULL,
+      imported_at TEXT NOT NULL
+    );
   `);
   // Migration: add yield_pct column to existing databases (safe to ignore if already exists)
   try {
     await database.runAsync("ALTER TABLE holdings ADD COLUMN yield_pct REAL");
   } catch {
     // Column already exists — safe to ignore
+  }
+  // Migration: add imported_transactions table to existing databases
+  try {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS imported_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        transaction_id TEXT UNIQUE NOT NULL,
+        imported_at TEXT NOT NULL
+      )
+    `);
+  } catch {
+    // safe to ignore
   }
   return database;
 }
@@ -431,4 +448,31 @@ export async function upsertInvestorProfile(
        updated_at = excluded.updated_at`,
     [p.risk_score, p.profile_label, p.income_oriented, p.investment_horizon, p.investing_stage, p.monthly_dca_range, now, now]
   );
+}
+
+// ─── Imported Transactions ────────────────────────────────────────────────────
+
+export async function getImportedTransactionIds(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const database = await getDb();
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = await database.getAllAsync<{ transaction_id: string }>(
+    `SELECT transaction_id FROM imported_transactions WHERE transaction_id IN (${placeholders})`,
+    ids
+  );
+  return new Set(rows.map((r) => r.transaction_id));
+}
+
+export async function insertImportedTransactions(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const database = await getDb();
+  const now = new Date().toISOString();
+  await database.withTransactionAsync(async () => {
+    for (const id of ids) {
+      await database.runAsync(
+        `INSERT OR IGNORE INTO imported_transactions (transaction_id, imported_at) VALUES (?, ?)`,
+        [id, now]
+      );
+    }
+  });
 }

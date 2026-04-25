@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import { parseTradeRepublicTrades } from "../parsers/tradeRepublic";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -319,6 +320,22 @@ function parseGeneric(content: string): ParsedHolding[] {
   return results;
 }
 
+function parseTRAsHoldings(content: string): ParsedHolding[] {
+  const trades = parseTradeRepublicTrades(content);
+  const txs: RawTransaction[] = trades.map((t) => ({
+    ticker: t.ticker || t.isin,
+    isin: t.isin,
+    qty: t.units,
+    price: t.pricePerUnit,
+    currency: "EUR",
+    date: t.date,
+    isBuy: t.type === "BUY",
+    instrumentName: t.name,
+    needsTickerConfirmation: !t.ticker,
+  }));
+  return aggregate(txs);
+}
+
 // ─── Broker Configs ────────────────────────────────────────────────────────────
 
 export const BROKER_CONFIGS: BrokerConfig[] = [
@@ -377,6 +394,19 @@ export const BROKER_CONFIGS: BrokerConfig[] = [
     parse: parseLightyear,
   },
   {
+    key: "trade_republic",
+    name: "Trade Republic",
+    emoji: "🟣",
+    label: "Transactions CSV",
+    instructions: [
+      "Open the Trade Republic app",
+      "Go to Profile → Documents",
+      "Tap 'Export transactions' and select your date range",
+      "Download the CSV and upload it below",
+    ],
+    parse: parseTRAsHoldings,
+  },
+  {
     key: "generic",
     name: "Generic CSV",
     emoji: "📄",
@@ -411,6 +441,11 @@ export function parseCSV(brokerKey: string, content: string): ParsedHolding[] {
  *   3. Revolut     — "State" (unique) or "Quantity" fallback
  *   4. Trading 212 — "Action" or "Ticker"
  */
+const TR_REQUIRED_HEADERS = [
+  "datetime", "account_type", "category", "type",
+  "asset_class", "symbol", "shares", "price", "amount", "fee",
+];
+
 export function detectBroker(content: string): BrokerConfig | null {
   // IBKR Activity Statement: multi-section rows starting with "Trades,Data,"
   if (/^Trades,Data,/m.test(content)) {
@@ -426,6 +461,10 @@ export function detectBroker(content: string): BrokerConfig | null {
   // IBKR Flex Query format (standard CSV with headers)
   if (headers.has("activitydescription") || headers.has("tradedate")) {
     return BROKER_CONFIGS.find((b) => b.key === "ibkr") ?? null;
+  }
+  // Trade Republic — check before Revolut/Lightyear as headers overlap
+  if (TR_REQUIRED_HEADERS.every((h) => headers.has(h))) {
+    return BROKER_CONFIGS.find((b) => b.key === "trade_republic") ?? null;
   }
   if (headers.has("fx rate") || headers.has("fx_rate") || headers.has("fxrate")) {
     return BROKER_CONFIGS.find((b) => b.key === "lightyear") ?? null;

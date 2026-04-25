@@ -322,3 +322,40 @@ export async function upsertInvestorProfile(
   };
   await AsyncStorage.setItem(INVESTOR_PROFILE_KEY, JSON.stringify(row));
 }
+
+// ─── Imported Transactions ────────────────────────────────────────────────────
+
+const IMPORTED_TRANSACTIONS_KEY = "folvio_v2_imported_transactions";
+
+type ImportedTransactionRow = { transaction_id: string; imported_at: string };
+
+export async function getImportedTransactionIds(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  try {
+    const raw = await AsyncStorage.getItem(IMPORTED_TRANSACTIONS_KEY);
+    const rows: ImportedTransactionRow[] = raw ? JSON.parse(raw) : [];
+    const existing = new Set(rows.map((r) => r.transaction_id));
+    return new Set(ids.filter((id) => existing.has(id)));
+  } catch {
+    return new Set();
+  }
+}
+
+export async function insertImportedTransactions(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  try {
+    const raw = await AsyncStorage.getItem(IMPORTED_TRANSACTIONS_KEY);
+    const rows: ImportedTransactionRow[] = raw ? JSON.parse(raw) : [];
+    const existing = new Set(rows.map((r) => r.transaction_id));
+    const now = new Date().toISOString();
+    for (const id of ids) {
+      if (!existing.has(id)) {
+        rows.push({ transaction_id: id, imported_at: now });
+        existing.add(id);
+      }
+    }
+    await AsyncStorage.setItem(IMPORTED_TRANSACTIONS_KEY, JSON.stringify(rows));
+  } catch {
+    // silently ignore storage failures
+  }
+}
