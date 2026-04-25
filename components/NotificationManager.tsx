@@ -32,7 +32,7 @@ import {
 function navigateToScreen(screen: string) {
   switch (screen) {
     case "forecast":
-      router.push("/(tabs)/projections" as never);
+      router.push("/(tabs)/performance" as never);
       break;
     case "rebalance":
       router.push("/rebalance" as never);
