@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Platform,
   ScrollView,
@@ -860,25 +859,16 @@ function OverlapCard({
   }>;
 }) {
   const theme = Colors.dark;
-  const [result, setResult] = useState<OverlapResult | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const result = useMemo<OverlapResult>(() => {
     const eligible = holdings.filter(
       h => h.hasPrice && h.currentPrice > 0 && h.quantity > 0 && h.isin
     );
-    if (eligible.length < 2) {
-      setResult({ worstPair: null, concentratedStocks: [], etfsChecked: 0 });
-      setLoading(false);
-      return;
-    }
-    detectOverlap(eligible)
-      .then(r => { setResult(r); setLoading(false); })
-      .catch(() => setLoading(false));
+    return detectOverlap(eligible);
   }, [holdings]);
 
-  const hasOverlap = !!result?.worstPair && result.worstPair.overlapPct > 40;
-  const concentrated = result?.concentratedStocks[0] ?? null;
+  const hasOverlap = !!result.worstPair && result.worstPair.overlapPct > 40;
+  const concentrated = result.concentratedStocks[0] ?? null;
 
   const accentColor = hasOverlap ? "#FBBF24" : "#34D399";
   const iconName: React.ComponentProps<typeof Feather>["name"] = hasOverlap
@@ -892,68 +882,57 @@ function OverlapCard({
     <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: cardBorder }]}>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>ETF Overlap Analysis</Text>
 
-      {loading ? (
-        <View style={overlapStyles.loadingRow}>
-          <ActivityIndicator size="small" color={theme.tint} />
-          <Text style={[overlapStyles.loadingText, { color: theme.textSecondary }]}>
-            Checking top holdings…
-          </Text>
+      <View style={overlapStyles.body}>
+        <View style={[overlapStyles.iconWrap, { backgroundColor: accentColor + "18" }]}>
+          <Feather name={iconName} size={18} color={accentColor} />
         </View>
-      ) : (
-        <View style={overlapStyles.body}>
-          <View style={[overlapStyles.iconWrap, { backgroundColor: accentColor + "18" }]}>
-            <Feather name={iconName} size={18} color={accentColor} />
-          </View>
-          <View style={{ flex: 1 }}>
-            {!hasOverlap ? (
+        <View style={{ flex: 1 }}>
+          {!hasOverlap ? (
+            <Text style={[overlapStyles.title, { color: theme.text }]}>
+              No significant overlap detected across your ETFs
+            </Text>
+          ) : (
+            <>
               <Text style={[overlapStyles.title, { color: theme.text }]}>
-                No significant overlap detected across your ETFs
+                Hidden overlap detected
               </Text>
-            ) : (
-              <>
-                <Text style={[overlapStyles.title, { color: theme.text }]}>
-                  Hidden overlap detected
-                </Text>
-                <Text style={[overlapStyles.finding, { color: theme.textSecondary }]}>
-                  {result!.worstPair!.etf1} and {result!.worstPair!.etf2} share{" "}
-                  {Math.round(result!.worstPair!.overlapPct)}% of their top holdings
-                  {result!.worstPair!.sharedHoldings.length > 0
-                    ? ` — ${result!.worstPair!.sharedHoldings[0]} appears in both`
-                    : ""}
-                  , representing{" "}
-                  {result!.worstPair!.combinedPortfolioWeight.toFixed(1)}% of your portfolio.
-                </Text>
-                <Text style={[overlapStyles.subline, { color: theme.textTertiary }]}>
-                  Your actual diversification is lower than it appears.
-                </Text>
-              </>
-            )}
+              <Text style={[overlapStyles.finding, { color: theme.textSecondary }]}>
+                {result.worstPair!.etf1} and {result.worstPair!.etf2} share{" "}
+                {Math.round(result.worstPair!.overlapPct)}% of their top holdings
+                {result.worstPair!.sharedHoldings.length > 0
+                  ? ` — ${result.worstPair!.sharedHoldings[0]} appears in both`
+                  : ""}
+                , representing{" "}
+                {result.worstPair!.combinedPortfolioWeight.toFixed(1)}% of your portfolio.
+              </Text>
+              <Text style={[overlapStyles.subline, { color: theme.textTertiary }]}>
+                Your actual diversification is lower than it appears.
+              </Text>
+            </>
+          )}
 
-            {concentrated && (
-              <Text
-                style={[
-                  overlapStyles.finding,
-                  { color: theme.textSecondary, marginTop: hasOverlap ? 10 : 0 },
-                ]}
-              >
-                {concentrated.name} appears in {concentrated.etfCount} of your ETFs — you
-                have concentrated exposure without realising it.
-              </Text>
-            )}
-          </View>
+          {concentrated && (
+            <Text
+              style={[
+                overlapStyles.finding,
+                { color: theme.textSecondary, marginTop: hasOverlap ? 10 : 0 },
+              ]}
+            >
+              {concentrated.name} appears in {concentrated.etfCount} of your ETFs — you
+              have concentrated exposure without realising it.
+            </Text>
+          )}
         </View>
-      )}
+      </View>
 
       <Text style={[styles.disclaimer, { color: theme.textTertiary }]}>
-        Based on JustETF top-10 holdings. Cached for 24 hours.
+        Based on static top-10 holdings data.
       </Text>
     </View>
   );
 }
 
 const overlapStyles = StyleSheet.create({
-  loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
-  loadingText: { fontSize: 12, fontFamily: "Inter_400Regular" },
   body: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 10 },
   iconWrap: {
     width: 36,

@@ -1,7 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const CACHE_PREFIX = "folvio_overlap_v1_";
-const CACHE_TTL = 24 * 60 * 60 * 1000;
+import { ETF_HOLDINGS, ETFHolding } from "../lib/etfHoldings";
 
 export interface TopHolding {
   name: string;
@@ -28,61 +25,18 @@ export interface OverlapResult {
   etfsChecked: number;
 }
 
-function getServerUrl(): string {
-  const full = process.env.EXPO_PUBLIC_API_SERVER_URL;
-  if (full) return full.replace(/\/$/, "");
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}`;
-  throw new Error("EXPO_PUBLIC_API_SERVER_URL is not configured");
-}
-
-async function getCachedTopHoldings(isin: string): Promise<TopHolding[] | null> {
-  try {
-    const raw = await AsyncStorage.getItem(CACHE_PREFIX + isin);
-    if (!raw) return null;
-    const { data, timestamp } = JSON.parse(raw) as { data: TopHolding[]; timestamp: number };
-    if (Date.now() - timestamp > CACHE_TTL) return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-async function setCachedTopHoldings(isin: string, data: TopHolding[]): Promise<void> {
-  try {
-    await AsyncStorage.setItem(
-      CACHE_PREFIX + isin,
-      JSON.stringify({ data, timestamp: Date.now() })
-    );
-  } catch {}
-}
-
-async function fetchTopHoldings(isin: string): Promise<TopHolding[]> {
-  const cached = await getCachedTopHoldings(isin);
-  if (cached !== null) return cached;
-
-  try {
-    const serverUrl = getServerUrl();
-    const res = await fetch(`${serverUrl}/api/etf/top-holdings/${encodeURIComponent(isin)}`);
-    if (!res.ok) {
-      await setCachedTopHoldings(isin, []);
-      return [];
-    }
-    const json = (await res.json()) as { topHoldings?: TopHolding[] };
-    const result = Array.isArray(json.topHoldings) ? json.topHoldings : [];
-    await setCachedTopHoldings(isin, result);
-    return result;
-  } catch {
-    await setCachedTopHoldings(isin, []);
-    return [];
-  }
+function resolveHoldings(ticker: string): ETFHolding[] {
+  if (ETF_HOLDINGS[ticker]) return ETF_HOLDINGS[ticker];
+  const base = ticker.includes(".") ? ticker.split(".")[0] : null;
+  if (base && ETF_HOLDINGS[base]) return ETF_HOLDINGS[base];
+  return [];
 }
 
 function normalize(name: string): string {
   return name.toLowerCase().replace(/[.,\s]+/g, " ").trim();
 }
 
-export async function detectOverlap(
+export function detectOverlap(
   holdings: Array<{
     ticker: string;
     isin: string;
@@ -90,7 +44,7 @@ export async function detectOverlap(
     currentPrice: number;
     hasPrice: boolean;
   }>
-): Promise<OverlapResult> {
+): OverlapResult {
   const priced = holdings.filter(
     h => h.hasPrice && h.currentPrice > 0 && h.quantity > 0 && h.isin
   );
@@ -103,17 +57,13 @@ export async function detectOverlap(
   const portfolioWeight = (h: typeof priced[0]) =>
     totalValue > 0 ? (h.quantity * h.currentPrice / totalValue) * 100 : 0;
 
-  // Fetch all top-10 lists in parallel
-  const fetched = await Promise.all(
-    priced.map(async h => ({
+  const withData = priced
+    .map(h => ({
       ticker: h.ticker,
-      isin: h.isin,
       weight: portfolioWeight(h),
-      holdings: await fetchTopHoldings(h.isin),
+      holdings: resolveHoldings(h.ticker),
     }))
-  );
-
-  const withData = fetched.filter(f => f.holdings.length > 0);
+    .filter(f => f.holdings.length > 0);
 
   if (withData.length < 2) {
     return { worstPair: null, concentratedStocks: [], etfsChecked: withData.length };
