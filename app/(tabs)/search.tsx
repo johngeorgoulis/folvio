@@ -48,12 +48,12 @@ function getAssetClassColor(assetClass: string): string {
 const POPULAR_ETFS = [
   { symbol: "VWCE.DE", ticker: "VWCE", name: "Vanguard FTSE All-World Acc" },
   { symbol: "IWDA.AS", ticker: "IWDA", name: "iShares Core MSCI World" },
-  { symbol: "VHYL.AS", ticker: "VHYL", name: "Vanguard FTSE All-World HY" },
+  { symbol: "VUAA.AS", ticker: "VUAA", name: "iShares Core S&P 500 Acc" },
   { symbol: "CSPX.L",  ticker: "CSPX", name: "iShares Core S&P 500" },
-  { symbol: "SWDA.L",  ticker: "SWDA", name: "iShares Core MSCI World" },
-  { symbol: "EUNL.DE", ticker: "EUNL", name: "iShares Core MSCI World" },
+  { symbol: "VHYL.AS", ticker: "VHYL", name: "Vanguard FTSE All-World HY" },
   { symbol: "TDIV.AS", ticker: "TDIV", name: "VanEck Morningstar Dev World" },
-  { symbol: "VAGF.L",  ticker: "VAGF", name: "Vanguard Global Agg Bond" },
+  { symbol: "EUNL.DE", ticker: "EUNL", name: "iShares Core MSCI World" },
+  { symbol: "AGGH.AS", ticker: "AGGH", name: "iShares Core Global Agg Bond" },
 ];
 
 
@@ -244,11 +244,6 @@ export default function SearchScreen() {
     }));
   }, [holdings]);
 
-  const displayETFs = useMemo(() => {
-    const userTickers = new Set(userETFs.map((e) => e.ticker));
-    const extra = POPULAR_ETFS.filter((e) => !userTickers.has(e.ticker));
-    return [...userETFs, ...extra].slice(0, 8);
-  }, [userETFs]);
 
   // ── Search logic ──────────────────────────────────────────────────────────
   function handleQueryChange(text: string) {
@@ -386,15 +381,37 @@ export default function SearchScreen() {
         {/* ── Home: ETFs ─────────────────────────────────────────────────── */}
         {showHome && (
           <>
+            {/* Your ETFs — only when user has holdings */}
+            {userETFs.length > 0 && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Your ETFs</Text>
+                </View>
+                <ScrollView
+                  horizontal showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalList}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {userETFs.map((item) => (
+                    <PopularCard
+                      key={item.symbol} {...item}
+                      price={item.symbol in popularPrices ? popularPrices[item.symbol] : undefined}
+                    />
+                  ))}
+                </ScrollView>
+              </>
+            )}
+
+            {/* Popular ETFs — always shown */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{userETFs.length > 0 ? "Your ETFs" : "Popular ETFs"}</Text>
+              <Text style={styles.sectionTitle}>Popular ETFs</Text>
             </View>
             <ScrollView
               horizontal showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalList}
               keyboardShouldPersistTaps="handled"
             >
-              {displayETFs.map((item) => (
+              {POPULAR_ETFS.map((item) => (
                 <PopularCard
                   key={item.symbol} {...item}
                   price={item.symbol in popularPrices ? popularPrices[item.symbol] : undefined}

@@ -134,15 +134,21 @@ export function calculateDCARebalance(
   }
 
   const pricedHoldings = holdings.filter((h) => h.hasPrice && targetMap.has(h.ticker));
-  const suggestions: RebalanceSuggestion[] = [];
-  let totalToDeploy = 0;
 
-  for (const h of pricedHoldings) {
+  // Compute each holding's deficit toward its proportional target in the post-investment portfolio.
+  const items = pricedHoldings.map((h) => {
     const targetPct = targetMap.get(h.ticker)!;
     const targetValue = newTotalValue * (targetPct / 100);
     const currentValue = h.quantity * h.currentPrice;
-    const delta = targetValue - currentValue;
+    return { h, targetPct, delta: targetValue - currentValue };
+  });
 
+  // Only underweight holdings receive new capital; distribute cashAmount proportionally by deficit.
+  const totalDeficit = items.reduce((sum, item) => sum + (item.delta > 0 ? item.delta : 0), 0);
+
+  const suggestions: RebalanceSuggestion[] = [];
+
+  for (const { h, delta } of items) {
     if (delta <= 0) {
       suggestions.push({
         ticker: h.ticker,
@@ -153,9 +159,9 @@ export function calculateDCARebalance(
         reason: "already overweight — skip in DCA mode",
       });
     } else {
-      const units = Math.round((delta / h.currentPrice) * 100) / 100;
+      const allocation = totalDeficit > 0 ? cashAmount * (delta / totalDeficit) : 0;
+      const units = Math.round((allocation / h.currentPrice) * 100) / 100;
       const estimatedValueEUR = Math.round(units * h.currentPrice * 100) / 100;
-      totalToDeploy += estimatedValueEUR;
       suggestions.push({ ticker: h.ticker, exchange: h.exchange, action: "buy", units, estimatedValueEUR });
     }
   }
@@ -164,7 +170,7 @@ export function calculateDCARebalance(
     mode: "dca",
     cashInput: cashAmount,
     suggestions: suggestions.sort((a, b) => b.estimatedValueEUR - a.estimatedValueEUR),
-    totalToDeploy: Math.round(totalToDeploy * 100) / 100,
+    totalToDeploy: cashAmount,
     transactionCount: suggestions.filter((s) => s.action === "buy").length,
     warnings,
   };

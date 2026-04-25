@@ -166,22 +166,71 @@ function parseTrading212(content: string): ParsedHolding[] {
 }
 
 function parseIBKR(content: string): ParsedHolding[] {
-  const rows = parseRows(content);
   const txs: RawTransaction[] = [];
+
+  // IBKR Activity Statement — multi-section CSV, no single header row.
+  // Actual column layout (verified from real export):
+  //   col[0] = section   ("Trades")
+  //   col[1] = row type  ("Data" | "SubTotal" | "Total" | "Header")
+  //   col[2] = DataDiscriminator ("Order")
+  //   col[3] = Asset Category   ("Stocks" | "Forex")
+  //   col[4] = Currency         ("EUR")
+  //   col[5] = Symbol           ("VWCE", "TDIV", …)
+  //   col[6] = Date/Time        ("2025-10-06, 07:20:52")  ← quoted by PapaParse
+  //   col[7] = Quantity         (positive = buy, negative = sell)
+  //   col[8] = T. Price
+  const parsed = Papa.parse<string[]>(content, {
+    header: false,
+    skipEmptyLines: true,
+  });
+
+  const rows = parsed.data as string[][];
+
+  // Extract ISINs from the Financial Instrument Information section:
+  //   col[0]="Financial Instrument Information", col[1]="Data",
+  //   col[2]="Stocks", col[3]=symbol, col[6]=ISIN
+  const isinMap: Record<string, string> = {};
   for (const row of rows) {
-    const action = col(row, "Action", "action", "TransactionType", "Type").toLowerCase();
-    const isBuy = action.includes("buy");
-    const isSell = action.includes("sell");
-    if (!isBuy && !isSell) continue;
-    const ticker = col(row, "Symbol", "symbol", "Ticker", "ticker").trim();
-    const isin = col(row, "ISIN", "isin").trim();
-    const qty = Math.abs(parseNum(col(row, "Quantity", "quantity", "Qty")));
-    const price = parseNum(col(row, "TradePrice", "Price", "price", "T. Price"));
-    const currency = col(row, "CurrencyPrimary", "Currency", "currency") || "EUR";
-    const date = normalizeDate(col(row, "TradeDate", "Date", "date", "SettleDate"));
-    if (!ticker || qty <= 0) continue;
-    txs.push({ ticker, isin, qty, price, currency, date, isBuy });
+    if (
+      row[0]?.trim() === "Financial Instrument Information" &&
+      row[1]?.trim() === "Data" &&
+      row[2]?.trim() === "Stocks"
+    ) {
+      const sym  = row[3]?.trim();
+      const isin = row[6]?.trim();
+      if (sym && isin) isinMap[sym] = isin;
+    }
   }
+
+  for (const row of rows) {
+    // Only process Trades Data rows for Stocks (not Forex, SubTotal, Total, Header)
+    if (
+      row[0]?.trim() !== "Trades" ||
+      row[1]?.trim() !== "Data"   ||
+      row[3]?.trim() !== "Stocks"
+    ) continue;
+
+    const currency = row[4]?.trim() || "EUR";
+    const symbol   = row[5]?.trim();
+    // Date/Time field is "YYYY-MM-DD, HH:MM:SS" — normalizeDate extracts the date
+    const date     = normalizeDate(row[6]?.trim() || "");
+    const qty      = parseNum(row[7]?.trim() || "0");
+    const price    = parseNum(row[8]?.trim() || "0");
+
+    if (!symbol || qty === 0) continue;
+    if (qty < 0) continue; // negative = sell, skip
+
+    txs.push({
+      ticker: symbol,
+      isin:   isinMap[symbol],
+      qty,
+      price,
+      currency,
+      date,
+      isBuy: true,
+    });
+  }
+
   return aggregate(txs);
 }
 
@@ -352,22 +401,29 @@ export function parseCSV(brokerKey: string, content: string): ParsedHolding[] {
 }
 
 /**
- * Inspect the CSV header row and return the matching BrokerConfig, or null
+ * Inspect the CSV content and return the matching BrokerConfig, or null
  * if the format cannot be determined automatically.
  *
  * Detection order (most-specific first to avoid false positives):
- *   1. IBKR        — "ActivityDescription" or "TradeDate"
+ *   1. IBKR        — multi-section Activity Statement ("Trades,Data," anywhere)
+ *                    or Flex Query header ("ActivityDescription" / "TradeDate")
  *   2. Lightyear   — "FX Rate" (unique to Lightyear exports)
  *   3. Revolut     — "State" (unique) or "Quantity" fallback
  *   4. Trading 212 — "Action" or "Ticker"
  */
 export function detectBroker(content: string): BrokerConfig | null {
+  // IBKR Activity Statement: multi-section rows starting with "Trades,Data,"
+  if (/^Trades,Data,/m.test(content)) {
+    return BROKER_CONFIGS.find((b) => b.key === "ibkr") ?? null;
+  }
+
   const firstLine = content.trim().split(/\r?\n/)[0];
   const parsed = Papa.parse<string[]>(firstLine, { header: false });
   const headers = new Set(
     ((parsed.data[0] as unknown as string[]) ?? []).map((h) => h.trim().toLowerCase())
   );
 
+  // IBKR Flex Query format (standard CSV with headers)
   if (headers.has("activitydescription") || headers.has("tradedate")) {
     return BROKER_CONFIGS.find((b) => b.key === "ibkr") ?? null;
   }

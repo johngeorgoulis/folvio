@@ -27,28 +27,38 @@ export const YEARLY_SAVINGS_PCT = {
 // ─── Feature gates ─────────────────────────────────────────────────────────────
 
 export interface FeatureGates {
-  canAddUnlimitedHoldings:  boolean;
-  canImportCSV:             boolean;
-  canExportCSV:             boolean;
+  // Investor+
+  canAddUnlimitedHoldings:   boolean;
+  canUseFullRebalance:       boolean;
+  canUseAllScenarios:        boolean;
+  canUseDCALog:              boolean;
+  canUsePushNotifications:   boolean;
   canUseBenchmarkComparison: boolean;
-  canUseFullRebalance:      boolean;
-  canUseAllScenarios:       boolean;
-  canUseDCALog:             boolean;
-  canUsePushNotifications:  boolean;
+  canImportCSV:              boolean;
+  // Pro only
+  canExportCSV:              boolean;
+  canUseAIInsights:          boolean;
+  canUseCrisisBacktest:      boolean;
+  canUseWealthProjections:   boolean;
 }
 
 function getFeatureGates(tier: SubscriptionTier): FeatureGates {
   const isInvestorOrHigher = tier === "investor" || tier === "pro";
   const isPro              = tier === "pro";
   return {
-    canAddUnlimitedHoldings:    isInvestorOrHigher,
-    canImportCSV:               isPro,
-    canExportCSV:               isPro,
-    canUseBenchmarkComparison:  isPro,
-    canUseFullRebalance:        isInvestorOrHigher,
-    canUseAllScenarios:         isInvestorOrHigher,
-    canUseDCALog:               isInvestorOrHigher,
-    canUsePushNotifications:    isInvestorOrHigher,
+    // Investor+
+    canAddUnlimitedHoldings:   isInvestorOrHigher,
+    canUseFullRebalance:       isInvestorOrHigher,
+    canUseAllScenarios:        isInvestorOrHigher,
+    canUseDCALog:              isInvestorOrHigher,
+    canUsePushNotifications:   isInvestorOrHigher,
+    canUseBenchmarkComparison: isInvestorOrHigher,
+    canImportCSV:              isInvestorOrHigher,
+    // Pro only
+    canExportCSV:              isPro,
+    canUseAIInsights:          isPro,
+    canUseCrisisBacktest:      isPro,
+    canUseWealthProjections:   isPro,
   };
 }
 
@@ -80,9 +90,9 @@ const SubscriptionContext = createContext<SubscriptionContextType | null>(null);
 // ─── Provider ──────────────────────────────────────────────────────────────────
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
-  const [tier, _setTier]                 = useState<SubscriptionTier>("free");
-  const [billingPeriod, _setBilling]     = useState<BillingPeriod | null>(null);
-  const [isLoaded, setIsLoaded]          = useState(false);
+  const [tier, _setTier]                   = useState<SubscriptionTier>("free");
+  const [billingPeriod, _setBilling]       = useState<BillingPeriod | null>(null);
+  const [isLoaded, setIsLoaded]            = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
   const [paywallTrigger, setPaywallTrigger] = useState<string | undefined>();
 
@@ -111,8 +121,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     setPaywallTrigger(undefined);
   }, []);
 
-  // TODO: Replace this with actual RevenueCat purchase flow before release.
-  // This currently just persists the tier locally for UI testing purposes.
+  // TODO: Replace with actual RevenueCat purchase flow before release.
   const setSubscription = useCallback(
     async (newTier: SubscriptionTier, newPeriod: BillingPeriod) => {
       _setTier(newTier);
@@ -166,7 +175,6 @@ export function useSubscription(): SubscriptionContextType {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Human-readable tier label */
 export function tierLabel(tier: SubscriptionTier): string {
   switch (tier) {
     case "investor": return "Folvio Investor";
@@ -178,9 +186,10 @@ export function tierLabel(tier: SubscriptionTier): string {
 /** Which paid tier is required for a given feature trigger */
 export function requiredTierFor(trigger?: string): SubscriptionTier {
   switch (trigger) {
-    case "import":
+    case "ai-insights":
+    case "crisis-backtest":
+    case "wealth-projections":
     case "export":
-    case "benchmark":
       return "pro";
     default:
       return "investor";

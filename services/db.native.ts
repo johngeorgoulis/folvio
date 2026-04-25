@@ -50,6 +50,18 @@ export type PortfolioHistoryRow = {
   created_at: string;
 };
 
+export type InvestorProfileRow = {
+  id: string;
+  risk_score: number;
+  profile_label: string;
+  income_oriented: number; // 0 | 1
+  investment_horizon: string;
+  investing_stage: string;
+  monthly_dca_range: string;
+  created_at: string;
+  updated_at: string;
+};
+
 // ── Singleton init promise ─────────────────────────────────────────────────
 // Using a shared promise prevents the race condition where PortfolioProvider
 // and AllocationProvider both call getDb() concurrently on first mount. All
@@ -108,6 +120,17 @@ async function openAndInit(): Promise<SQLite.SQLiteDatabase> {
     CREATE TABLE IF NOT EXISTS holding_asset_class_overrides (
       ticker TEXT PRIMARY KEY,
       asset_class TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS investor_profile (
+      id TEXT PRIMARY KEY,
+      risk_score REAL NOT NULL,
+      profile_label TEXT NOT NULL,
+      income_oriented INTEGER NOT NULL DEFAULT 0,
+      investment_horizon TEXT NOT NULL DEFAULT '',
+      investing_stage TEXT NOT NULL DEFAULT '',
+      monthly_dca_range TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
   `);
@@ -378,5 +401,34 @@ export async function getPortfolioHistoryByRange(days: number): Promise<Portfoli
   return database.getAllAsync<PortfolioHistoryRow>(
     "SELECT date, total_value_eur, total_invested_eur, created_at FROM portfolio_history WHERE date >= ? ORDER BY date ASC",
     [cutoff]
+  );
+}
+
+// ─── Investor Profile ─────────────────────────────────────────────────────────
+
+export async function getInvestorProfile(): Promise<InvestorProfileRow | null> {
+  const database = await getDb();
+  return database.getFirstAsync<InvestorProfileRow>(
+    "SELECT * FROM investor_profile WHERE id = 'profile' LIMIT 1"
+  );
+}
+
+export async function upsertInvestorProfile(
+  p: Omit<InvestorProfileRow, "id" | "created_at" | "updated_at">
+): Promise<void> {
+  const now = new Date().toISOString();
+  const database = await getDb();
+  await database.runAsync(
+    `INSERT INTO investor_profile (id, risk_score, profile_label, income_oriented, investment_horizon, investing_stage, monthly_dca_range, created_at, updated_at)
+     VALUES ('profile', ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       risk_score = excluded.risk_score,
+       profile_label = excluded.profile_label,
+       income_oriented = excluded.income_oriented,
+       investment_horizon = excluded.investment_horizon,
+       investing_stage = excluded.investing_stage,
+       monthly_dca_range = excluded.monthly_dca_range,
+       updated_at = excluded.updated_at`,
+    [p.risk_score, p.profile_label, p.income_oriented, p.investment_horizon, p.investing_stage, p.monthly_dca_range, now, now]
   );
 }

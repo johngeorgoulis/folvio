@@ -50,6 +50,18 @@ export type PortfolioHistoryRow = {
   created_at: string;
 };
 
+export type InvestorProfileRow = {
+  id: string;
+  risk_score: number;
+  profile_label: string;
+  income_oriented: number; // 0 | 1
+  investment_horizon: string;
+  investing_stage: string;
+  monthly_dca_range: string;
+  created_at: string;
+  updated_at: string;
+};
+
 const KEYS = {
   holdings: "folvio_v2_holdings",
   prices: "folvio_v2_prices",
@@ -282,4 +294,31 @@ export async function getPortfolioHistoryByRange(days: number): Promise<Portfoli
   return rows
     .filter((r) => r.date >= cutoff)
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// ─── Investor Profile ─────────────────────────────────────────────────────────
+
+const INVESTOR_PROFILE_KEY = "folvio_v2_investor_profile";
+
+export async function getInvestorProfile(): Promise<InvestorProfileRow | null> {
+  try {
+    const raw = await AsyncStorage.getItem(INVESTOR_PROFILE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function upsertInvestorProfile(
+  p: Omit<InvestorProfileRow, "id" | "created_at" | "updated_at">
+): Promise<void> {
+  const now = new Date().toISOString();
+  const existing = await getInvestorProfile();
+  const row: InvestorProfileRow = {
+    id: "profile",
+    ...p,
+    created_at: existing?.created_at ?? now,
+    updated_at: now,
+  };
+  await AsyncStorage.setItem(INVESTOR_PROFILE_KEY, JSON.stringify(row));
 }
