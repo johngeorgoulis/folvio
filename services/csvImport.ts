@@ -168,30 +168,67 @@ function parseTrading212(content: string): ParsedHolding[] {
 function parseIBKR(content: string): ParsedHolding[] {
   const txs: RawTransaction[] = [];
 
-  // IBKR Activity Statement is a multi-section CSV — no single header row.
-  // Trade rows: Trades,Data,Stocks,{currency},{symbol},{date},{time},{qty},{price},...
-  // col:          0      1    2       3          4        5      6     7     8
+  // IBKR Activity Statement — multi-section CSV, no single header row.
+  // Actual column layout (verified from real export):
+  //   col[0] = section   ("Trades")
+  //   col[1] = row type  ("Data" | "SubTotal" | "Total" | "Header")
+  //   col[2] = DataDiscriminator ("Order")
+  //   col[3] = Asset Category   ("Stocks" | "Forex")
+  //   col[4] = Currency         ("EUR")
+  //   col[5] = Symbol           ("VWCE", "TDIV", …)
+  //   col[6] = Date/Time        ("2025-10-06, 07:20:52")  ← quoted by PapaParse
+  //   col[7] = Quantity         (positive = buy, negative = sell)
+  //   col[8] = T. Price
   const parsed = Papa.parse<string[]>(content, {
     header: false,
     skipEmptyLines: true,
   });
 
-  for (const row of parsed.data as string[][]) {
+  const rows = parsed.data as string[][];
+
+  // Extract ISINs from the Financial Instrument Information section:
+  //   col[0]="Financial Instrument Information", col[1]="Data",
+  //   col[2]="Stocks", col[3]=symbol, col[6]=ISIN
+  const isinMap: Record<string, string> = {};
+  for (const row of rows) {
+    if (
+      row[0]?.trim() === "Financial Instrument Information" &&
+      row[1]?.trim() === "Data" &&
+      row[2]?.trim() === "Stocks"
+    ) {
+      const sym  = row[3]?.trim();
+      const isin = row[6]?.trim();
+      if (sym && isin) isinMap[sym] = isin;
+    }
+  }
+
+  for (const row of rows) {
+    // Only process Trades Data rows for Stocks (not Forex, SubTotal, Total, Header)
     if (
       row[0]?.trim() !== "Trades" ||
       row[1]?.trim() !== "Data"   ||
-      row[2]?.trim() !== "Stocks"
+      row[3]?.trim() !== "Stocks"
     ) continue;
 
-    const currency = row[3]?.trim() || "EUR";
-    const symbol   = row[4]?.trim();
-    const date     = normalizeDate(row[5]?.trim() || "");
+    const currency = row[4]?.trim() || "EUR";
+    const symbol   = row[5]?.trim();
+    // Date/Time field is "YYYY-MM-DD, HH:MM:SS" — normalizeDate extracts the date
+    const date     = normalizeDate(row[6]?.trim() || "");
     const qty      = parseNum(row[7]?.trim() || "0");
     const price    = parseNum(row[8]?.trim() || "0");
 
-    if (!symbol || qty <= 0) continue; // buys only (positive qty)
+    if (!symbol || qty === 0) continue;
+    if (qty < 0) continue; // negative = sell, skip
 
-    txs.push({ ticker: symbol, qty, price, currency, date, isBuy: true });
+    txs.push({
+      ticker: symbol,
+      isin:   isinMap[symbol],
+      qty,
+      price,
+      currency,
+      date,
+      isBuy: true,
+    });
   }
 
   return aggregate(txs);
