@@ -1,9 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -660,86 +661,216 @@ const SCENARIOS = [
 ];
 const HORIZONS = [10, 15, 20, 25, 30];
 
-function projectValue(start: number, monthly: number, annualPct: number, years: number): number {
+// Supports optional annual DCA escalation (Pro feature)
+function projectValue(
+  start: number, monthly: number, annualPct: number,
+  years: number, escalation = 0
+): number {
   const r = annualPct / 100 / 12;
-  let v = start;
-  for (let m = 0; m < years * 12; m++) v = v * (1 + r) + monthly;
+  let v = start, m = monthly;
+  for (let y = 0; y < years; y++) {
+    if (y > 0 && escalation > 0) m *= (1 + escalation / 100);
+    for (let mo = 0; mo < 12; mo++) v = v * (1 + r) + m;
+  }
   return v;
 }
 
-function projectYearly(start: number, monthly: number, annualPct: number, years: number): number[] {
+function projectYearly(
+  start: number, monthly: number, annualPct: number,
+  years: number, escalation = 0
+): number[] {
   const r = annualPct / 100 / 12;
-  let v = start;
+  let v = start, m = monthly;
   const pts = [start];
-  for (let y = 1; y <= years; y++) {
-    for (let m = 0; m < 12; m++) v = v * (1 + r) + monthly;
+  for (let y = 0; y < years; y++) {
+    if (y > 0 && escalation > 0) m *= (1 + escalation / 100);
+    for (let mo = 0; mo < 12; mo++) v = v * (1 + r) + m;
     pts.push(v);
   }
   return pts;
 }
 
+// ─── Chart (shared scale across active + ghost lines) ──────────────────────────
+
 function ForecastChart({
-  width,
-  scenarioLines,
-  investedLine,
-  years,
+  width, activeLines, ghostLines, investedLine, years, locked, onUnlock,
 }: {
   width: number;
-  scenarioLines: { color: string; points: number[] }[];
+  activeLines: { color: string; points: number[] }[];
+  ghostLines:  { color: string; points: number[] }[];
   investedLine: number[];
   years: number;
+  locked: boolean;
+  onUnlock: () => void;
 }) {
-  const H = 200;
+  const theme = Colors.dark;
+  const H   = 200;
   const PAD = { top: 16, bottom: 32, left: 56, right: 8 };
-  const iW = width - PAD.left - PAD.right;
-  const iH = H - PAD.top - PAD.bottom;
-  const allV = scenarioLines.flatMap(s => s.points);
-  const maxV = Math.max(...allV);
-  const minV = Math.min(...allV, 0);
+  const iW  = width - PAD.left - PAD.right;
+  const iH  = H - PAD.top - PAD.bottom;
+
+  const allPts = [...activeLines, ...ghostLines].flatMap(s => s.points);
+  const maxV = Math.max(...allPts);
+  const minV = Math.min(...allPts, 0);
   const span = maxV - minV || 1;
+
   const toX = (i: number) => PAD.left + (i / years) * iW;
   const toY = (v: number) => PAD.top + (1 - (v - minV) / span) * iH;
-  const path = (pts: number[]) => pts.map((v, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`).join(" ");
+  const path = (pts: number[]) =>
+    pts.map((v, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`).join(" ");
+
   const yLabels = [maxV, maxV / 2, 0].map(v => ({
     v, y: toY(v),
     label: v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v.toFixed(0)}`,
   }));
-  const xLabels = [0, Math.floor(years / 2), years].map(yr => ({ yr, x: toX(yr), label: yr === 0 ? "Now" : `${yr}y` }));
-  const theme = Colors.dark;
+  const xLabels = [0, Math.floor(years / 2), years].map(yr => ({
+    yr, x: toX(yr), label: yr === 0 ? "Now" : `${yr}y`,
+  }));
+
   return (
-    <Svg width={width} height={H}>
-      {yLabels.map((l, i) => (
-        <Line key={i} x1={PAD.left} y1={l.y} x2={PAD.left + iW} y2={l.y}
-          stroke={theme.border} strokeWidth={1} strokeDasharray="4,4" />
-      ))}
-      {yLabels.map((l, i) => (
-        <SvgText key={i} x={PAD.left - 4} y={l.y + 4} fontSize={9}
-          fill={theme.textTertiary} textAnchor="end" fontFamily="Inter_400Regular">
-          {l.label}
-        </SvgText>
-      ))}
-      {xLabels.map((l, i) => (
-        <SvgText key={i} x={l.x} y={H - 4} fontSize={9}
-          fill={theme.textTertiary} textAnchor="middle" fontFamily="Inter_400Regular">
-          {l.label}
-        </SvgText>
-      ))}
-      {scenarioLines.map((s, i) => (
-        <Path key={i} d={path(s.points)} stroke={s.color} strokeWidth={2} fill="none" />
-      ))}
-      {investedLine.length >= 2 && (
-        <Path d={path(investedLine)} stroke="rgba(255,255,255,0.3)"
-          strokeWidth={1.5} strokeDasharray="4,3" fill="none" />
+    <View>
+      <Svg width={width} height={H}>
+        {yLabels.map((l, i) => (
+          <Line key={i} x1={PAD.left} y1={l.y} x2={PAD.left + iW} y2={l.y}
+            stroke={theme.border} strokeWidth={1} strokeDasharray="4,4" />
+        ))}
+        {yLabels.map((l, i) => (
+          <SvgText key={i} x={PAD.left - 4} y={l.y + 4} fontSize={9}
+            fill={theme.textTertiary} textAnchor="end" fontFamily="Inter_400Regular">
+            {l.label}
+          </SvgText>
+        ))}
+        {xLabels.map((l, i) => (
+          <SvgText key={i} x={l.x} y={H - 4} fontSize={9}
+            fill={theme.textTertiary} textAnchor="middle" fontFamily="Inter_400Regular">
+            {l.label}
+          </SvgText>
+        ))}
+        {/* Ghost (locked) lines — faint */}
+        {ghostLines.map((s, i) => (
+          <Path key={`g${i}`} d={path(s.points)} stroke={s.color}
+            strokeWidth={2} fill="none" opacity={0.18} />
+        ))}
+        {/* Active lines */}
+        {activeLines.map((s, i) => (
+          <Path key={`a${i}`} d={path(s.points)} stroke={s.color} strokeWidth={2} fill="none" />
+        ))}
+        {investedLine.length >= 2 && (
+          <Path d={path(investedLine)} stroke="rgba(255,255,255,0.3)"
+            strokeWidth={1.5} strokeDasharray="4,3" fill="none" />
+        )}
+      </Svg>
+
+      {/* Lock overlay — sits over chart, leaves x-axis labels visible */}
+      {locked && (
+        <TouchableOpacity
+          style={fcStyles.chartOverlay}
+          onPress={onUnlock}
+          activeOpacity={0.9}
+        >
+          <View style={[fcStyles.chartLockBadge, { backgroundColor: theme.backgroundElevated, borderColor: theme.border }]}>
+            <Feather name="lock" size={13} color={theme.tint} />
+            <Text style={[fcStyles.chartLockText, { color: theme.text }]}>Unlock all scenarios</Text>
+            <View style={[fcStyles.chartLockPill, { backgroundColor: "#3B82F6" + "22" }]}>
+              <Text style={[fcStyles.chartLockPillText, { color: "#3B82F6" }]}>INVESTOR</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
       )}
-    </Svg>
+    </View>
   );
 }
+
+// ─── DCA Escalation Slider (Pro only) ─────────────────────────────────────────
+
+function DCAEscalationSlider({
+  value, onChange, monthlyDCA,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  monthlyDCA: number;
+}) {
+  const theme = Colors.dark;
+  const MIN = 0, MAX = 10, THUMB = 22;
+
+  const trackRef    = useRef<View>(null);
+  const trackPageX  = useRef(0);
+  const trackWidthR = useRef(200);
+
+  function clampedValue(pageX: number) {
+    const x   = pageX - trackPageX.current;
+    const raw = (x / trackWidthR.current) * (MAX - MIN) + MIN;
+    return Math.round(Math.max(MIN, Math.min(MAX, raw)));
+  }
+
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder:  () => true,
+      onPanResponderGrant: e => onChange(clampedValue(e.nativeEvent.pageX)),
+      onPanResponderMove:  e => onChange(clampedValue(e.nativeEvent.pageX)),
+    })
+  ).current;
+
+  const fillPct = ((value - MIN) / (MAX - MIN)) * 100;
+
+  return (
+    <View style={[fcStyles.subCard, { backgroundColor: theme.backgroundElevated, borderColor: theme.border }]}>
+      <View style={fcStyles.sliderHeader}>
+        <Text style={[fcStyles.subCardTitle, { color: theme.textSecondary, marginBottom: 0 }]}>
+          Annual DCA Escalation
+        </Text>
+        <Text style={[fcStyles.sliderValueText, { color: theme.tint }]}>
+          {value === 0 ? "Off" : `+${value}% / yr`}
+        </Text>
+      </View>
+
+      {/* Track */}
+      <View style={{ height: THUMB, justifyContent: "center", marginTop: 10, marginBottom: 4 }}
+        ref={trackRef}
+        onLayout={() => {
+          trackRef.current?.measureInWindow((x, _y, w) => {
+            trackPageX.current  = x;
+            trackWidthR.current = w;
+          });
+        }}
+        {...pan.panHandlers}
+      >
+        <View style={[fcStyles.sliderTrack, { backgroundColor: theme.border }]} />
+        <View style={[fcStyles.sliderFill,  { width: `${fillPct}%` as any, backgroundColor: theme.tint }]} />
+        <View style={[fcStyles.sliderThumb, { left: `${fillPct}%` as any, marginLeft: -(THUMB / 2), backgroundColor: theme.tint }]} />
+      </View>
+
+      {/* Tap-to-set tick labels */}
+      <View style={fcStyles.sliderTicks}>
+        {[0, 2, 5, 7, 10].map(v => (
+          <TouchableOpacity key={v} onPress={() => onChange(v)}
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+            <Text style={[fcStyles.sliderTick, { color: v === value ? theme.tint : theme.textTertiary }]}>
+              {v}%
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {value > 0 && (
+        <Text style={[fcStyles.subText, { color: theme.textTertiary, marginTop: 8 }]}>
+          After 10 yr your monthly DCA grows to {formatEUR(monthlyDCA * Math.pow(1 + value / 100, 10))}/mo
+        </Text>
+      )}
+    </View>
+  );
+}
+
+// ─── Main Forecast Section ─────────────────────────────────────────────────────
 
 function ForecastSection() {
   const theme = Colors.dark;
   const { width } = useWindowDimensions();
   const { totalPortfolioValue, totalInvested, totalGainPct, holdings } = usePortfolio();
-  const { canUseAllScenarios, showPaywall } = useSubscription();
+  const { canUseAllScenarios, canUseWealthProjections, showPaywall } = useSubscription();
+  // canUseAllScenarios    = Investor+ (all 3 scenario lines)
+  // canUseWealthProjections = Pro    (custom rate editor + DCA escalation)
 
   const annualizedReturn = useMemo(() => {
     const dates = holdings.map(h => h.purchase_date).filter(Boolean).sort();
@@ -750,9 +881,10 @@ function ForecastSection() {
     return Math.round(Math.min(30, Math.max(1, (totalGainPct / months) * 12)) * 10) / 10;
   }, [holdings, totalGainPct, totalInvested]);
 
-  const [monthlyDCA, setMonthlyDCA] = useState("400");
-  const [years, setYears]           = useState(30);
-  const [scenarioPcts, setScenarioPcts] = useState({ conservative: 4, base: 7, optimistic: 10 });
+  const [monthlyDCA,    setMonthlyDCA]    = useState("400");
+  const [years,         setYears]         = useState(30);
+  const [escalation,    setEscalation]    = useState(0);
+  const [scenarioPcts,  setScenarioPcts]  = useState({ conservative: 4, base: 7, optimistic: 10 });
 
   useEffect(() => {
     AsyncStorage.getItem("folvio_forecast_dca")
@@ -775,28 +907,27 @@ function ForecastSection() {
     AsyncStorage.setItem("folvio_forecast_dca", v);
   }
 
-  const start   = totalPortfolioValue > 0 ? totalPortfolioValue : 0;
-  const dca     = parseFloat(monthlyDCA) || 0;
-  const chartW  = width - 68; // 16 outer + 18 card padding each side
-
-  const visibleScenarios = canUseAllScenarios ? SCENARIOS : SCENARIOS.filter(s => s.key === "base");
+  const start  = totalPortfolioValue > 0 ? totalPortfolioValue : 0;
+  const dca    = parseFloat(monthlyDCA) || 0;
+  const chartW = width - 68;
+  const esc    = canUseWealthProjections ? escalation : 0;
 
   const scenarioData = useMemo(() =>
     SCENARIOS.map(s => ({
       ...s,
-      pct: scenarioPcts[s.key],
-      points: projectYearly(start, dca, scenarioPcts[s.key], years),
-      final:  projectValue(start, dca, scenarioPcts[s.key], years),
+      pct:    scenarioPcts[s.key],
+      points: projectYearly(start, dca, scenarioPcts[s.key], years, esc),
+      final:  projectValue(start, dca, scenarioPcts[s.key], years, esc),
     })),
-    [start, dca, years, scenarioPcts]
+    [start, dca, years, scenarioPcts, esc]
   );
 
   const tableData = useMemo(() =>
     HORIZONS.map(h => ({
-      years: h,
-      values: SCENARIOS.map(s => projectValue(start, dca, scenarioPcts[s.key], h)),
+      years:  h,
+      values: SCENARIOS.map(s => projectValue(start, dca, scenarioPcts[s.key], h, esc)),
     })),
-    [start, dca, scenarioPcts]
+    [start, dca, scenarioPcts, esc]
   );
 
   const investedLine = useMemo(() => {
@@ -806,9 +937,31 @@ function ForecastSection() {
     return pts;
   }, [start, dca, years]);
 
+  // Chart split: base always active; cons + opt are active (Investor+) or ghost (Free)
+  const baseOnly    = scenarioData.filter(s => s.key === "base");
+  const nonBase     = scenarioData.filter(s => s.key !== "base");
+  const activeLines = canUseAllScenarios ? scenarioData : baseOnly;
+  const ghostLines  = canUseAllScenarios ? []           : nonBase;
+
+  // Table & legend: all 3 for Investor+, base only for Free
+  const visibleScenarios = canUseAllScenarios ? SCENARIOS : SCENARIOS.filter(s => s.key === "base");
+
   return (
     <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>Forecast</Text>
+      {/* Header with tier badge */}
+      <View style={fcStyles.titleRow}>
+        <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>Forecast</Text>
+        {canUseWealthProjections && (
+          <View style={[fcStyles.tierBadge, { backgroundColor: theme.tint + "22" }]}>
+            <Text style={[fcStyles.tierBadgeText, { color: theme.tint }]}>PRO</Text>
+          </View>
+        )}
+        {canUseAllScenarios && !canUseWealthProjections && (
+          <View style={[fcStyles.tierBadge, { backgroundColor: "#3B82F6" + "22" }]}>
+            <Text style={[fcStyles.tierBadgeText, { color: "#3B82F6" }]}>INVESTOR</Text>
+          </View>
+        )}
+      </View>
 
       {/* Inputs */}
       <View style={[fcStyles.subCard, { backgroundColor: theme.backgroundElevated, borderColor: theme.border }]}>
@@ -830,11 +983,10 @@ function ForecastSection() {
         <Text style={[fcStyles.inputLabel, { color: theme.textSecondary, marginBottom: 8 }]}>Horizon</Text>
         <View style={fcStyles.segmented}>
           {HORIZONS.map(h => (
-            <TouchableOpacity
-              key={h}
+            <TouchableOpacity key={h}
               style={[fcStyles.segBtn, {
                 backgroundColor: years === h ? theme.tint : theme.backgroundCard,
-                borderColor: years === h ? theme.tint : theme.border,
+                borderColor:     years === h ? theme.tint : theme.border,
               }]}
               onPress={() => setYears(h)}
             >
@@ -844,7 +996,12 @@ function ForecastSection() {
         </View>
       </View>
 
-      {/* Context */}
+      {/* DCA Escalation slider — Pro only */}
+      {canUseWealthProjections && (
+        <DCAEscalationSlider value={escalation} onChange={setEscalation} monthlyDCA={dca} />
+      )}
+
+      {/* Context summary */}
       <View style={[fcStyles.subCard, { backgroundColor: theme.backgroundElevated, borderColor: theme.border }]}>
         <Text style={[fcStyles.subCardTitle, { color: theme.textSecondary }]}>Over {years} years you will invest</Text>
         <Text style={[fcStyles.bigNumber, { color: theme.tint }]}>{formatEUR(dca * 12 * years + start)}</Text>
@@ -857,43 +1014,33 @@ function ForecastSection() {
       <Text style={[fcStyles.subCardTitle, { color: theme.textSecondary, marginBottom: 8 }]}>Growth Projection</Text>
       <ForecastChart
         width={chartW}
-        scenarioLines={scenarioData
-          .filter(sc => visibleScenarios.some(vs => vs.key === sc.key))
-          .map(sc => ({ color: sc.color, points: sc.points }))}
+        activeLines={activeLines.map(sc => ({ color: sc.color, points: sc.points }))}
+        ghostLines={ghostLines.map(sc => ({ color: sc.color, points: sc.points }))}
         investedLine={investedLine}
         years={years}
+        locked={!canUseAllScenarios}
+        onUnlock={() => showPaywall("all-scenarios")}
       />
-      <View style={fcStyles.legend}>
-        {scenarioData
-          .filter(sc => visibleScenarios.some(vs => vs.key === sc.key))
-          .map(sc => (
-            <View key={sc.key} style={fcStyles.legendItem}>
-              <View style={[fcStyles.legendDot, { backgroundColor: sc.color }]} />
-              <Text style={[fcStyles.legendLabel, { color: theme.textSecondary }]}>{sc.label} ({sc.pct}%)</Text>
-            </View>
-          ))}
+
+      {/* Legend */}
+      <View style={[fcStyles.legend, { marginTop: 10 }]}>
+        {activeLines.map(sc => (
+          <View key={sc.key} style={fcStyles.legendItem}>
+            <View style={[fcStyles.legendDot, { backgroundColor: sc.color }]} />
+            <Text style={[fcStyles.legendLabel, { color: theme.textSecondary }]}>{sc.label} ({sc.pct}%)</Text>
+          </View>
+        ))}
+        {!canUseAllScenarios && nonBase.map(sc => (
+          <View key={sc.key} style={[fcStyles.legendItem, { opacity: 0.35 }]}>
+            <View style={[fcStyles.legendDot, { backgroundColor: sc.color }]} />
+            <Text style={[fcStyles.legendLabel, { color: theme.textSecondary }]}>{sc.label} 🔒</Text>
+          </View>
+        ))}
         <View style={fcStyles.legendItem}>
           <View style={[fcStyles.legendDot, { backgroundColor: "rgba(255,255,255,0.3)" }]} />
           <Text style={[fcStyles.legendLabel, { color: theme.textSecondary }]}>Total Invested</Text>
         </View>
       </View>
-
-      {/* Upsell */}
-      {!canUseAllScenarios && (
-        <TouchableOpacity
-          style={[fcStyles.subCard, { backgroundColor: theme.backgroundElevated, borderColor: theme.tint + "44" }]}
-          onPress={() => showPaywall("all-scenarios")}
-          activeOpacity={0.8}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <Feather name="lock" size={14} color={theme.tint} />
-            <Text style={[fcStyles.subCardTitle, { color: theme.tint }]}>Unlock All Scenarios</Text>
-          </View>
-          <Text style={[fcStyles.subText, { color: theme.textSecondary }]}>
-            Conservative & Optimistic projections on the Investor plan.
-          </Text>
-        </TouchableOpacity>
-      )}
 
       {/* Summary table */}
       <Text style={[fcStyles.subCardTitle, { color: theme.textSecondary, marginTop: 8, marginBottom: 8 }]}>Summary Table</Text>
@@ -909,7 +1056,7 @@ function ForecastSection() {
             <Text style={[fcStyles.tableCell, { color: theme.text, flex: 1 }]}>{row.years}Y</Text>
             {visibleScenarios.map(sc => {
               const idx = SCENARIOS.findIndex(s => s.key === sc.key);
-              const v = row.values[idx];
+              const v   = row.values[idx];
               return (
                 <Text key={sc.key} style={[fcStyles.tableCell, { color: sc.color, flex: 2, textAlign: "right" }]}>
                   {v >= 1_000_000 ? `€${(v / 1_000_000).toFixed(2)}M` : `€${(v / 1000).toFixed(1)}k`}
@@ -920,27 +1067,31 @@ function ForecastSection() {
         ))}
       </View>
 
-      {/* Return rate editor */}
-      <Text style={[fcStyles.subCardTitle, { color: theme.textSecondary, marginTop: 12, marginBottom: 4 }]}>
-        Return Assumptions
-      </Text>
-      <Text style={[fcStyles.subText, { color: theme.textTertiary, marginBottom: 10 }]}>
-        Base uses your annualised return ({annualizedReturn}%/yr)
-      </Text>
-      {visibleScenarios.map(sc => (
-        <View key={sc.key} style={[fcStyles.inputRow, { marginBottom: 10 }]}>
-          <View style={[fcStyles.legendDot, { backgroundColor: sc.color, marginRight: 8 }]} />
-          <Text style={[fcStyles.inputLabel, { color: theme.textSecondary, flex: 1 }]}>{sc.label}</Text>
-          <TextInput
-            style={[fcStyles.input, { color: sc.color, borderColor: sc.color + "44", backgroundColor: theme.backgroundElevated, width: 70 }]}
-            value={String(scenarioPcts[sc.key])}
-            onChangeText={v => setScenarioPcts(prev => ({ ...prev, [sc.key]: parseFloat(v) || 0 }))}
-            keyboardType="numeric"
-            maxLength={4}
-          />
-          <Text style={[fcStyles.inputLabel, { color: theme.textSecondary, marginLeft: 4, flex: 0 }]}>%/yr</Text>
-        </View>
-      ))}
+      {/* Custom return-rate editor — Pro only */}
+      {canUseWealthProjections && (
+        <>
+          <Text style={[fcStyles.subCardTitle, { color: theme.textSecondary, marginTop: 12, marginBottom: 4 }]}>
+            Return Assumptions
+          </Text>
+          <Text style={[fcStyles.subText, { color: theme.textTertiary, marginBottom: 10 }]}>
+            Base uses your annualised return ({annualizedReturn}%/yr)
+          </Text>
+          {SCENARIOS.map(sc => (
+            <View key={sc.key} style={[fcStyles.inputRow, { marginBottom: 10 }]}>
+              <View style={[fcStyles.legendDot, { backgroundColor: sc.color, marginRight: 8 }]} />
+              <Text style={[fcStyles.inputLabel, { color: theme.textSecondary, flex: 1 }]}>{sc.label}</Text>
+              <TextInput
+                style={[fcStyles.input, { color: sc.color, borderColor: sc.color + "44", backgroundColor: theme.backgroundElevated, width: 70 }]}
+                value={String(scenarioPcts[sc.key])}
+                onChangeText={v => setScenarioPcts(prev => ({ ...prev, [sc.key]: parseFloat(v) || 0 }))}
+                keyboardType="numeric"
+                maxLength={4}
+              />
+              <Text style={[fcStyles.inputLabel, { color: theme.textSecondary, marginLeft: 4, flex: 0 }]}>%/yr</Text>
+            </View>
+          ))}
+        </>
+      )}
 
       <Text style={[styles.disclaimer, { color: theme.textTertiary }]}>
         Projections are estimates only. Past performance does not guarantee future results.
@@ -951,11 +1102,16 @@ function ForecastSection() {
 }
 
 const fcStyles = StyleSheet.create({
-  subCard: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 12 },
+  titleRow:     { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
+  tierBadge:    { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  tierBadgeText:{ fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+
+  subCard:      { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 12 },
   subCardTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2, marginBottom: 2 },
-  bigNumber: { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.5, marginBottom: 2 },
-  subText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
-  inputRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  bigNumber:    { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.5, marginBottom: 2 },
+  subText:      { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+
+  inputRow:   { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   inputLabel: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
   inputValue: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   input: {
@@ -964,16 +1120,56 @@ const fcStyles = StyleSheet.create({
     fontSize: 14, fontFamily: "Inter_600SemiBold",
     minWidth: 80, textAlign: "right",
   },
+
   segmented: { flexDirection: "row", gap: 8 },
-  segBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, alignItems: "center" },
-  segBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  legend: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 8, marginBottom: 12 },
+  segBtn:    { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, alignItems: "center" },
+  segBtnText:{ fontSize: 13, fontFamily: "Inter_600SemiBold" },
+
+  legend:     { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 12 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  tableRow: { flexDirection: "row", paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth },
-  tableHeader: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  tableCell: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  legendDot:  { width: 8, height: 8, borderRadius: 4 },
+  legendLabel:{ fontSize: 11, fontFamily: "Inter_400Regular" },
+
+  tableRow:   { flexDirection: "row", paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  tableHeader:{ fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  tableCell:  { fontSize: 13, fontFamily: "Inter_500Medium" },
+
+  // Chart lock overlay
+  chartOverlay: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    bottom: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(10,15,30,0.72)",
+    borderRadius: 8,
+  },
+  chartLockBadge: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 12, borderWidth: 1,
+  },
+  chartLockText:    { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  chartLockPill:    { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  chartLockPillText:{ fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+
+  // DCA escalation slider
+  sliderHeader:    { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  sliderValueText: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  sliderTrack: {
+    position: "absolute", left: 0, right: 0,
+    height: 6, borderRadius: 3,
+  },
+  sliderFill: {
+    position: "absolute", left: 0,
+    height: 6, borderRadius: 3,
+  },
+  sliderThumb: {
+    position: "absolute",
+    width: 22, height: 22, borderRadius: 11, top: -8,
+  },
+  sliderTicks: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
+  sliderTick:  { fontSize: 11, fontFamily: "Inter_500Medium" },
 });
 
 // ─── Pro locked placeholder ────────────────────────────────────────────────────
@@ -1055,7 +1251,7 @@ export default function InsightsScreen() {
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
   const { holdings, totalPortfolioValue } = usePortfolio();
-  const { canUseAIInsights, canUseCrisisBacktest, canUseWealthProjections } = useSubscription();
+  const { canUseAIInsights, canUseCrisisBacktest } = useSubscription();
 
   const riskProfile = useMemo(() => computeRiskProfile(holdings), [holdings]);
 
@@ -1104,17 +1300,8 @@ export default function InsightsScreen() {
         />
       )}
 
-      {/* ── Forecast / Wealth Projections (Pro) ──────────────────────────── */}
-      {canUseWealthProjections ? (
-        <ForecastSection />
-      ) : (
-        <ProLockedSection
-          icon="trending-up"
-          title="Wealth Projections"
-          description="Conservative, Base, and Optimistic growth scenarios with interactive DCA inputs, a 30-year chart, and a summary table across all horizons."
-          trigger="wealth-projections"
-        />
-      )}
+      {/* ── Forecast / Wealth Projections ────────────────────────────────── */}
+      <ForecastSection />
 
       {/* ── Dividend Estimate ─────────────────────────────────────────────── */}
       <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
