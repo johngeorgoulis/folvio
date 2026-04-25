@@ -26,6 +26,10 @@ import {
   clearInsightsCache,
   type AIInsight,
 } from "@/services/anthropicService";
+import {
+  detectOverlap,
+  type OverlapResult,
+} from "@/services/overlapService";
 
 // ─── Portfolio Risk Profile ────────────────────────────────────────────────────
 
@@ -842,6 +846,134 @@ const ipStyles = StyleSheet.create({
   tagText: { fontSize: 11, fontFamily: "Inter_400Regular" },
 });
 
+// ─── ETF Overlap Card ─────────────────────────────────────────────────────────
+
+function OverlapCard({
+  holdings,
+}: {
+  holdings: Array<{
+    ticker: string;
+    isin: string;
+    quantity: number;
+    currentPrice: number;
+    hasPrice: boolean;
+  }>;
+}) {
+  const theme = Colors.dark;
+  const [result, setResult] = useState<OverlapResult | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const eligible = holdings.filter(
+      h => h.hasPrice && h.currentPrice > 0 && h.quantity > 0 && h.isin
+    );
+    if (eligible.length < 2) {
+      setResult({ worstPair: null, concentratedStocks: [], etfsChecked: 0 });
+      setLoading(false);
+      return;
+    }
+    detectOverlap(eligible)
+      .then(r => { setResult(r); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [holdings]);
+
+  const hasOverlap = !!result?.worstPair && result.worstPair.overlapPct > 40;
+  const concentrated = result?.concentratedStocks[0] ?? null;
+
+  const accentColor = hasOverlap ? "#FBBF24" : "#34D399";
+  const iconName: React.ComponentProps<typeof Feather>["name"] = hasOverlap
+    ? "alert-triangle"
+    : "check-circle";
+  const cardBorder = hasOverlap
+    ? (theme.border)
+    : (theme.border);
+
+  return (
+    <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: cardBorder }]}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>ETF Overlap Analysis</Text>
+
+      {loading ? (
+        <View style={overlapStyles.loadingRow}>
+          <ActivityIndicator size="small" color={theme.tint} />
+          <Text style={[overlapStyles.loadingText, { color: theme.textSecondary }]}>
+            Checking top holdings…
+          </Text>
+        </View>
+      ) : (
+        <View style={overlapStyles.body}>
+          <View style={[overlapStyles.iconWrap, { backgroundColor: accentColor + "18" }]}>
+            <Feather name={iconName} size={18} color={accentColor} />
+          </View>
+          <View style={{ flex: 1 }}>
+            {!hasOverlap ? (
+              <Text style={[overlapStyles.title, { color: theme.text }]}>
+                No significant overlap detected across your ETFs
+              </Text>
+            ) : (
+              <>
+                <Text style={[overlapStyles.title, { color: theme.text }]}>
+                  Hidden overlap detected
+                </Text>
+                <Text style={[overlapStyles.finding, { color: theme.textSecondary }]}>
+                  {result!.worstPair!.etf1} and {result!.worstPair!.etf2} share{" "}
+                  {Math.round(result!.worstPair!.overlapPct)}% of their top holdings
+                  {result!.worstPair!.sharedHoldings.length > 0
+                    ? ` — ${result!.worstPair!.sharedHoldings[0]} appears in both`
+                    : ""}
+                  , representing{" "}
+                  {result!.worstPair!.combinedPortfolioWeight.toFixed(1)}% of your portfolio.
+                </Text>
+                <Text style={[overlapStyles.subline, { color: theme.textTertiary }]}>
+                  Your actual diversification is lower than it appears.
+                </Text>
+              </>
+            )}
+
+            {concentrated && (
+              <Text
+                style={[
+                  overlapStyles.finding,
+                  { color: theme.textSecondary, marginTop: hasOverlap ? 10 : 0 },
+                ]}
+              >
+                {concentrated.name} appears in {concentrated.etfCount} of your ETFs — you
+                have concentrated exposure without realising it.
+              </Text>
+            )}
+          </View>
+        </View>
+      )}
+
+      <Text style={[styles.disclaimer, { color: theme.textTertiary }]}>
+        Based on JustETF top-10 holdings. Cached for 24 hours.
+      </Text>
+    </View>
+  );
+}
+
+const overlapStyles = StyleSheet.create({
+  loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
+  loadingText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  body: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 10 },
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  title: { fontSize: 13, fontFamily: "Inter_600SemiBold", lineHeight: 18, marginBottom: 4 },
+  finding: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  subline: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 16,
+    marginTop: 4,
+    fontStyle: "italic",
+  },
+});
+
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function InsightsScreen() {
@@ -929,6 +1061,9 @@ export default function InsightsScreen() {
           Based on trailing yield. Not guaranteed.
         </Text>
       </View>
+
+      {/* ── ETF Overlap Analysis ──────────────────────────────────────────── */}
+      <OverlapCard holdings={holdings} />
     </ScrollView>
   );
 }

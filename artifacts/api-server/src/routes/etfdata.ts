@@ -264,6 +264,114 @@ async function fetchETFDataFromJustETF(isin: string): Promise<ETFData> {
   }
 }
 
+// ── Top Holdings ──────────────────────────────────────────────────────────────
+
+export interface TopHolding {
+  name: string;
+  weight: number; // percentage, e.g. 5.52
+}
+
+const TOP_HOLDINGS_CACHE = new Map<string, { data: TopHolding[]; fetchedAt: number }>();
+
+function scrapeTopHoldingsFromHTML(html: string): TopHolding[] {
+  const holdings: TopHolding[] = [];
+
+  // Locate the "Top 10" section (JustETF SSR includes it in the initial HTML)
+  const idx = html.search(/[Tt]op\s*10/);
+  if (idx === -1) return holdings;
+  const section = html.substring(idx, idx + 10000);
+
+  // Walk table rows — skip header rows (<th> present), extract name + weight %
+  const rowRegex = /<tr[\s\S]*?<\/tr>/g;
+  let m: RegExpExecArray | null;
+  while ((m = rowRegex.exec(section)) !== null && holdings.length < 10) {
+    const row = m[0];
+    if (/<th/i.test(row)) continue;
+
+    const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(
+      c => c[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+    );
+    if (cells.length < 2) continue;
+
+    const name = cells[0];
+    let weight = 0;
+    for (let i = 1; i < cells.length; i++) {
+      const wm = cells[i].match(/(\d{1,2}[.,]\d{1,2})/);
+      if (wm) { weight = parseFloat(wm[1].replace(",", ".")); break; }
+    }
+    if (weight > 0 && weight < 50 && name.length >= 3 && name.length <= 70)
+      holdings.push({ name, weight });
+  }
+  return holdings;
+}
+
+async function fetchTopHoldingsFromJustETF(isin: string): Promise<TopHolding[]> {
+  const cached = TOP_HOLDINGS_CACHE.get(isin);
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) return cached.data;
+
+  const save = (data: TopHolding[]) => {
+    TOP_HOLDINGS_CACHE.set(isin, { data, fetchedAt: Date.now() });
+    return data;
+  };
+
+  try {
+    // Primary: JustETF internal JSON API (XHR endpoint used by their SPA)
+    const apiUrl =
+      `https://www.justetf.com/api/etfs/${isin}/holdings` +
+      `?country=&exchange=&currency=EUR&page=0&pageSize=10`;
+    const apiRes = await fetch(apiUrl, {
+      headers: {
+        ...JSON_HEADERS,
+        Referer: `https://www.justetf.com/en/etf-profile.html?isin=${isin}`,
+        Origin: "https://www.justetf.com",
+      },
+    });
+
+    if (apiRes.ok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const json = (await apiRes.json()) as any;
+      const positions: unknown[] = json?.positions ?? json?.holdings ?? [];
+      if (Array.isArray(positions) && positions.length > 0) {
+        const result: TopHolding[] = positions
+          .slice(0, 10)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((p: any) => {
+            const name = String(p.name ?? p.nameEn ?? p.instrumentName ?? "").trim();
+            let weight =
+              typeof p.weight === "number"
+                ? p.weight
+                : parseFloat(String(p.weight ?? "0"));
+            // API may return fractional (0.0552) or percentage (5.52)
+            if (weight > 0 && weight < 1) weight *= 100;
+            return { name, weight };
+          })
+          .filter(h => h.name.length > 0 && h.weight > 0);
+
+        if (result.length > 0) {
+          console.log(`[etfdata] top10 via API for ${isin}: ${result.length} items`);
+          return save(result);
+        }
+      }
+    }
+
+    // Fallback: scrape from the ETF profile HTML page
+    const htmlRes = await fetch(
+      `https://www.justetf.com/en/etf-profile.html?isin=${isin}`,
+      { headers: FETCH_HEADERS }
+    );
+    if (htmlRes.ok) {
+      const html = await htmlRes.text();
+      const result = scrapeTopHoldingsFromHTML(html);
+      console.log(`[etfdata] top10 via HTML for ${isin}: ${result.length} items`);
+      return save(result);
+    }
+  } catch (err) {
+    console.warn(`[etfdata] top holdings failed for ${isin}:`, err);
+  }
+
+  return save([]);
+}
+
 // ── Static ISIN map for common UCITS ETFs ─────────────────────────────────────
 // Server-side APIs (Yahoo Finance, JustETF search) are rate-limited from Replit.
 // For the most frequently looked-up non-portfolio ETFs, hardcode the ISIN so the
@@ -474,6 +582,20 @@ router.get("/etf/isin-resolve", async (req, res) => {
     res.json({ isin: upperIsin, ticker, candidates, etfData });
   } catch (err) {
     console.error(`[etfdata] isin-resolve failed for ${upperIsin}:`, err);
+    res.status(502).json({ error: "upstream error" });
+  }
+});
+
+// Return top-10 holdings for an ETF by ISIN
+router.get("/etf/top-holdings/:isin", async (req, res) => {
+  const { isin } = req.params;
+  if (!isin || !/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) {
+    return res.status(400).json({ error: "Invalid ISIN" });
+  }
+  try {
+    const topHoldings = await fetchTopHoldingsFromJustETF(isin);
+    res.json({ isin, topHoldings });
+  } catch {
     res.status(502).json({ error: "upstream error" });
   }
 });
