@@ -12,11 +12,13 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router, useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { formatEUR } from "@/utils/format";
 import { getAssetClass } from "@/services/assetClassService";
+import { getInvestorProfile, type InvestorProfileRow } from "@/services/db";
 import {
   generatePortfolioInsights,
   getCachedInsights,
@@ -718,6 +720,128 @@ const lockedStyles = StyleSheet.create({
   ctaText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#0A0F1E" },
 });
 
+// ─── Investor Profile Card ────────────────────────────────────────────────────
+
+const PROFILE_ICONS_MAP: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
+  Conservative: "shield",
+  Moderate:     "bar-chart-2",
+  Growth:       "trending-up",
+  Aggressive:   "zap",
+};
+
+const PROFILE_DESCRIPTIONS_MAP: Record<string, string> = {
+  Conservative: "You prioritize capital safety and steady, predictable returns.",
+  Moderate:     "You balance growth potential with manageable risk exposure.",
+  Growth:       "You're comfortable with volatility in pursuit of long-term gains.",
+  Aggressive:   "You embrace risk as a core tool for maximizing long-term wealth.",
+};
+
+function InvestorProfileCard({ profile }: { profile: InvestorProfileRow | null }) {
+  const theme = Colors.dark;
+
+  if (!profile) {
+    return (
+      <TouchableOpacity
+        style={[styles.card, ipStyles.setupCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}
+        onPress={() => router.push("/investor-profile")}
+        activeOpacity={0.85}
+      >
+        <View style={[ipStyles.setupIcon, { backgroundColor: theme.tint + "18" }]}>
+          <Feather name="user" size={22} color={theme.tint} />
+        </View>
+        <View style={ipStyles.setupBody}>
+          <Text style={[ipStyles.setupTitle, { color: theme.text }]}>Set up your investor profile</Text>
+          <Text style={[ipStyles.setupSub, { color: theme.textSecondary }]}>
+            Answer 5 quick questions to get a personalised risk profile.
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={18} color={theme.textTertiary} />
+      </TouchableOpacity>
+    );
+  }
+
+  const icon = PROFILE_ICONS_MAP[profile.profile_label] ?? "user";
+  const description = PROFILE_DESCRIPTIONS_MAP[profile.profile_label] ?? "";
+
+  return (
+    <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+      <View style={ipStyles.header}>
+        <View style={ipStyles.titleRow}>
+          <View style={[ipStyles.iconWrap, { backgroundColor: theme.tint + "18" }]}>
+            <Feather name={icon} size={18} color={theme.tint} />
+          </View>
+          <View>
+            <Text style={[ipStyles.label, { color: theme.tint }]}>{profile.profile_label} Investor</Text>
+            <Text style={[ipStyles.scoreText, { color: theme.textSecondary }]}>
+              Risk score {profile.risk_score.toFixed(1)}/5
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={[ipStyles.editBtn, { backgroundColor: theme.backgroundElevated }]}
+          onPress={() => router.push("/investor-profile")}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="edit-2" size={13} color={theme.textSecondary} />
+          <Text style={[ipStyles.editText, { color: theme.textSecondary }]}>Edit</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={[ipStyles.description, { color: theme.textSecondary }]}>{description}</Text>
+      {profile.investment_horizon ? (
+        <View style={ipStyles.tagsRow}>
+          <View style={[ipStyles.tag, { backgroundColor: theme.backgroundElevated }]}>
+            <Text style={[ipStyles.tagText, { color: theme.textTertiary }]}>{profile.investment_horizon}</Text>
+          </View>
+          {profile.monthly_dca_range ? (
+            <View style={[ipStyles.tag, { backgroundColor: theme.backgroundElevated }]}>
+              <Text style={[ipStyles.tagText, { color: theme.textTertiary }]}>{profile.monthly_dca_range}/mo</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const ipStyles = StyleSheet.create({
+  setupCard: { flexDirection: "row", alignItems: "center", gap: 14 },
+  setupIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  setupBody: { flex: 1 },
+  setupTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 3 },
+  setupSub: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  label: { fontSize: 15, fontFamily: "Inter_700Bold", letterSpacing: -0.2 },
+  scoreText: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  editBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  editText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  description: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19, marginBottom: 12 },
+  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  tagText: { fontSize: 11, fontFamily: "Inter_400Regular" },
+});
+
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function InsightsScreen() {
@@ -728,6 +852,14 @@ export default function InsightsScreen() {
 
   const { holdings, totalPortfolioValue } = usePortfolio();
   const { canUseAIInsights, canUseCrisisBacktest } = useSubscription();
+
+  const [investorProfile, setInvestorProfile] = useState<InvestorProfileRow | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      getInvestorProfile().then(setInvestorProfile).catch(() => {});
+    }, [])
+  );
 
   const riskProfile = useMemo(() => computeRiskProfile(holdings), [holdings]);
 
@@ -748,6 +880,9 @@ export default function InsightsScreen() {
       showsVerticalScrollIndicator={false}
     >
       <Text style={[styles.pageTitle, { color: theme.text }]}>Insights</Text>
+
+      {/* ── Investor Profile ─────────────────────────────────────────────── */}
+      <InvestorProfileCard profile={investorProfile} />
 
       {/* ── AI Portfolio Insights (Pro) ───────────────────────────────────── */}
       {canUseAIInsights ? (

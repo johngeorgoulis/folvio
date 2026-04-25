@@ -19,6 +19,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import NotificationManager from "@/components/NotificationManager";
 import OnboardingFlow, { ONBOARDING_KEY } from "@/components/OnboardingFlow";
+import InvestorProfileOnboarding, { INVESTOR_PROFILE_KEY } from "@/components/InvestorProfileOnboarding";
 import PaywallModal from "@/components/PaywallModal";
 import { PortfolioProvider } from "@/context/PortfolioContext";
 import { AllocationProvider } from "@/context/AllocationContext";
@@ -59,6 +60,7 @@ export default function RootLayout() {
 
   // null = still checking, false = show onboarding, true = go straight to app
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+  const [investorProfileDone, setInvestorProfileDone] = useState<boolean | null>(null);
   // When onboarding finishes with "Add My First Holding", navigate to search
   const pendingSearch = useRef(false);
 
@@ -76,8 +78,11 @@ export default function RootLayout() {
       try {
         const v = await AsyncStorage.getItem(ONBOARDING_KEY);
         setOnboardingDone(v === "true");
+        const ip = await AsyncStorage.getItem(INVESTOR_PROFILE_KEY);
+        setInvestorProfileDone(ip === "true");
       } catch {
         setOnboardingDone(true); // default to app if AsyncStorage fails
+        setInvestorProfileDone(true);
       }
       SplashScreen.hideAsync();
     })();
@@ -101,14 +106,27 @@ export default function RootLayout() {
 
   // Keep splash visible while fonts or AsyncStorage check is in progress
   if (!fontsLoaded && !fontError) return null;
-  if (onboardingDone === null) return null;
+  if (onboardingDone === null || investorProfileDone === null) return null;
 
-  // ── Onboarding ─────────────────────────────────────────────────────────────
+  // ── App onboarding ──────────────────────────────────────────────────────────
   if (!onboardingDone) {
     return (
       <SafeAreaProvider>
         <StatusBar style="light" />
         <OnboardingFlow onComplete={handleOnboardingComplete} />
+      </SafeAreaProvider>
+    );
+  }
+
+  // ── Investor profile onboarding ─────────────────────────────────────────────
+  if (!investorProfileDone) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <InvestorProfileOnboarding
+          onComplete={() => setInvestorProfileDone(true)}
+          onSkip={() => setInvestorProfileDone(true)}
+        />
       </SafeAreaProvider>
     );
   }
@@ -144,6 +162,14 @@ export default function RootLayout() {
                       name="import"
                       options={{
                         headerShown: true,
+                        animation: "slide_from_bottom",
+                        presentation: "modal",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="investor-profile"
+                      options={{
+                        headerShown: false,
                         animation: "slide_from_bottom",
                         presentation: "modal",
                       }}
