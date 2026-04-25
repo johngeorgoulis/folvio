@@ -291,9 +291,6 @@ export default function AddHoldingModal({ visible, onClose, initialValues }: Pro
                 placeholderTextColor={theme.textTertiary}
                 keyboardType="decimal-pad"
               />
-              <Text style={[styles.hint, { color: theme.textTertiary }]}>
-                Live price will be fetched from Yahoo Finance
-              </Text>
             </View>
 
             {/* Yield + Date */}
