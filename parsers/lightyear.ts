@@ -1,22 +1,6 @@
 import Papa from "papaparse";
 import { lookupByISIN } from "@/services/etfDatabaseService";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface ParsedTrade {
-  isin: string;
-  name: string;
-  ticker: string;
-  units: number;
-  pricePerUnit: number;
-  currency?: string;
-  fxRate?: number;
-  date: string;
-  fee: number;
-  type: "BUY" | "SELL";
-  broker: string;
-  transactionId: string;
-}
+import { type ParsedTrade } from "./tradeRepublic";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,6 +23,10 @@ function parseNum(s: string): number {
 function normalizeDate(raw: string): string {
   if (!raw) return "";
   const s = raw.trim();
+  // Lightyear format: DD/MM/YYYY HH:MM:SS
+  const ddmmyyyy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
+  // ISO fallback
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
   const isoMatch = s.match(/^(\d{4}-\d{2}-\d{2})T/);
   if (isoMatch) return isoMatch[1];
@@ -48,10 +36,10 @@ function normalizeDate(raw: string): string {
 // ─── Parser ───────────────────────────────────────────────────────────────────
 
 /**
- * Parse a Trade Republic transactions CSV into individual ParsedTrade records.
- * Call initETFDatabase() before this to get ticker/name enrichment from the local DB.
+ * Parse a Lightyear transactions CSV into individual ParsedTrade records.
+ * Call initETFDatabase() before this to get name enrichment from the local DB.
  */
-export function parseTradeRepublicTrades(content: string): ParsedTrade[] {
+export function parseLightyearTrades(content: string): ParsedTrade[] {
   const result = Papa.parse<Record<string, string>>(content, {
     header: true,
     skipEmptyLines: true,
@@ -61,41 +49,44 @@ export function parseTradeRepublicTrades(content: string): ParsedTrade[] {
   const trades: ParsedTrade[] = [];
 
   for (const row of result.data) {
-    const category = col(row, "category").toUpperCase();
-    if (category !== "TRADING") continue;
+    const type = col(row, "Type");
+    if (type !== "Buy" && type !== "Sell") continue;
 
-    const type = col(row, "type").toUpperCase();
-    if (type !== "BUY" && type !== "SELL") continue;
+    const ticker = col(row, "Ticker");
+    const isin = col(row, "ISIN");
+    if (!ticker && !isin) continue;
 
-    const isin = col(row, "symbol");
-    if (!isin) continue;
-
-    const rawName = col(row, "name", "instrument_name", "asset_name", "instrumentName");
-    const units = Math.abs(parseNum(col(row, "shares")));
-    const pricePerUnit = Math.abs(parseNum(col(row, "price")));
-    const fee = Math.abs(parseNum(col(row, "fee")));
-    // TR uses "datetime" column; some exports also have a bare "date" column
-    const date = normalizeDate(col(row, "date") || col(row, "datetime"));
-
+    const units = Math.abs(parseNum(col(row, "Quantity")));
     if (units <= 0) continue;
 
-    const etfEntry = lookupByISIN(isin);
-    const ticker = etfEntry?.ticker ?? "";
-    const name = etfEntry?.name ?? rawName ?? isin;
+    const pricePerUnit = Math.abs(parseNum(col(row, "Price/share")));
+    const currency = col(row, "CCY") || "EUR";
+    const fxRate = parseNum(col(row, "FX Rate")) || 1;
+    const fee = Math.abs(parseNum(col(row, "Fee")));
+    const date = normalizeDate(col(row, "Date"));
+    const reference = col(row, "Reference");
 
-    // Deterministic ID — stable across re-imports of the same CSV
-    const transactionId = `TR|${isin}|${date}|${type}|${units}|${pricePerUnit}`;
+    const etfEntry = lookupByISIN(isin);
+    const resolvedTicker = etfEntry?.ticker ?? ticker;
+    const name = etfEntry?.name ?? ticker ?? isin;
+
+    // Prefer the Reference column as the stable transaction ID
+    const transactionId = reference
+      ? `LY|${reference}`
+      : `LY|${isin}|${date}|${type}|${units}|${pricePerUnit}`;
 
     trades.push({
       isin,
       name,
-      ticker,
+      ticker: resolvedTicker,
       units,
       pricePerUnit,
+      currency,
+      fxRate: currency !== "EUR" ? fxRate : undefined,
       date,
       fee,
-      type: type as "BUY" | "SELL",
-      broker: "Trade Republic",
+      type: type.toUpperCase() as "BUY" | "SELL",
+      broker: "Lightyear",
       transactionId,
     });
   }

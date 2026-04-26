@@ -29,6 +29,7 @@ import {
 import { useSubscription } from "@/context/SubscriptionContext";
 import { resolveExchangeFromISIN } from "@/services/priceService";
 import { parseTradeRepublicTrades, type ParsedTrade } from "@/parsers/tradeRepublic";
+import { parseLightyearTrades } from "@/parsers/lightyear";
 import { initETFDatabase } from "@/services/etfDatabaseService";
 import { getImportedTransactionIds, insertImportedTransactions } from "@/services/db";
 
@@ -526,6 +527,8 @@ export default function ImportScreen() {
         setBannerDismissed(false);
         if (detected.key === "trade_republic") {
           await runTRPreview(content);
+        } else if (detected.key === "lightyear_tx") {
+          await runLYPreview(content);
         } else {
           await runPreview(detected, content);
         }
@@ -540,7 +543,7 @@ export default function ImportScreen() {
     } finally {
       setPickingFile(false);
     }
-  }, [runPreview, runTRPreview]);
+  }, [runPreview, runTRPreview, runLYPreview]);
 
   // ── Parse + build import items ───────────────────────────────────────────────
 
@@ -595,12 +598,15 @@ export default function ImportScreen() {
     }
   }, [holdings]);
 
-  const runTRPreview = useCallback(async (content: string) => {
+  const runPerTradePreview = useCallback(async (
+    content: string,
+    parseFn: (c: string) => ParsedTrade[],
+  ) => {
     if (!content) return;
     try {
       setParsing(true);
       await initETFDatabase();
-      const trades = parseTradeRepublicTrades(content);
+      const trades = parseFn(content);
       if (trades.length === 0) throw new Error("NO_BUYS");
 
       // Filter out already-imported transaction IDs
@@ -635,27 +641,39 @@ export default function ImportScreen() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg === "NO_BUYS") {
-        Alert.alert("No Trades Found", "No TRADING transactions found in this file.");
+        Alert.alert("No Trades Found", "No BUY/SELL transactions found in this file.");
       } else {
-        Alert.alert("Parse Error", "This doesn't look like a Trade Republic CSV.");
+        Alert.alert("Parse Error", "This doesn't look like a valid transactions CSV.");
       }
     } finally {
       setParsing(false);
     }
   }, [holdings]);
 
+  const runTRPreview = useCallback(async (content: string) => {
+    await runPerTradePreview(content, parseTradeRepublicTrades);
+  }, [runPerTradePreview]);
+
+  const runLYPreview = useCallback(async (content: string) => {
+    await runPerTradePreview(content, parseLightyearTrades);
+  }, [runPerTradePreview]);
+
   const handlePreview = useCallback(async () => {
     if (!selectedBroker || !csvContent) return;
     if (selectedBroker.key === "trade_republic") {
       await runTRPreview(csvContent);
+    } else if (selectedBroker.key === "lightyear_tx") {
+      await runLYPreview(csvContent);
     } else {
       await runPreview(selectedBroker, csvContent);
     }
-  }, [selectedBroker, csvContent, runPreview, runTRPreview]);
+  }, [selectedBroker, csvContent, runPreview, runTRPreview, runLYPreview]);
 
   // ── Import count logic ───────────────────────────────────────────────────────
 
-  const isTRFlow = selectedBroker?.key === "trade_republic";
+  const isTRFlow =
+    selectedBroker?.key === "trade_republic" ||
+    selectedBroker?.key === "lightyear_tx";
 
   const importableCount = useMemo(() => {
     if (isTRFlow) {
@@ -1130,11 +1148,11 @@ export default function ImportScreen() {
             <View style={[styles.content, { paddingTop: 20, paddingBottom: 0 }]}>
               <StepProgress step={3} />
               <Text style={[styles.stepTitle, { color: theme.text }]}>
-                {isTRFlow ? "Trade Republic Import" : "Review Import"}
+                {isTRFlow ? `${selectedBroker!.name} Import` : "Review Import"}
               </Text>
               <Text style={[styles.stepSub, { color: theme.textSecondary }]}>
                 {isTRFlow
-                  ? `Found ${trItems.length} trade${trItems.length !== 1 ? "s" : ""} from Trade Republic`
+                  ? `Found ${trItems.length} trade${trItems.length !== 1 ? "s" : ""} from ${selectedBroker!.name}`
                   : `${importItems.length} holding${importItems.length !== 1 ? "s" : ""} found — review before importing`}
               </Text>
 

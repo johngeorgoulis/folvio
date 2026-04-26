@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import { parseTradeRepublicTrades } from "../parsers/tradeRepublic";
+import { parseLightyearTrades } from "../parsers/lightyear";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -320,6 +321,22 @@ function parseGeneric(content: string): ParsedHolding[] {
   return results;
 }
 
+function parseLightyearAsHoldings(content: string): ParsedHolding[] {
+  const trades = parseLightyearTrades(content);
+  const txs: RawTransaction[] = trades.map((t) => ({
+    ticker: t.ticker || t.isin,
+    isin: t.isin,
+    qty: t.units,
+    price: t.pricePerUnit,
+    currency: t.currency ?? "EUR",
+    date: t.date,
+    isBuy: t.type === "BUY",
+    instrumentName: t.name,
+    needsTickerConfirmation: false,
+  }));
+  return aggregate(txs);
+}
+
 function parseTRAsHoldings(content: string): ParsedHolding[] {
   const trades = parseTradeRepublicTrades(content);
   const txs: RawTransaction[] = trades.map((t) => ({
@@ -394,6 +411,19 @@ export const BROKER_CONFIGS: BrokerConfig[] = [
     parse: parseLightyear,
   },
   {
+    key: "lightyear_tx",
+    name: "Lightyear",
+    emoji: "🟡",
+    label: "Transactions CSV",
+    instructions: [
+      "Open the Lightyear app",
+      "Go to Account → Activity",
+      "Tap the export icon and select your date range",
+      "Download the CSV and upload it below",
+    ],
+    parse: parseLightyearAsHoldings,
+  },
+  {
     key: "trade_republic",
     name: "Trade Republic",
     emoji: "🟣",
@@ -435,15 +465,22 @@ export function parseCSV(brokerKey: string, content: string): ParsedHolding[] {
  * if the format cannot be determined automatically.
  *
  * Detection order (most-specific first to avoid false positives):
- *   1. IBKR        — multi-section Activity Statement ("Trades,Data," anywhere)
- *                    or Flex Query header ("ActivityDescription" / "TradeDate")
- *   2. Lightyear   — "FX Rate" (unique to Lightyear exports)
- *   3. Revolut     — "State" (unique) or "Quantity" fallback
- *   4. Trading 212 — "Action" or "Ticker"
+ *   1. IBKR           — multi-section Activity Statement ("Trades,Data," anywhere)
+ *                       or Flex Query header ("ActivityDescription" / "TradeDate")
+ *   2. Trade Republic — full set of 10 required headers (incl. "symbol", "shares")
+ *   3. Lightyear TX   — full set of 13 required headers (incl. "reference", "ccy")
+ *   4. Lightyear (legacy portfolio) — "FX Rate" header only
+ *   5. Revolut        — "State" (unique) or "Quantity" fallback
+ *   6. Trading 212    — "Action" or "Ticker"
  */
 const TR_REQUIRED_HEADERS = [
   "datetime", "account_type", "category", "type",
   "asset_class", "symbol", "shares", "price", "amount", "fee",
+];
+
+const LIGHTYEAR_TX_REQUIRED_HEADERS = [
+  "date", "reference", "ticker", "isin", "type", "quantity",
+  "ccy", "price/share", "gross amount", "fx rate", "fee", "net amt.", "tax amt.",
 ];
 
 export function detectBroker(content: string): BrokerConfig | null {
@@ -465,6 +502,10 @@ export function detectBroker(content: string): BrokerConfig | null {
   // Trade Republic — check before Revolut/Lightyear as headers overlap
   if (TR_REQUIRED_HEADERS.every((h) => headers.has(h))) {
     return BROKER_CONFIGS.find((b) => b.key === "trade_republic") ?? null;
+  }
+  // Lightyear transaction CSV — specific set including "reference"; must come before old fx rate check
+  if (LIGHTYEAR_TX_REQUIRED_HEADERS.every((h) => headers.has(h))) {
+    return BROKER_CONFIGS.find((b) => b.key === "lightyear_tx") ?? null;
   }
   if (headers.has("fx rate") || headers.has("fx_rate") || headers.has("fxrate")) {
     return BROKER_CONFIGS.find((b) => b.key === "lightyear") ?? null;
