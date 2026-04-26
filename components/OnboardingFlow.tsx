@@ -4,6 +4,7 @@ import {
   FlatList,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   ViewToken,
@@ -15,59 +16,18 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 export const ONBOARDING_KEY = "folvio_onboarding_complete";
 
-const NAVY = "#0F1923";
-const GOLD = "#C9A84C";
-const WHITE = "#FFFFFF";
-const MUTED = "#6B7A8D";
+const NAVY    = "#0F1923";
+const GOLD    = "#C9A84C";
+const WHITE   = "#FFFFFF";
+const MUTED   = "#6B7A8D";
 const CHIP_BG = "#1A2E42";
+const DARK_BG = "#0A0F1E";
 
-interface Page {
-  id: string;
-  icon?: keyof typeof Feather.glyphMap;
-  isFirst?: boolean;
-  isLast?: boolean;
-  title: string;
-  subtitle?: string;
-  body: string;
-  note?: string;
-  chips?: string[];
-}
+// ─── Page data ────────────────────────────────────────────────────────────────
 
-const PAGES: Page[] = [
-  {
-    id: "1",
-    isFirst: true,
-    title: "Folvio",
-    subtitle: "Your portfolio's path forward",
-    body: "🇪🇺  UCITS-native · DCA-aware · Multi-broker",
-  },
-  {
-    id: "2",
-    icon: "shield",
-    title: "Your data stays on\nyour device",
-    body: "Folvio stores everything locally. No account required, no cloud sync, no data sharing. Your portfolio is yours alone.",
-    note: "Cloud sync available in a future update for those who want it.",
-  },
-  {
-    id: "3",
-    icon: "globe",
-    title: "Finally, an app that\nunderstands UCITS",
-    body: "Track ISINs, ACC vs DIST share classes, and compare against European benchmarks — not just the S&P 500.",
-    chips: ["ISIN Search", "ACC/DIST", "EUR Native"],
-  },
-  {
-    id: "4",
-    icon: "repeat",
-    title: "Track your DCA.\nStay on target.",
-    body: "Log monthly contributions, see your weighted average cost, get drift alerts when your allocation needs attention, and let the rebalancing calculator tell you exactly what to buy next.",
-  },
-  {
-    id: "5",
-    isLast: true,
-    title: "You're all set",
-    body: "Add your first ETF holding to get started. Search by ticker or ISIN.",
-  },
-];
+type PageId = "welcome" | "features" | "privacy" | "first-etf";
+
+const PAGES: PageId[] = ["welcome", "features", "privacy", "first-etf"];
 
 interface Props {
   onComplete: (goToSearch: boolean) => void;
@@ -75,15 +35,13 @@ interface Props {
 
 export default function OnboardingFlow({ onComplete }: Props) {
   const insets = useSafeAreaInsets();
-  const flatListRef = useRef<FlatList<Page>>(null);
+  const flatListRef = useRef<FlatList<PageId>>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 });
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0) {
-        setCurrentIndex(viewableItems[0].index ?? 0);
-      }
+      if (viewableItems.length > 0) setCurrentIndex(viewableItems[0].index ?? 0);
     }
   );
 
@@ -98,17 +56,15 @@ export default function OnboardingFlow({ onComplete }: Props) {
   }
 
   function handleNext() {
-    if (currentIndex < PAGES.length - 1) {
-      goToPage(currentIndex + 1);
-    }
+    if (currentIndex < PAGES.length - 1) goToPage(currentIndex + 1);
   }
 
-  const isLast = currentIndex === PAGES.length - 1;
+  const isLast  = currentIndex === PAGES.length - 1;
   const isFirst = currentIndex === 0;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      {/* Skip button */}
+      {/* Skip button — hidden on last screen */}
       {!isLast && (
         <TouchableOpacity
           style={styles.skipBtn}
@@ -123,7 +79,7 @@ export default function OnboardingFlow({ onComplete }: Props) {
       <FlatList
         ref={flatListRef}
         data={PAGES}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -131,12 +87,12 @@ export default function OnboardingFlow({ onComplete }: Props) {
         scrollEventThrottle={16}
         viewabilityConfig={viewabilityConfig.current}
         onViewableItemsChanged={onViewableItemsChanged.current}
-        renderItem={({ item }) => <PageView page={item} />}
+        renderItem={({ item }) => <PageView id={item} />}
       />
 
       {/* Bottom controls */}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 32) }]}>
-        {/* Dots */}
+        {/* Dot indicators */}
         <View style={styles.dotsRow}>
           {PAGES.map((_, i) => (
             <TouchableOpacity
@@ -162,10 +118,10 @@ export default function OnboardingFlow({ onComplete }: Props) {
               onPress={() => markAndFinish(true)}
               activeOpacity={0.85}
             >
-              <Text style={styles.primaryBtnText}>Add My First Holding</Text>
+              <Text style={styles.primaryBtnText}>Search ETFs</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => markAndFinish(false)}>
-              <Text style={styles.secondaryLink}>I'll explore on my own</Text>
+              <Text style={styles.secondaryLink}>Skip for now</Text>
             </TouchableOpacity>
           </View>
         ) : isFirst ? (
@@ -174,7 +130,7 @@ export default function OnboardingFlow({ onComplete }: Props) {
             onPress={handleNext}
             activeOpacity={0.85}
           >
-            <Text style={styles.primaryBtnText}>Get Started →</Text>
+            <Text style={styles.primaryBtnText}>Get Started</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -182,7 +138,7 @@ export default function OnboardingFlow({ onComplete }: Props) {
             onPress={handleNext}
             activeOpacity={0.85}
           >
-            <Text style={styles.primaryBtnText}>Next →</Text>
+            <Text style={styles.primaryBtnText}>Next</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -190,112 +146,137 @@ export default function OnboardingFlow({ onComplete }: Props) {
   );
 }
 
-function PageView({ page }: { page: Page }) {
+// ─── Page views ────────────────────────────────────────────────────────────────
+
+function PageView({ id }: { id: PageId }) {
+  switch (id) {
+    case "welcome":   return <WelcomePage />;
+    case "features":  return <FeaturesPage />;
+    case "privacy":   return <PrivacyPage />;
+    case "first-etf": return <FirstETFPage />;
+  }
+}
+
+// Screen 1 — Welcome
+function WelcomePage() {
   return (
     <View style={styles.page}>
-      {page.isFirst ? (
-        /* ── Screen 1: Welcome ────────────────────────────────────────────── */
-        <View style={styles.pageInner}>
-          <View style={styles.fMarkWrap}>
-            <FMark size={96} />
-          </View>
-          <Text style={styles.wordmark}>Folvio</Text>
-          <Text style={styles.subtitle}>{page.subtitle}</Text>
-          <View style={styles.badgeRow}>
-            <Text style={styles.flagBody}>🇪🇺</Text>
-            <Text style={styles.flagBody}>UCITS-native · DCA-aware</Text>
-            <Text style={styles.flagBody}>Multi-broker</Text>
-          </View>
+      <View style={styles.pageInner}>
+        <View style={styles.fMarkWrap}>
+          <FMark size={88} />
         </View>
-      ) : page.isLast ? (
-        /* ── Screen 5: Ready ──────────────────────────────────────────────── */
-        <View style={styles.pageInner}>
-          <View style={styles.checkCircle}>
-            <Feather name="check" size={52} color={GOLD} />
-          </View>
-          <Text style={styles.pageTitle}>{page.title}</Text>
-          <Text style={styles.pageBody}>{page.body}</Text>
-        </View>
-      ) : (
-        /* ── Screens 2-4: Icon + title + body ─────────────────────────────── */
-        <View style={styles.pageInner}>
-          {page.icon && (
-            <View style={styles.iconCircle}>
-              <Feather name={page.icon} size={48} color={GOLD} />
-            </View>
-          )}
-          <Text style={styles.pageTitle}>{page.title}</Text>
-          <Text style={styles.pageBody}>{page.body}</Text>
-          {page.chips && (
-            <View style={styles.chipsRow}>
-              {page.chips.map((chip) => (
-                <View key={chip} style={styles.chip}>
-                  <Text style={styles.chipText}>{chip}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-          {page.note && <Text style={styles.pageNote}>{page.note}</Text>}
-        </View>
-      )}
+        <Text style={styles.wordmark}>Folvio</Text>
+        <Text style={styles.welcomeHeading}>
+          Your European portfolio,{"\n"}finally in one place
+        </Text>
+        <Text style={styles.welcomeSubtitle}>
+          Track UCITS ETFs across all your brokers, in EUR
+        </Text>
+      </View>
     </View>
   );
 }
 
-/** Inline geometric "F" mark — matches the app icon exactly */
-function FMark({ size }: { size: number }) {
-  const s = size / 100;
-  const stroke = 18 * s;
-  const topBarW = 74 * s;
-  const height = 88 * s;
-  const midBarW = 52 * s;
-  const midY = height * 0.44;
+// Screen 2 — Features
+const FEATURE_BULLETS = [
+  {
+    emoji: "📊",
+    text: "UCITS-native tracking — ISIN, TER, ACC/DIST support",
+  },
+  {
+    emoji: "🎯",
+    text: "Allocation drift alerts — know when to rebalance",
+  },
+  {
+    emoji: "🤖",
+    text: "AI-powered insights — personalised portfolio analysis",
+  },
+];
+
+function FeaturesPage() {
   return (
-    <View style={{ width: topBarW, height }}>
-      {/* Vertical bar */}
-      <View
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          width: stroke,
-          height,
-          backgroundColor: GOLD,
-          borderRadius: 3 * s,
-        }}
-      />
-      {/* Top horizontal bar */}
-      <View
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          width: topBarW,
-          height: stroke,
-          backgroundColor: GOLD,
-          borderRadius: 3 * s,
-        }}
-      />
-      {/* Middle horizontal bar */}
-      <View
-        style={{
-          position: "absolute",
-          left: 0,
-          top: midY,
-          width: midBarW,
-          height: stroke * 0.85,
-          backgroundColor: GOLD,
-          borderRadius: 3 * s,
-        }}
-      />
+    <View style={styles.page}>
+      <View style={styles.pageInner}>
+        <Text style={styles.pageTitle}>Built for European{"\n"}ETF investors</Text>
+        <View style={styles.bulletList}>
+          {FEATURE_BULLETS.map((b) => (
+            <View key={b.emoji} style={styles.bulletRow}>
+              <Text style={styles.bulletEmoji}>{b.emoji}</Text>
+              <Text style={styles.bulletText}>{b.text}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
     </View>
   );
 }
+
+// Screen 3 — Privacy
+function PrivacyPage() {
+  return (
+    <View style={styles.page}>
+      <View style={styles.pageInner}>
+        <View style={styles.iconCircle}>
+          <Feather name="shield" size={48} color={GOLD} />
+        </View>
+        <Text style={styles.pageTitle}>Your data stays{"\n"}on your device</Text>
+        <Text style={styles.pageBody}>
+          No account required. Your portfolio data is stored locally on your
+          iPhone, never shared.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// Screen 4 — First ETF
+function FirstETFPage() {
+  return (
+    <View style={styles.page}>
+      <View style={styles.pageInner}>
+        <Text style={styles.pageTitle}>Add your first ETF</Text>
+        <Text style={styles.pageBody}>
+          Search by ticker, name, or ISIN
+        </Text>
+        <View style={styles.searchBarWrap}>
+          <Feather name="search" size={18} color={MUTED} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchBar}
+            placeholder="VWCE, IWDA, VUAA..."
+            placeholderTextColor={MUTED}
+            editable={false}
+            pointerEvents="none"
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Inline "F" mark ──────────────────────────────────────────────────────────
+
+function FMark({ size }: { size: number }) {
+  const s      = size / 100;
+  const stroke = 18 * s;
+  const topBarW = 74 * s;
+  const height  = 88 * s;
+  const midBarW = 52 * s;
+  const midY    = height * 0.44;
+  return (
+    <View style={{ width: topBarW, height }}>
+      <View style={{ position: "absolute", left: 0, top: 0, width: stroke, height, backgroundColor: GOLD, borderRadius: 3 * s }} />
+      <View style={{ position: "absolute", left: 0, top: 0, width: topBarW, height: stroke, backgroundColor: GOLD, borderRadius: 3 * s }} />
+      <View style={{ position: "absolute", left: 0, top: midY, width: midBarW, height: stroke * 0.85, backgroundColor: GOLD, borderRadius: 3 * s }} />
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: NAVY,
+    backgroundColor: DARK_BG,
   },
   skipBtn: {
     position: "absolute",
@@ -308,49 +289,75 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_500Medium",
   },
+
+  // Page layout
   page: {
     width: SCREEN_W,
     height: SCREEN_H,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 36,
-    paddingBottom: 170,
+    paddingBottom: 180,
   },
   pageInner: {
     width: "100%",
     alignItems: "center",
     gap: 20,
   },
-  /* Screen 1 — Welcome */
-  fMarkWrap: {
-    marginBottom: 8,
-  },
+
+  // Screen 1 — Welcome
+  fMarkWrap: { marginBottom: 4 },
   wordmark: {
-    fontSize: 52,
+    fontSize: 48,
     fontFamily: "Inter_700Bold",
     color: WHITE,
     letterSpacing: 1,
   },
-  subtitle: {
-    fontSize: 17,
+  welcomeHeading: {
+    fontSize: 28,
+    fontFamily: "Inter_700Bold",
+    color: WHITE,
+    textAlign: "center",
+    lineHeight: 38,
+    letterSpacing: -0.3,
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
     fontFamily: "Inter_400Regular",
     color: MUTED,
     textAlign: "center",
+    lineHeight: 24,
+  },
+
+  // Screen 2 — Features
+  bulletList: {
+    width: "100%",
+    gap: 16,
+    marginTop: 8,
+  },
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+    backgroundColor: CHIP_BG,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: GOLD + "22",
+  },
+  bulletEmoji: {
+    fontSize: 22,
     lineHeight: 26,
   },
-  badgeRow: {
-    marginTop: 8,
-    alignItems: "center",
-    gap: 4,
-  },
-  flagBody: {
+  bulletText: {
     fontSize: 15,
     fontFamily: "Inter_500Medium",
-    color: GOLD,
-    textAlign: "center",
-    letterSpacing: 0.5,
+    color: WHITE,
+    flex: 1,
+    lineHeight: 22,
   },
-  /* Screens 2-4 */
+
+  // Screens 2–3 shared
   iconCircle: {
     width: 96,
     height: 96,
@@ -366,6 +373,7 @@ const styles = StyleSheet.create({
     color: WHITE,
     textAlign: "center",
     lineHeight: 38,
+    letterSpacing: -0.3,
   },
   pageBody: {
     fontSize: 16,
@@ -374,50 +382,34 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 26,
   },
-  pageNote: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    color: "#4A5568",
-    textAlign: "center",
-    lineHeight: 20,
-    marginTop: 4,
-  },
-  chipsRow: {
+
+  // Screen 4 — Search bar (decorative)
+  searchBarWrap: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 10,
-    marginTop: 4,
-  },
-  chip: {
+    alignItems: "center",
     backgroundColor: CHIP_BG,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: GOLD + "44",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    width: "100%",
+    marginTop: 8,
   },
-  chipText: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    color: GOLD,
+  searchIcon: {
+    marginRight: 10,
   },
-  /* Screen 5 — Ready */
-  checkCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: CHIP_BG,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: GOLD + "55",
+  searchBar: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: "Inter_400Regular",
+    color: WHITE,
   },
-  /* Footer */
+
+  // Footer
   footer: {
     alignItems: "center",
-    gap: 24,
+    gap: 20,
     paddingHorizontal: 32,
     paddingTop: 12,
   },
@@ -426,19 +418,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  dot: {
-    borderRadius: 4,
-  },
-  dotActive: {
-    width: 24,
-    height: 8,
-    backgroundColor: GOLD,
-  },
-  dotInactive: {
-    width: 8,
-    height: 8,
-    backgroundColor: MUTED + "55",
-  },
+  dot: { borderRadius: 4 },
+  dotActive:   { width: 24, height: 8, backgroundColor: GOLD },
+  dotInactive: { width: 8,  height: 8, backgroundColor: MUTED + "55" },
+
+  // Buttons
   primaryBtn: {
     width: "100%",
     backgroundColor: GOLD,
@@ -450,16 +434,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: "Inter_700Bold",
     color: NAVY,
-  },
-  nextBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: CHIP_BG,
-    borderWidth: 1,
-    borderColor: GOLD + "44",
-    alignItems: "center",
-    justifyContent: "center",
   },
   lastCtaGroup: {
     width: "100%",

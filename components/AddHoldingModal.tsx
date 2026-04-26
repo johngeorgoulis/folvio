@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -35,6 +36,7 @@ const theme = Colors.dark;
 
 export default function AddHoldingModal({ visible, onClose, initialValues }: Props) {
   const { addHolding } = usePortfolio();
+  const router = useRouter();
 
   const [ticker, setTicker] = useState(initialValues?.ticker ?? "");
   const [isin, setIsin] = useState("");
@@ -190,6 +192,22 @@ export default function AddHoldingModal({ visible, onClose, initialValues }: Pro
             </TouchableOpacity>
           </View>
 
+          {/* ── CSV Import shortcut ───────────────────────────────────── */}
+          <TouchableOpacity
+            style={[styles.csvBanner, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}
+            onPress={() => { reset(); onClose(); router.push("/import"); }}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.csvIconWrap, { backgroundColor: theme.backgroundElevated }]}>
+              <Feather name="upload" size={18} color={theme.textSecondary} />
+            </View>
+            <View style={styles.csvText}>
+              <Text style={[styles.csvTitle, { color: theme.text }]}>Import from CSV</Text>
+              <Text style={[styles.csvSubtitle, { color: theme.textSecondary }]}>Add multiple holdings at once</Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={theme.textTertiary} />
+          </TouchableOpacity>
+
           {/* ── Ticker — outside ScrollView so dropdown overlays correctly ── */}
           <View style={styles.tickerOuter}>
             <Text style={labelStyle}>TICKER *</Text>
@@ -291,9 +309,6 @@ export default function AddHoldingModal({ visible, onClose, initialValues }: Pro
                 placeholderTextColor={theme.textTertiary}
                 keyboardType="decimal-pad"
               />
-              <Text style={[styles.hint, { color: theme.textTertiary }]}>
-                Live price will be fetched from Yahoo Finance
-              </Text>
             </View>
 
             {/* Yield + Date */}
@@ -351,6 +366,27 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   saveBtnText: { color: "#0A0F1A", fontSize: 14, fontFamily: "Inter_700Bold" },
+  csvBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 12,
+  },
+  csvIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  csvText: { flex: 1, gap: 2 },
+  csvTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  csvSubtitle: { fontSize: 12, fontFamily: "Inter_400Regular" },
   tickerOuter: {
     paddingHorizontal: 16,
     paddingTop: 14,

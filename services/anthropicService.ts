@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAssetClass } from "@/services/assetClassService";
+import { getInvestorProfile } from "@/services/db";
 
 const CACHE_KEY = "folvio_ai_insights";
 const CACHE_TTL = 24 * 60 * 60 * 1000;
@@ -77,6 +78,7 @@ export async function generatePortfolioInsights(
       assetClass,
       ter: ter.toFixed(2) + "%",
       returnSincePurchase: returnSincePurchase.toFixed(1) + "%",
+      yieldPct: h.yield_pct != null ? h.yield_pct.toFixed(2) + "%" : null,
     };
   });
 
@@ -98,6 +100,8 @@ export async function generatePortfolioInsights(
     dcaMonthlyEUR: dcaAmount,
   };
 
+  const investorProfile = await getInvestorProfile().catch(() => null);
+
   console.log("[Anthropic] calling server:", `${serverUrl}/api/insights`);
 
   let response: Response;
@@ -105,7 +109,7 @@ export async function generatePortfolioInsights(
     response = await fetch(`${serverUrl}/api/insights`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ portfolioContext }),
+      body: JSON.stringify({ portfolioContext, investorProfile }),
     });
   } catch (networkErr) {
     console.log("[Anthropic] network error:", networkErr);

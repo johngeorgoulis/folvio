@@ -24,51 +24,95 @@ const theme = Colors.dark;
 
 // ─── Plan definitions ──────────────────────────────────────────────────────────
 
+const FREE_FEATURES = [
+  { icon: "layers"     as const, text: `Up to ${FREE_TIER_LIMIT} holdings` },
+  { icon: "pie-chart"  as const, text: "Basic returns & allocation" },
+  { icon: "bar-chart"  as const, text: "Portfolio overview & performance" },
+];
+
 const INVESTOR_FEATURES = [
   { icon: "layers"      as const, text: `Unlimited holdings (free: ${FREE_TIER_LIMIT} max)` },
-  { icon: "book"        as const, text: "DCA contribution log" },
-  { icon: "trending-up" as const, text: "All projection scenarios (Conservative & Optimistic)" },
+  { icon: "book"        as const, text: "DCA log & contribution tracking" },
+  { icon: "sliders"     as const, text: "Rebalancing alerts & suggestions" },
+  { icon: "bar-chart-2" as const, text: "Benchmark comparison (MSCI World, S&P 500…)" },
+  { icon: "clock"       as const, text: "Historical charts (1Y max)" },
+  { icon: "upload"      as const, text: "CSV import (Trading 212, DEGIRO, IBKR, Trade Republic)" },
   { icon: "bell"        as const, text: "Push notifications (DCA reminders, drift alerts)" },
-  { icon: "sliders"     as const, text: "Rebalancing suggestions (DCA & full)" },
 ];
 
 const PRO_FEATURES = [
   { icon: "check-circle" as const, text: "Everything in Investor" },
-  { icon: "upload"       as const, text: "CSV import from 10+ brokers" },
+  { icon: "cpu"          as const, text: "AI Portfolio Insights (Claude AI)" },
+  { icon: "activity"     as const, text: "Crisis Backtest (dot-com, 2008, COVID…)" },
+  { icon: "trending-up"  as const, text: "Wealth Projections (Conservative & Optimistic)" },
+  { icon: "bar-chart-2"  as const, text: "Full historical charts (all timeframes)" },
   { icon: "download"     as const, text: "Export portfolio to CSV" },
-  { icon: "bar-chart-2"  as const, text: "Benchmark comparison (S&P 500, MSCI World…)" },
 ];
 
 // ─── Trigger → human-readable copy ────────────────────────────────────────────
 
 function triggerMessage(trigger?: string): string {
   switch (trigger) {
-    case "holdings":      return `Add more than ${FREE_TIER_LIMIT} holdings`;
-    case "dca-log":       return "Log DCA contributions";
-    case "all-scenarios": return "Conservative & Optimistic projections";
-    case "notifications": return "Push notifications";
-    case "rebalance":     return "Rebalancing suggestions";
-    case "import":        return "Import from CSV";
-    case "export":        return "Export to CSV";
-    case "benchmark":     return "Benchmark comparison";
-    default:              return "Unlock all Folvio features";
+    case "holdings":           return `Add more than ${FREE_TIER_LIMIT} holdings`;
+    case "dca-log":            return "Log DCA contributions";
+    case "all-scenarios":      return "Conservative & Optimistic projections";
+    case "wealth-projections": return "Wealth Projections";
+    case "notifications":      return "Push notifications";
+    case "rebalance":          return "Rebalancing suggestions";
+    case "import":             return "Import from CSV";
+    case "export":             return "Export to CSV";
+    case "benchmark":          return "Benchmark comparison";
+    case "ai-insights":        return "AI Portfolio Insights";
+    case "crisis-backtest":    return "Crisis Backtest";
+    default:                   return "Unlock all Folvio features";
   }
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
-function FeatureRow({ icon, text }: { icon: React.ComponentProps<typeof Feather>["name"]; text: string }) {
+function FeatureRow({
+  icon,
+  text,
+  muted = false,
+}: {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  text: string;
+  muted?: boolean;
+}) {
   return (
     <View style={styles.featureRow}>
-      <View style={styles.featureIconWrap}>
-        <Feather name={icon} size={13} color={theme.positive} />
+      <View style={[styles.featureIconWrap, muted && styles.featureIconWrapMuted]}>
+        <Feather name={icon} size={12} color={muted ? theme.textTertiary : theme.positive} />
       </View>
-      <Text style={styles.featureText}>{text}</Text>
+      <Text style={[styles.featureText, muted && { color: theme.textSecondary }]}>{text}</Text>
     </View>
   );
 }
 
-function PlanCard({
+// Free tier card (no subscribe button — shows current plan)
+function FreePlanCard() {
+  return (
+    <View style={[styles.planCard, styles.planCardFree]}>
+      <View style={styles.planHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.planName}>Free</Text>
+          <Text style={styles.planTagline}>Current plan</Text>
+        </View>
+        <View style={styles.planPriceBlock}>
+          <Text style={[styles.planPrice, { color: theme.textSecondary }]}>€0</Text>
+          <Text style={styles.planPeriod}>/forever</Text>
+        </View>
+      </View>
+      <View style={styles.featureList}>
+        {FREE_FEATURES.map((f) => (
+          <FeatureRow key={f.text} icon={f.icon} text={f.text} muted />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function PaidPlanCard({
   tier,
   label,
   tagline,
@@ -76,6 +120,7 @@ function PlanCard({
   billing,
   highlighted,
   badge,
+  badgeColor,
   onSubscribe,
 }: {
   tier:        SubscriptionTier;
@@ -85,16 +130,20 @@ function PlanCard({
   billing:     BillingPeriod;
   highlighted: boolean;
   badge?:      string;
+  badgeColor?: string;
   onSubscribe: (tier: SubscriptionTier) => void;
 }) {
-  const price    = PRICES[tier as "investor" | "pro"][billing];
-  const monthlyEq = billing === "yearly" ? (PRICES[tier as "investor" | "pro"].yearly / 12).toFixed(2) : null;
+  const price      = PRICES[tier as "investor" | "pro"][billing];
+  const monthlyEq  = billing === "yearly"
+    ? (PRICES[tier as "investor" | "pro"].yearly / 12).toFixed(2)
+    : null;
+  const accentColor = badgeColor ?? theme.tint;
 
   return (
-    <View style={[styles.planCard, highlighted && styles.planCardHighlighted]}>
+    <View style={[styles.planCard, highlighted && { borderColor: accentColor, borderWidth: 1.5 }]}>
       {badge && (
-        <View style={styles.planBadgeWrap}>
-          <Text style={styles.planBadgeText}>{badge}</Text>
+        <View style={[styles.planBadgeWrap, { backgroundColor: accentColor + "22" }]}>
+          <Text style={[styles.planBadgeText, { color: accentColor }]}>{badge}</Text>
         </View>
       )}
 
@@ -104,12 +153,10 @@ function PlanCard({
           <Text style={styles.planTagline}>{tagline}</Text>
         </View>
         <View style={styles.planPriceBlock}>
-          <Text style={styles.planPrice}>
+          <Text style={[styles.planPrice, { color: accentColor }]}>
             €{price.toFixed(2).replace(".", ",")}
           </Text>
-          <Text style={styles.planPeriod}>
-            /{billing === "monthly" ? "mo" : "yr"}
-          </Text>
+          <Text style={styles.planPeriod}>/{billing === "monthly" ? "mo" : "yr"}</Text>
         </View>
       </View>
 
@@ -124,13 +171,11 @@ function PlanCard({
       </View>
 
       <TouchableOpacity
-        style={[styles.cta, highlighted ? styles.ctaPrimary : styles.ctaSecondary]}
+        style={[styles.cta, { backgroundColor: accentColor }]}
         onPress={() => onSubscribe(tier)}
         activeOpacity={0.85}
       >
-        <Text style={[styles.ctaText, !highlighted && { color: theme.text }]}>
-          Get {label}
-        </Text>
+        <Text style={styles.ctaText}>Subscribe to {label}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -146,7 +191,7 @@ interface Props {
 
 export default function PaywallModal({ visible, onClose, trigger }: Props) {
   const [billing, setBilling] = useState<BillingPeriod>("yearly");
-  const { setSubscription } = useSubscription();
+  const { setSubscription, tier: currentTier } = useSubscription();
   const required = requiredTierFor(trigger);
 
   async function handleSubscribe(tier: SubscriptionTier) {
@@ -154,10 +199,9 @@ export default function PaywallModal({ visible, onClose, trigger }: Props) {
     const price    = PRICES[tier as "investor" | "pro"][billing];
 
     // TODO: Replace with RevenueCat purchase call before release.
-    // The Alert below simulates the purchase flow for development/testing.
     Alert.alert(
       `Subscribe to ${tierName}`,
-      `€${price.toFixed(2).replace(".", ",")}/${billing === "monthly" ? "month" : "year"}\n\nRevenueCat in-app purchase will be triggered here before release.`,
+      `€${price.toFixed(2).replace(".", ",")}/${billing === "monthly" ? "month" : "year"}\n\nSubscription managed via App Store. Cancel anytime.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -171,6 +215,14 @@ export default function PaywallModal({ visible, onClose, trigger }: Props) {
     );
   }
 
+  function handleRestorePurchase() {
+    Alert.alert(
+      "Restore Purchase",
+      "Restoring purchases via App Store…\n\n(RevenueCat restore will be wired here before release.)",
+      [{ text: "OK" }]
+    );
+  }
+
   return (
     <Modal
       visible={visible}
@@ -180,6 +232,7 @@ export default function PaywallModal({ visible, onClose, trigger }: Props) {
       onRequestClose={onClose}
     >
       <View style={styles.container}>
+        {/* Maybe later / dismiss */}
         <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
           <Feather name="x" size={22} color={theme.textSecondary} />
         </TouchableOpacity>
@@ -199,7 +252,7 @@ export default function PaywallModal({ visible, onClose, trigger }: Props) {
             </Text>
           </View>
 
-          {/* Billing toggle */}
+          {/* Monthly / Annual toggle */}
           <View style={styles.billingToggle}>
             {(["monthly", "yearly"] as BillingPeriod[]).map((period) => (
               <TouchableOpacity
@@ -216,12 +269,12 @@ export default function PaywallModal({ visible, onClose, trigger }: Props) {
                     billing === period && styles.billingOptionTextActive,
                   ]}
                 >
-                  {period === "monthly" ? "Monthly" : "Yearly"}
+                  {period === "monthly" ? "Monthly" : "Annual"}
                 </Text>
                 {period === "yearly" && (
                   <View style={styles.savingsBadge}>
                     <Text style={styles.savingsText}>
-                      Save {YEARLY_SAVINGS_PCT.pro}%
+                      Save {YEARLY_SAVINGS_PCT.investor}%
                     </Text>
                   </View>
                 )}
@@ -229,31 +282,47 @@ export default function PaywallModal({ visible, onClose, trigger }: Props) {
             ))}
           </View>
 
+          {/* Free tier — only show when current tier is free */}
+          {currentTier === "free" && <FreePlanCard />}
+
           {/* Investor plan */}
-          <PlanCard
+          <PaidPlanCard
             tier="investor"
             label="Investor"
             tagline="For serious ETF investors"
             features={INVESTOR_FEATURES}
             billing={billing}
             highlighted={required === "investor"}
+            badge="RECOMMENDED"
+            badgeColor="#3B82F6"
             onSubscribe={handleSubscribe}
           />
 
           {/* Pro plan */}
-          <PlanCard
+          <PaidPlanCard
             tier="pro"
             label="Pro"
-            tagline="Full power, unlimited"
+            tagline="Full power + AI insights"
             features={PRO_FEATURES}
             billing={billing}
             highlighted={required === "pro"}
-            badge="BEST VALUE"
+            badge="PRO"
+            badgeColor={theme.tint}
             onSubscribe={handleSubscribe}
           />
 
+          {/* Restore purchase */}
+          <TouchableOpacity onPress={handleRestorePurchase} style={styles.restoreBtn}>
+            <Text style={styles.restoreText}>Restore Purchase</Text>
+          </TouchableOpacity>
+
+          {/* Maybe later */}
+          <TouchableOpacity onPress={onClose} style={styles.maybeLaterBtn}>
+            <Text style={styles.maybeLaterText}>Maybe later</Text>
+          </TouchableOpacity>
+
           <Text style={styles.fine}>
-            Subscriptions auto-renew. Cancel anytime via App Store or Google Play.
+            Subscription managed via App Store. Cancel anytime.{"\n"}
             Prices in EUR incl. applicable taxes.
           </Text>
         </ScrollView>
@@ -271,7 +340,7 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: 20,
     paddingBottom: 40,
-    gap: 16,
+    gap: 14,
   },
 
   // Header
@@ -312,11 +381,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.border,
   },
-  billingOptionText: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    color: theme.textSecondary,
-  },
+  billingOptionText:       { fontSize: 13, fontFamily: "Inter_600SemiBold", color: theme.textSecondary },
   billingOptionTextActive: { color: theme.text },
   savingsBadge: {
     backgroundColor: theme.positive + "22",
@@ -335,30 +400,28 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 14,
   },
-  planCardHighlighted: {
-    borderColor: theme.tint,
-    borderWidth: 1.5,
+  planCardFree: {
+    opacity: 0.7,
   },
   planBadgeWrap: {
     alignSelf: "flex-start",
-    backgroundColor: theme.tint + "22",
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  planBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold", color: theme.tint, letterSpacing: 0.5 },
+  planBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
 
-  planHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  planName:   { fontSize: 18, fontFamily: "Inter_700Bold",    color: theme.text },
-  planTagline: { fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary, marginTop: 2 },
+  planHeader:   { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  planName:     { fontSize: 18, fontFamily: "Inter_700Bold",    color: theme.text },
+  planTagline:  { fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary, marginTop: 2 },
 
   planPriceBlock: { alignItems: "flex-end", gap: 1 },
-  planPrice:  { fontSize: 22, fontFamily: "Inter_700Bold",    color: theme.tint },
-  planPeriod: { fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary },
-  monthlyEq:  { fontSize: 11, fontFamily: "Inter_400Regular", color: theme.textTertiary, marginTop: -8 },
+  planPrice:      { fontSize: 22, fontFamily: "Inter_700Bold",    color: theme.tint },
+  planPeriod:     { fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary },
+  monthlyEq:      { fontSize: 11, fontFamily: "Inter_400Regular", color: theme.textTertiary, marginTop: -8 },
 
-  featureList: { gap: 10 },
-  featureRow:  { flexDirection: "row", alignItems: "center", gap: 10 },
+  featureList:     { gap: 10 },
+  featureRow:      { flexDirection: "row", alignItems: "center", gap: 10 },
   featureIconWrap: {
     width: 22,
     height: 22,
@@ -367,17 +430,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  featureIconWrapMuted: {
+    backgroundColor: theme.backgroundElevated,
+  },
   featureText: { fontSize: 13, fontFamily: "Inter_400Regular", color: theme.text, flex: 1 },
 
-  // CTAs
+  // CTA
   cta: {
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
   },
-  ctaPrimary:   { backgroundColor: theme.tint },
-  ctaSecondary: { backgroundColor: theme.backgroundElevated, borderWidth: 1, borderColor: theme.border },
-  ctaText: { fontSize: 15, fontFamily: "Inter_700Bold", color: theme.background },
+  ctaText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#0A0F1E" },
+
+  // Restore / Maybe later
+  restoreBtn: { alignItems: "center", paddingVertical: 4 },
+  restoreText: { fontSize: 13, fontFamily: "Inter_500Medium", color: theme.textSecondary, textDecorationLine: "underline" },
+
+  maybeLaterBtn: { alignItems: "center", paddingVertical: 4 },
+  maybeLaterText: { fontSize: 13, fontFamily: "Inter_400Regular", color: theme.textTertiary },
 
   // Fine print
   fine: {

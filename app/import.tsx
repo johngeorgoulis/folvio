@@ -28,6 +28,10 @@ import {
 } from "@/services/csvImport";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { resolveExchangeFromISIN } from "@/services/priceService";
+import { parseTradeRepublicTrades, type ParsedTrade } from "@/parsers/tradeRepublic";
+import { parseLightyearTrades } from "@/parsers/lightyear";
+import { initETFDatabase } from "@/services/etfDatabaseService";
+import { getImportedTransactionIds, insertImportedTransactions } from "@/services/db";
 
 type DuplicateAction = "skip" | "merge" | "replace";
 
@@ -37,6 +41,13 @@ interface ImportItem {
   isDuplicate: boolean;
   existingId?: string;
   duplicateAction: DuplicateAction;
+}
+
+interface TRImportItem {
+  trade: ParsedTrade & { exchange: string };
+  isNew: boolean;       // no existing holding with this ISIN
+  existingId?: string;
+  action: DuplicateAction; // only used when !isNew; default "merge"
 }
 
 const theme = Colors.dark;
@@ -310,6 +321,83 @@ function PreviewRow({
   );
 }
 
+function TRPreviewRow({
+  item,
+  onActionChange,
+}: {
+  item: TRImportItem;
+  onActionChange: (a: DuplicateAction) => void;
+}) {
+  const isSellNoHolding = item.trade.type === "SELL" && item.isNew;
+  const willImport = !isSellNoHolding && (item.isNew || item.action !== "skip");
+  const displayName = item.trade.ticker
+    ? `${item.trade.name}`
+    : item.trade.name || item.trade.isin;
+  const displaySub = item.trade.ticker || item.trade.isin;
+
+  return (
+    <View
+      style={[
+        styles.previewRow,
+        { borderBottomColor: theme.border, opacity: willImport ? 1 : 0.45 },
+      ]}
+    >
+      {/* Name + ticker */}
+      <View style={styles.previewLeft}>
+        <Text style={[styles.previewTicker, { color: theme.text }]} numberOfLines={1}>
+          {displayName}
+        </Text>
+        <Text style={[styles.previewInstrName, { color: theme.textTertiary }]}>
+          {displaySub}
+        </Text>
+        {item.trade.fee > 0 && (
+          <Text style={[styles.previewWarning, { color: theme.textTertiary }]}>
+            Fee: €{item.trade.fee.toFixed(2)}
+          </Text>
+        )}
+      </View>
+
+      {/* Units · price · date */}
+      <View style={styles.previewMid}>
+        <Text style={[styles.previewStat, { color: theme.textSecondary }]}>
+          {item.trade.type === "SELL" ? "−" : "+"}
+          {item.trade.units % 1 === 0
+            ? item.trade.units.toFixed(0)
+            : item.trade.units.toFixed(4).replace(/\.?0+$/, "")}
+        </Text>
+        <Text style={[styles.previewStat, { color: theme.textSecondary }]}>
+          €{item.trade.pricePerUnit.toFixed(2)}
+        </Text>
+        {item.trade.date ? (
+          <Text style={[styles.previewDate, { color: theme.textTertiary }]}>
+            {fmtShortDate(item.trade.date)}
+          </Text>
+        ) : null}
+      </View>
+
+      {/* Badge + segmented control */}
+      <View style={styles.previewRight}>
+        {isSellNoHolding ? (
+          <View style={[styles.statusBadge, { backgroundColor: theme.border }]}>
+            <Text style={[styles.statusText, { color: theme.textTertiary }]}>SKIP</Text>
+          </View>
+        ) : item.isNew ? (
+          <View style={[styles.statusBadge, { backgroundColor: theme.positive + "22" }]}>
+            <Text style={[styles.statusText, { color: theme.positive }]}>NEW</Text>
+          </View>
+        ) : (
+          <View>
+            <View style={[styles.statusBadge, { backgroundColor: "#FBBF2422" }]}>
+              <Text style={[styles.statusText, { color: "#FBBF24" }]}>EXISTS</Text>
+            </View>
+            <DuplicateToggle value={item.action} onChange={onActionChange} />
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 function fmtShortDate(iso: string): string {
   if (!iso || iso.length < 7) return iso;
   const months = [
@@ -384,6 +472,8 @@ export default function ImportScreen() {
   const [parsing, setParsing] = useState(false);
   const [importItems, setImportItems] = useState<ImportItem[]>([]);
   const [importing, setImporting] = useState(false);
+  const [trItems, setTrItems] = useState<TRImportItem[]>([]);
+  const [trDupesSkipped, setTrDupesSkipped] = useState(0);
 
   // ── File picking ────────────────────────────────────────────────────────────
 
@@ -435,7 +525,13 @@ export default function ImportScreen() {
         setSelectedBroker(detected);
         setDetectedBroker(detected);
         setBannerDismissed(false);
-        await runPreview(detected, content);
+        if (detected.key === "trade_republic") {
+          await runTRPreview(content);
+        } else if (detected.key === "lightyear_tx") {
+          await runLYPreview(content);
+        } else {
+          await runPreview(detected, content);
+        }
       }
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
@@ -447,7 +543,7 @@ export default function ImportScreen() {
     } finally {
       setPickingFile(false);
     }
-  }, [runPreview]);
+  }, [runPreview, runTRPreview, runLYPreview]);
 
   // ── Parse + build import items ───────────────────────────────────────────────
 
@@ -502,26 +598,183 @@ export default function ImportScreen() {
     }
   }, [holdings]);
 
+  const runPerTradePreview = useCallback(async (
+    content: string,
+    parseFn: (c: string) => ParsedTrade[],
+  ) => {
+    if (!content) return;
+    try {
+      setParsing(true);
+      await initETFDatabase();
+      const trades = parseFn(content);
+      if (trades.length === 0) throw new Error("NO_BUYS");
+
+      // Filter out already-imported transaction IDs
+      const allIds = trades.map((t) => t.transactionId);
+      const alreadyImported = await getImportedTransactionIds(allIds);
+      const fresh = trades.filter((t) => !alreadyImported.has(t.transactionId));
+      setTrDupesSkipped(alreadyImported.size);
+
+      // Resolve exchange for each fresh trade
+      const withExchange = await Promise.all(
+        fresh.map(async (t) => ({
+          ...t,
+          exchange: await resolveExchangeFromISIN(t.isin, t.ticker),
+        }))
+      );
+
+      // Build TRImportItem[], matching on ISIN
+      const items: TRImportItem[] = withExchange.map((t) => {
+        const existing = holdings.find(
+          (h) => h.isin && h.isin.toUpperCase() === t.isin.toUpperCase()
+        );
+        return {
+          trade: t,
+          isNew: !existing,
+          existingId: existing?.id,
+          action: "merge" as DuplicateAction,
+        };
+      });
+
+      setTrItems(items);
+      setStep(3);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === "NO_BUYS") {
+        Alert.alert("No Trades Found", "No BUY/SELL transactions found in this file.");
+      } else {
+        Alert.alert("Parse Error", "This doesn't look like a valid transactions CSV.");
+      }
+    } finally {
+      setParsing(false);
+    }
+  }, [holdings]);
+
+  const runTRPreview = useCallback(async (content: string) => {
+    await runPerTradePreview(content, parseTradeRepublicTrades);
+  }, [runPerTradePreview]);
+
+  const runLYPreview = useCallback(async (content: string) => {
+    await runPerTradePreview(content, parseLightyearTrades);
+  }, [runPerTradePreview]);
+
   const handlePreview = useCallback(async () => {
     if (!selectedBroker || !csvContent) return;
-    await runPreview(selectedBroker, csvContent);
-  }, [selectedBroker, csvContent, runPreview]);
+    if (selectedBroker.key === "trade_republic") {
+      await runTRPreview(csvContent);
+    } else if (selectedBroker.key === "lightyear_tx") {
+      await runLYPreview(csvContent);
+    } else {
+      await runPreview(selectedBroker, csvContent);
+    }
+  }, [selectedBroker, csvContent, runPreview, runTRPreview, runLYPreview]);
 
   // ── Import count logic ───────────────────────────────────────────────────────
 
+  const isTRFlow =
+    selectedBroker?.key === "trade_republic" ||
+    selectedBroker?.key === "lightyear_tx";
+
   const importableCount = useMemo(() => {
+    if (isTRFlow) {
+      return trItems.filter(
+        (i) => !(i.trade.type === "SELL" && i.isNew) && (i.isNew || i.action !== "skip")
+      ).length;
+    }
     return importItems.filter(
       (item) => !item.isDuplicate || item.duplicateAction !== "skip",
     ).length;
-  }, [importItems]);
+  }, [importItems, trItems, isTRFlow]);
 
   const newHoldingsCount = useMemo(() => {
+    if (isTRFlow) return trItems.filter((i) => i.isNew && i.trade.type === "BUY").length;
     return importItems.filter((item) => !item.isDuplicate).length;
-  }, [importItems]);
+  }, [importItems, trItems, isTRFlow]);
 
   // ── Actual import ────────────────────────────────────────────────────────────
 
+  const handleTRImport = useCallback(async () => {
+    setImporting(true);
+    let imported = 0;
+    let updated = 0;
+    const importedIds: string[] = [];
+
+    for (const item of trItems) {
+      const isSellNoHolding = item.trade.type === "SELL" && item.isNew;
+      if (isSellNoHolding) continue;
+      if (!item.isNew && item.action === "skip") continue;
+
+      const ticker = item.trade.ticker || item.trade.isin;
+      const holdingData = {
+        ticker,
+        isin: item.trade.isin,
+        exchange: item.trade.exchange ?? guessExchangeFromISIN(item.trade.isin, ticker),
+        name: item.trade.name,
+        quantity: item.trade.units,
+        avg_cost_eur: item.trade.pricePerUnit,
+        purchase_date: item.trade.date,
+        yield_pct: null,
+      };
+
+      try {
+        if (item.isNew && item.trade.type === "BUY") {
+          await addHolding(holdingData, 0);
+          imported++;
+        } else if (!item.isNew) {
+          const existing = holdings.find((h) => h.id === item.existingId);
+          if (!existing) continue;
+
+          if (item.action === "replace") {
+            await deleteHolding(item.existingId!);
+            await addHolding(holdingData, 0);
+            updated++;
+          } else if (item.action === "merge") {
+            if (item.trade.type === "BUY") {
+              const newQty = existing.quantity + item.trade.units;
+              const newAvg =
+                (existing.quantity * existing.avg_cost_eur +
+                  item.trade.units * item.trade.pricePerUnit) /
+                newQty;
+              await updateHolding(item.existingId!, {
+                quantity: Math.round(newQty * 10000) / 10000,
+                avg_cost_eur: Math.round(newAvg * 100) / 100,
+              });
+            } else {
+              // SELL + merge — subtract units
+              const newQty = existing.quantity - item.trade.units;
+              if (newQty <= 0.0001) {
+                await deleteHolding(item.existingId!);
+              } else {
+                await updateHolding(item.existingId!, {
+                  quantity: Math.round(newQty * 10000) / 10000,
+                });
+              }
+            }
+            updated++;
+          }
+        }
+        importedIds.push(item.trade.transactionId);
+      } catch (err) {
+        console.error("[TR import] failed for", item.trade.isin, err);
+      }
+    }
+
+    await insertImportedTransactions(importedIds);
+    setImporting(false);
+
+    const dupMsg = trDupesSkipped > 0 ? `\n${trDupesSkipped} duplicates skipped` : "";
+    Alert.alert(
+      "Import Complete",
+      `✓ ${imported} holding${imported !== 1 ? "s" : ""} imported, ${updated} updated${dupMsg}`,
+      [{ text: "Go to Holdings", onPress: () => router.replace("/(tabs)/holdings" as never) }]
+    );
+  }, [trItems, trDupesSkipped, holdings, addHolding, updateHolding, deleteHolding]);
+
   const handleImport = useCallback(async () => {
+    if (isTRFlow) {
+      await handleTRImport();
+      return;
+    }
     if (importableCount === 0) {
       Alert.alert("Nothing to Import", "All holdings are set to Skip.");
       return;
@@ -614,6 +867,8 @@ export default function ImportScreen() {
       );
     }
   }, [
+    isTRFlow,
+    handleTRImport,
     importItems,
     importableCount,
     holdingCount,
@@ -638,6 +893,12 @@ export default function ImportScreen() {
       prev.map((item, i) =>
         i === index ? { ...item, duplicateAction: action } : item,
       ),
+    );
+  }
+
+  function updateTRItemAction(index: number, action: DuplicateAction) {
+    setTrItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, action } : item))
     );
   }
 
@@ -884,19 +1145,19 @@ export default function ImportScreen() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <View style={{ flex: 1 }}>
-            <View
-              style={[styles.content, { paddingTop: 20, paddingBottom: 0 }]}
-            >
+            <View style={[styles.content, { paddingTop: 20, paddingBottom: 0 }]}>
               <StepProgress step={3} />
               <Text style={[styles.stepTitle, { color: theme.text }]}>
-                Review Import
+                {isTRFlow ? `${selectedBroker!.name} Import` : "Review Import"}
               </Text>
               <Text style={[styles.stepSub, { color: theme.textSecondary }]}>
-                {importItems.length} holding
-                {importItems.length !== 1 ? "s" : ""} found — review before
-                importing
+                {isTRFlow
+                  ? `Found ${trItems.length} trade${trItems.length !== 1 ? "s" : ""} from ${selectedBroker!.name}`
+                  : `${importItems.length} holding${importItems.length !== 1 ? "s" : ""} found — review before importing`}
               </Text>
-              {detectedBroker && !bannerDismissed && (
+
+              {/* Detection banner (non-TR flows) */}
+              {!isTRFlow && detectedBroker && !bannerDismissed && (
                 <View
                   style={[
                     styles.detectionBanner,
@@ -930,7 +1191,9 @@ export default function ImportScreen() {
                   </TouchableOpacity>
                 </View>
               )}
-              {importItems.some((i) => i.holding.needsTickerConfirmation) && (
+
+              {/* Ticker-confirmation warning (non-TR flows) */}
+              {!isTRFlow && importItems.some((i) => i.holding.needsTickerConfirmation) && (
                 <View
                   style={[
                     styles.warnBanner,
@@ -943,20 +1206,49 @@ export default function ImportScreen() {
                   </Text>
                 </View>
               )}
+
+              {/* TR duplicate-skip notice */}
+              {isTRFlow && trDupesSkipped > 0 && (
+                <View
+                  style={[
+                    styles.detectionBanner,
+                    { backgroundColor: theme.tint + "18", borderColor: theme.tint + "33" },
+                  ]}
+                >
+                  <Feather name="check-circle" size={14} color={theme.tint} />
+                  <Text style={[styles.detectionBannerText, { color: theme.tint }]}>
+                    {trDupesSkipped} already-imported trade{trDupesSkipped !== 1 ? "s" : ""} skipped
+                  </Text>
+                </View>
+              )}
             </View>
 
-            <FlatList
-              data={importItems}
-              keyExtractor={(_, i) => String(i)}
-              renderItem={({ item, index }) => (
-                <PreviewRow
-                  item={item}
-                  onTickerChange={(t) => updateItemTicker(index, t)}
-                  onActionChange={(a) => updateItemAction(index, a)}
-                />
-              )}
-              contentContainerStyle={{ paddingBottom: 120 }}
-            />
+            {isTRFlow ? (
+              <FlatList
+                data={trItems}
+                keyExtractor={(_, i) => String(i)}
+                renderItem={({ item, index }) => (
+                  <TRPreviewRow
+                    item={item}
+                    onActionChange={(a) => updateTRItemAction(index, a)}
+                  />
+                )}
+                contentContainerStyle={{ paddingBottom: 120 }}
+              />
+            ) : (
+              <FlatList
+                data={importItems}
+                keyExtractor={(_, i) => String(i)}
+                renderItem={({ item, index }) => (
+                  <PreviewRow
+                    item={item}
+                    onTickerChange={(t) => updateItemTicker(index, t)}
+                    onActionChange={(a) => updateItemAction(index, a)}
+                  />
+                )}
+                contentContainerStyle={{ paddingBottom: 120 }}
+              />
+            )}
 
             <View
               style={[
@@ -1000,8 +1292,9 @@ export default function ImportScreen() {
                       },
                     ]}
                   >
-                    Import {importableCount} Holding
-                    {importableCount !== 1 ? "s" : ""}
+                    {isTRFlow
+                      ? `Import ${importableCount} trade${importableCount !== 1 ? "s" : ""}`
+                      : `Import ${importableCount} Holding${importableCount !== 1 ? "s" : ""}`}
                   </Text>
                 )}
               </TouchableOpacity>

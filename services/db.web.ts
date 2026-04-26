@@ -50,6 +50,18 @@ export type PortfolioHistoryRow = {
   created_at: string;
 };
 
+export type InvestorProfileRow = {
+  id: string;
+  risk_score: number;
+  profile_label: string;
+  income_oriented: number; // 0 | 1
+  investment_horizon: string;
+  investing_stage: string;
+  monthly_dca_range: string;
+  created_at: string;
+  updated_at: string;
+};
+
 const KEYS = {
   holdings: "folvio_v2_holdings",
   prices: "folvio_v2_prices",
@@ -282,4 +294,68 @@ export async function getPortfolioHistoryByRange(days: number): Promise<Portfoli
   return rows
     .filter((r) => r.date >= cutoff)
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// ─── Investor Profile ─────────────────────────────────────────────────────────
+
+const INVESTOR_PROFILE_KEY = "folvio_v2_investor_profile";
+
+export async function getInvestorProfile(): Promise<InvestorProfileRow | null> {
+  try {
+    const raw = await AsyncStorage.getItem(INVESTOR_PROFILE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function upsertInvestorProfile(
+  p: Omit<InvestorProfileRow, "id" | "created_at" | "updated_at">
+): Promise<void> {
+  const now = new Date().toISOString();
+  const existing = await getInvestorProfile();
+  const row: InvestorProfileRow = {
+    id: "profile",
+    ...p,
+    created_at: existing?.created_at ?? now,
+    updated_at: now,
+  };
+  await AsyncStorage.setItem(INVESTOR_PROFILE_KEY, JSON.stringify(row));
+}
+
+// ─── Imported Transactions ────────────────────────────────────────────────────
+
+const IMPORTED_TRANSACTIONS_KEY = "folvio_v2_imported_transactions";
+
+type ImportedTransactionRow = { transaction_id: string; imported_at: string };
+
+export async function getImportedTransactionIds(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  try {
+    const raw = await AsyncStorage.getItem(IMPORTED_TRANSACTIONS_KEY);
+    const rows: ImportedTransactionRow[] = raw ? JSON.parse(raw) : [];
+    const existing = new Set(rows.map((r) => r.transaction_id));
+    return new Set(ids.filter((id) => existing.has(id)));
+  } catch {
+    return new Set();
+  }
+}
+
+export async function insertImportedTransactions(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  try {
+    const raw = await AsyncStorage.getItem(IMPORTED_TRANSACTIONS_KEY);
+    const rows: ImportedTransactionRow[] = raw ? JSON.parse(raw) : [];
+    const existing = new Set(rows.map((r) => r.transaction_id));
+    const now = new Date().toISOString();
+    for (const id of ids) {
+      if (!existing.has(id)) {
+        rows.push({ transaction_id: id, imported_at: now });
+        existing.add(id);
+      }
+    }
+    await AsyncStorage.setItem(IMPORTED_TRANSACTIONS_KEY, JSON.stringify(rows));
+  } catch {
+    // silently ignore storage failures
+  }
 }

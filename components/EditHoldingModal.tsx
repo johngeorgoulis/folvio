@@ -277,9 +277,6 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
                 placeholderTextColor={theme.textTertiary}
                 keyboardType="decimal-pad"
               />
-              <Text style={[styles.hint, { color: theme.textTertiary }]}>
-                Live price will be fetched from Yahoo Finance
-              </Text>
             </View>
 
             {/* Yield + Date */}
