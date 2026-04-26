@@ -151,9 +151,14 @@ function buildSuffixWaterfall(exchange?: string): string[] {
   return [...preferred, ...rest];
 }
 
-// ─── ISIN-specific Symbol Waterfall ──────────────────────────────────────────
-// For ISINs where the standard ticker waterfall fails, try these exact EODHD
-// symbols in order. Winner is cached in AsyncStorage as "price_ticker_cache_{ISIN}".
+// ─── ISIN-specific Symbol Overrides ──────────────────────────────────────────
+// Hard-coded ISIN → EODHD symbol for tickers where auto-resolution consistently
+// fails. Tried before the waterfall; winner cached as "price_ticker_cache_{ISIN}".
+const ISIN_FORCED_SYMBOLS: Record<string, string> = {
+  "IE00BFMXXD54": "VUAA.XETRA",   // Vanguard S&P 500 UCITS ETF (Acc) — Xetra native format
+};
+
+// Fallback waterfall tried after the forced symbol fails.
 const ISIN_SYMBOL_WATERFALL: Record<string, string[]> = {
   "IE00BFMXXD54": ["VUAA.XETRA", "VUAA.DE", "VUAA.LSE", "VUAA.MI", "VUSA.XETRA"],
 };
@@ -339,14 +344,44 @@ export function normalizeToEUR(
   }
 }
 
+/** Shared helper: given a resolved EODHD symbol + real-time data, compute EUR price. */
+async function priceFromSymbolData(
+  ticker: string,
+  sym: string,
+  data: EodhdRealtimeData,
+): Promise<PriceResult> {
+  const currency = symbolCurrency(sym);
+  let fxRate = 1;
+  if (currency !== "EUR") {
+    const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+    try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+  }
+  const priceEUR = normalizeToEUR(data.close, currency, { [currency]: fxRate });
+  console.log(`[eodhd] ${ticker} (${sym}): ${data.close} ${currency} → ${priceEUR.toFixed(4)} EUR`);
+  return { ticker, priceEUR, currency, source: "api", lastFetched: new Date().toISOString(), isStale: false };
+}
+
 export async function fetchLivePrice(
   ticker: string,
   exchange: string,
   isin?: string,
 ): Promise<PriceResult | null> {
-  // If this ISIN has a known symbol list, try that waterfall first (with its own cache)
   if (isin) {
     const upper = isin.toUpperCase();
+
+    // 1. Hard forced symbol — bypass all caches and waterfall
+    const forcedSym = ISIN_FORCED_SYMBOLS[upper];
+    if (forcedSym) {
+      console.log(`[eodhd] ISIN ${upper}: forced symbol ${forcedSym}`);
+      const data = await eodhdFetchRealtime(forcedSym);
+      if (data) {
+        await setCachedISINSymbol(upper, forcedSym);
+        return priceFromSymbolData(ticker, forcedSym, data);
+      }
+      console.warn(`[eodhd] ISIN ${upper}: forced symbol ${forcedSym} returned no price, trying waterfall`);
+    }
+
+    // 2. ISIN waterfall (with its own cache)
     const isinWaterfall = ISIN_SYMBOL_WATERFALL[upper];
     if (isinWaterfall) {
       const cachedSymbol = await getCachedISINSymbol(upper);
@@ -354,14 +389,7 @@ export async function fetchLivePrice(
         const data = await eodhdFetchRealtime(cachedSymbol);
         if (data) {
           console.log(`[eodhd] ISIN ${upper} → cache hit: ${cachedSymbol}`);
-          const currency = symbolCurrency(cachedSymbol);
-          let fxRate = 1;
-          if (currency !== "EUR") {
-            const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-            try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
-          }
-          const priceEUR = normalizeToEUR(data.close, currency, { [currency]: fxRate });
-          return { ticker, priceEUR, currency, source: "api", lastFetched: new Date().toISOString(), isStale: false };
+          return priceFromSymbolData(ticker, cachedSymbol, data);
         }
         console.warn(`[eodhd] ISIN ${upper}: cached symbol ${cachedSymbol} stale, re-resolving`);
       }
@@ -371,45 +399,36 @@ export async function fetchLivePrice(
         if (data) {
           await setCachedISINSymbol(upper, sym);
           console.log(`[eodhd] ISIN ${upper} → resolved via ${sym}`);
-          const currency = symbolCurrency(sym);
-          let fxRate = 1;
-          if (currency !== "EUR") {
-            const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-            try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
-          }
-          const priceEUR = normalizeToEUR(data.close, currency, { [currency]: fxRate });
-          console.log(`[eodhd] ${ticker} (${sym}): ${data.close} ${currency} → ${priceEUR.toFixed(4)} EUR`);
-          return { ticker, priceEUR, currency, source: "api", lastFetched: new Date().toISOString(), isStale: false };
+          return priceFromSymbolData(ticker, sym, data);
         }
       }
       console.warn(`[eodhd] ISIN ${upper}: all ISIN-specific symbols failed, falling back to ticker waterfall`);
     }
   }
 
+  // 3. Standard ticker waterfall
   const resolved = await resolveEodhdSymbol(ticker, exchange);
+
+  // 4. XETRA explicit retry: if the waterfall failed for a Xetra holding, try
+  //    {TICKER}.XETRA directly — EODHD's native format for Xetra-listed ETFs.
+  if (!resolved && exchange === "XETRA") {
+    const xetraSymbol = `${ticker.toUpperCase()}.XETRA`;
+    console.log(`[eodhd] XETRA fallback: trying ${xetraSymbol} for ${ticker}`);
+    const data = await eodhdFetchRealtime(xetraSymbol);
+    if (data) {
+      await setCachedEodhdSymbol(ticker, xetraSymbol);
+      console.log(`[eodhd] ${ticker}: XETRA fallback succeeded via ${xetraSymbol}`);
+      return priceFromSymbolData(ticker, xetraSymbol, data);
+    }
+  }
+
   if (!resolved) {
     console.warn(`[eodhd] fetchLivePrice: no price found for ${ticker}`);
     return null;
   }
 
   const { symbol, data } = resolved;
-  const currency = symbolCurrency(symbol);
-  let fxRate = 1;
-  if (currency !== "EUR") {
-    const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-    try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
-  }
-  const priceEUR = normalizeToEUR(data.close, currency, { [currency]: fxRate });
-  console.log(`[eodhd] ${ticker} (${symbol}): ${data.close} ${currency} → ${priceEUR.toFixed(4)} EUR`);
-
-  return {
-    ticker,
-    priceEUR,
-    currency,
-    source: "api",
-    lastFetched: new Date().toISOString(),
-    isStale: false,
-  };
+  return priceFromSymbolData(ticker, symbol, data);
 }
 
 export async function getCachedPrice(ticker: string): Promise<PriceResult | null> {
@@ -683,6 +702,7 @@ export async function resolveExchangeFromISIN(isin: string, ticker: string): Pro
     "ERNE": "LSE",
     "IEGE": "BORSA_IT",
     "VUSA": "LSE",
+    "VUAA": "XETRA",
     "EQQQ": "XETRA",
     "VGOV": "LSE",
   };

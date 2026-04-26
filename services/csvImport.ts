@@ -1,6 +1,7 @@
 import Papa from "papaparse";
 import { parseTradeRepublicTrades } from "../parsers/tradeRepublic";
 import { parseLightyearTrades } from "../parsers/lightyear";
+import { parseDegiro } from "../parsers/degiro";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -398,19 +399,6 @@ export const BROKER_CONFIGS: BrokerConfig[] = [
     parse: parseRevolut,
   },
   {
-    key: "lightyear",
-    name: "Lightyear",
-    emoji: "🟡",
-    label: "Portfolio CSV",
-    instructions: [
-      "Open the Lightyear app",
-      "Go to Account → Statements",
-      "Export transaction history CSV",
-      "Upload the downloaded CSV below",
-    ],
-    parse: parseLightyear,
-  },
-  {
     key: "lightyear_tx",
     name: "Lightyear",
     emoji: "🟡",
@@ -437,17 +425,17 @@ export const BROKER_CONFIGS: BrokerConfig[] = [
     parse: parseTRAsHoldings,
   },
   {
-    key: "generic",
-    name: "Generic CSV",
-    emoji: "📄",
-    label: "Any broker",
+    key: "degiro",
+    name: "DEGIRO",
+    emoji: "🟠",
+    label: "Transactions CSV",
     instructions: [
-      "Prepare a CSV with these columns:",
-      "  Ticker, ISIN (optional), Quantity, Avg Cost (EUR), Purchase Date (YYYY-MM-DD)",
-      "Example row:",
-      "  VWCE,,10,130.50,2024-01-15",
+      "Log in to DEGIRO (web)",
+      "Go to Activity → Transactions",
+      "Click Export → CSV",
+      "Upload the downloaded CSV below",
     ],
-    parse: parseGeneric,
+    parse: parseDegiro,
   },
 ];
 
@@ -506,9 +494,6 @@ export function detectBroker(content: string): BrokerConfig | null {
   // Lightyear transaction CSV — specific set including "reference"; must come before old fx rate check
   if (LIGHTYEAR_TX_REQUIRED_HEADERS.every((h) => headers.has(h))) {
     return BROKER_CONFIGS.find((b) => b.key === "lightyear_tx") ?? null;
-  }
-  if (headers.has("fx rate") || headers.has("fx_rate") || headers.has("fxrate")) {
-    return BROKER_CONFIGS.find((b) => b.key === "lightyear") ?? null;
   }
   if (headers.has("state") || headers.has("quantity")) {
     return BROKER_CONFIGS.find((b) => b.key === "revolut") ?? null;

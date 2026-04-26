@@ -150,7 +150,7 @@ export default function HoldingDetailScreen() {
   async function handleRefreshPrice() {
     setRefreshing(true);
     try {
-      const result = await fetchLivePrice(holding!.ticker, holding!.exchange);
+      const result = await fetchLivePrice(holding!.ticker, holding!.exchange, holding!.isin || undefined);
       if (result) {
         await upsertPrice(holding!.ticker, result.priceEUR, "api");
         await refreshPrices();
@@ -408,7 +408,7 @@ export default function HoldingDetailScreen() {
         </View>
 
         {/* ── Broker Breakdown ──────────────────────────────────────────── */}
-        {brokerBreakdown.length > 0 && (
+        {brokerBreakdown.length >= 2 && (
           <View style={styles.card}>
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { fontFamily: "Inter_600SemiBold", color: theme.text }]}>

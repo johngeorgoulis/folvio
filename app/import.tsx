@@ -580,12 +580,12 @@ export default function ImportScreen() {
       } else if (msg === "NO_BUYS") {
         Alert.alert(
           "No Transactions Found",
-          `No BUY transactions found.\n\nThis might not be a ${broker.name} CSV. Try selecting "Generic CSV" instead.`,
+          `No BUY transactions found in this file.\n\nMake sure you selected the correct broker format.`,
         );
       } else {
         Alert.alert(
           "Parse Error",
-          `This doesn't look like a ${broker.name} CSV.\n\nTry selecting "Generic CSV" instead.`,
+          `This doesn't look like a ${broker.name} CSV.\n\nMake sure you selected the correct broker format.`,
         );
       }
     } finally {
