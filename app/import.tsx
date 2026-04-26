@@ -274,10 +274,7 @@ function PreviewRow({
       {/* Stats */}
       <View style={styles.previewMid}>
         <Text style={[styles.previewStat, { color: theme.textSecondary }]}>
-          ×
-          {item.holding.quantity % 1 === 0
-            ? item.holding.quantity.toFixed(0)
-            : item.holding.quantity.toFixed(4).replace(/\.?0+$/, "")}
+          ×{formatQuantity(item.holding.quantity)}
         </Text>
         <Text style={[styles.previewStat, { color: theme.textSecondary }]}>
           €{item.holding.avgCostEUR.toFixed(2)}

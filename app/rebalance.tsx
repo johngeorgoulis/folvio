@@ -29,7 +29,7 @@ import {
   type RebalanceResult,
 } from "@/services/allocationService";
 import { buildYahooSymbol } from "@/services/priceService";
-import { formatEUR } from "@/utils/format";
+import { formatEUR, formatQuantity } from "@/utils/format";
 
 const ETF_COLORS = [
   "#C9A84C",
@@ -399,7 +399,7 @@ export default function RebalanceScreen() {
                         </Text>
                       ) : (
                         <Text style={[styles.suggestionMain, { color: theme.text }]}>
-                          {s.units} × {symbol}
+                          {formatQuantity(s.units)} × {symbol}
                         </Text>
                       )}
                     </View>
