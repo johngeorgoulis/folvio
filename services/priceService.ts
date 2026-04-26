@@ -128,13 +128,14 @@ const EXCHANGE_EODHD_SUFFIXES: Record<string, string[]> = {
   "NASDAQ_CPH":   [".CO"],
 };
 
+// Priority suffixes are tried first for any exchange (incl. unknown/empty).
+// Order: XETRA, LSE, MI (Borsa IT), AS (Euronext AMS), SW (SIX) — the five
+// most common EU listing venues for UCITS ETFs.
 const ALL_EODHD_SUFFIXES: string[] = [
-  ".XETRA", ".DE",
-  ".LSE", ".L",
-  ".AS", ".AMS",
+  ".XETRA", ".LSE", ".MI", ".AS", ".SW",
+  ".DE", ".L", ".MIL", ".BIT", ".AMS",
   ".PA", ".EPA",
-  ".MI", ".MIL", ".BIT",
-  ".SW", ".SWX",
+  ".SWX",
   ".BR",
   ".MC",
   ".HE",
@@ -248,6 +249,8 @@ async function resolveEodhdSymbol(
     }
   }
 
+  // Clear any stale cached symbol so the next refresh starts fresh
+  try { await AsyncStorage.removeItem(EODHD_CACHE_PREFIX + upper); } catch { /* ignore */ }
   console.warn(`[eodhd] ${upper}: all suffixes failed — price unavailable`);
   return null;
 }

@@ -138,6 +138,13 @@ async function openAndInit(): Promise<SQLite.SQLiteDatabase> {
       transaction_id TEXT UNIQUE NOT NULL,
       imported_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS dca_contributions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticker TEXT NOT NULL,
+      broker TEXT NOT NULL,
+      units REAL NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
   // Migration: add yield_pct column to existing databases (safe to ignore if already exists)
   try {
@@ -152,6 +159,20 @@ async function openAndInit(): Promise<SQLite.SQLiteDatabase> {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         transaction_id TEXT UNIQUE NOT NULL,
         imported_at TEXT NOT NULL
+      )
+    `);
+  } catch {
+    // safe to ignore
+  }
+  // Migration: add dca_contributions table to existing databases
+  try {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS dca_contributions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ticker TEXT NOT NULL,
+        broker TEXT NOT NULL,
+        units REAL NOT NULL,
+        created_at TEXT NOT NULL
       )
     `);
   } catch {
@@ -475,4 +496,30 @@ export async function insertImportedTransactions(ids: string[]): Promise<void> {
       );
     }
   });
+}
+
+// ─── DCA Contributions ────────────────────────────────────────────────────────
+
+export async function insertContribution(ticker: string, broker: string, units: number): Promise<void> {
+  const database = await getDb();
+  const now = new Date().toISOString();
+  await database.runAsync(
+    `INSERT INTO dca_contributions (ticker, broker, units, created_at) VALUES (?, ?, ?, ?)`,
+    [ticker.toUpperCase(), broker, units, now]
+  );
+}
+
+export async function deleteContributionsForTicker(ticker: string): Promise<void> {
+  const database = await getDb();
+  await database.runAsync(
+    `DELETE FROM dca_contributions WHERE ticker = ?`,
+    [ticker.toUpperCase()]
+  );
+}
+
+export async function getAllContributionSummaries(): Promise<{ ticker: string; broker: string; units: number }[]> {
+  const database = await getDb();
+  return database.getAllAsync<{ ticker: string; broker: string; units: number }>(
+    `SELECT ticker, broker, SUM(units) as units FROM dca_contributions GROUP BY ticker, broker`
+  );
 }

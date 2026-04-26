@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,7 +19,8 @@ import { isExchangeOpen } from "@/utils/marketHours";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAllocation } from "@/context/AllocationContext";
-import { formatEUR, formatPct } from "@/utils/format";
+import { formatEUR, formatPct, formatQuantity } from "@/utils/format";
+import { getAllContributionSummaries } from "@/services/db";
 import { calculateAllocations, validateTargets } from "@/services/allocationService";
 import AddHoldingModal, { type AddHoldingInitialValues } from "@/components/AddHoldingModal";
 
@@ -61,6 +62,21 @@ export default function HoldingsScreen() {
 
   const [showAdd, setShowAdd]             = useState(false);
   const [prefillValues, setPrefillValues] = useState<AddHoldingInitialValues | undefined>();
+  const [brokerMap, setBrokerMap] = useState<Map<string, { broker: string; units: number }[]>>(new Map());
+
+  const loadBrokerMap = useCallback(() => {
+    getAllContributionSummaries().then((rows) => {
+      const map = new Map<string, { broker: string; units: number }[]>();
+      for (const row of rows) {
+        if (row.units <= 0) continue;
+        if (!map.has(row.ticker)) map.set(row.ticker, []);
+        map.get(row.ticker)!.push({ broker: row.broker, units: row.units });
+      }
+      setBrokerMap(map);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => { loadBrokerMap(); }, [holdings, loadBrokerMap]);
 
   const params = useLocalSearchParams<{
     prefillTicker?: string;
@@ -289,7 +305,7 @@ export default function HoldingsScreen() {
                 <View style={styles.detailStrip}>
                   <View style={styles.detailItem}>
                     <Text style={styles.detailLabel}>QTY</Text>
-                    <Text style={styles.detailValue}>{h.quantity}</Text>
+                    <Text style={styles.detailValue}>{formatQuantity(h.quantity)}</Text>
                   </View>
                   <View style={styles.detailItem}>
                     <Text style={styles.detailLabel}>AVG COST</Text>
@@ -306,6 +322,17 @@ export default function HoldingsScreen() {
                     <Text style={styles.detailValue}>{weight.toFixed(1)}%</Text>
                   </View>
                 </View>
+
+                {/* ── Broker breakdown (shown only when 2+ brokers) ─────── */}
+                {(() => {
+                  const brokers = brokerMap.get(h.ticker.toUpperCase()) ?? [];
+                  if (brokers.length < 2) return null;
+                  return (
+                    <Text style={styles.brokerBreakdown}>
+                      {brokers.map((b) => `${b.broker} ${formatQuantity(b.units)}`).join("  ·  ")}
+                    </Text>
+                  );
+                })()}
               </Pressable>
             </Swipeable>
           );
@@ -464,4 +491,14 @@ const styles = StyleSheet.create({
   detailItem:  { alignItems: "center", gap: 3 },
   detailLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: theme.textTertiary, letterSpacing: 0.5 },
   detailValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: theme.text },
+
+  // Broker breakdown (shown below detail strip when holding has 2+ brokers)
+  brokerBreakdown: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: theme.textTertiary,
+    textAlign: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
 });

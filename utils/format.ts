@@ -54,3 +54,10 @@ export function getMonthKey(dateStr: string): string {
 export function currentMonthKey(): string {
   return getMonthKey(new Date().toISOString());
 }
+
+export function formatQuantity(qty: number): string {
+  if (!isFinite(qty)) return "0";
+  const s = qty.toFixed(6);
+  // Remove trailing zeros after decimal point
+  return s.replace(/\.?0+$/, "");
+}

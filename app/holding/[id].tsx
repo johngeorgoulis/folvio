@@ -17,7 +17,7 @@ import Colors from "@/constants/colors";
 import { getPriceStatusLabel, isExchangeOpen } from "@/utils/marketHours";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useAllocation } from "@/context/AllocationContext";
-import { formatEUR, formatPct } from "@/utils/format";
+import { formatEUR, formatPct, formatQuantity } from "@/utils/format";
 import { getExchangeLabel } from "@/components/ExchangePicker";
 import EditHoldingModal from "@/components/EditHoldingModal";
 import { fetchLivePrice } from "@/services/priceService";
@@ -251,7 +251,7 @@ export default function HoldingDetailScreen() {
         {/* ── 2×3 Metrics Grid ─────────────────────────────────────────── */}
         <View style={[styles.card, styles.metricsCard]}>
           <View style={styles.metricRow}>
-            <MetricCell label="Quantity" value={`${holding.quantity} units`} />
+            <MetricCell label="Quantity" value={`${formatQuantity(holding.quantity)} units`} />
             <View style={styles.metricVDivider} />
             <MetricCell label="Avg Cost" value={formatEUR(holding.avg_cost_eur)} />
           </View>

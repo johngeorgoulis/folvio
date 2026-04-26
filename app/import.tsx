@@ -31,7 +31,8 @@ import { resolveExchangeFromISIN } from "@/services/priceService";
 import { parseTradeRepublicTrades, type ParsedTrade } from "@/parsers/tradeRepublic";
 import { parseLightyearTrades } from "@/parsers/lightyear";
 import { initETFDatabase } from "@/services/etfDatabaseService";
-import { getImportedTransactionIds, insertImportedTransactions } from "@/services/db";
+import { getImportedTransactionIds, insertImportedTransactions, insertContribution, deleteContributionsForTicker } from "@/services/db";
+import { formatQuantity } from "@/utils/format";
 
 type DuplicateAction = "skip" | "merge" | "replace";
 
@@ -360,10 +361,7 @@ function TRPreviewRow({
       {/* Units · price · date */}
       <View style={styles.previewMid}>
         <Text style={[styles.previewStat, { color: theme.textSecondary }]}>
-          {item.trade.type === "SELL" ? "−" : "+"}
-          {item.trade.units % 1 === 0
-            ? item.trade.units.toFixed(0)
-            : item.trade.units.toFixed(4).replace(/\.?0+$/, "")}
+          {item.trade.type === "SELL" ? "−" : "+"}{formatQuantity(item.trade.units)}
         </Text>
         <Text style={[styles.previewStat, { color: theme.textSecondary }]}>
           €{item.trade.pricePerUnit.toFixed(2)}
@@ -719,6 +717,7 @@ export default function ImportScreen() {
       try {
         if (item.isNew && item.trade.type === "BUY") {
           await addHolding(holdingData, 0);
+          await insertContribution(ticker, item.trade.broker, item.trade.units);
           imported++;
         } else if (!item.isNew) {
           const existing = holdings.find((h) => h.id === item.existingId);
@@ -726,7 +725,9 @@ export default function ImportScreen() {
 
           if (item.action === "replace") {
             await deleteHolding(item.existingId!);
+            await deleteContributionsForTicker(ticker);
             await addHolding(holdingData, 0);
+            await insertContribution(ticker, item.trade.broker, item.trade.units);
             updated++;
           } else if (item.action === "merge") {
             if (item.trade.type === "BUY") {
@@ -739,15 +740,18 @@ export default function ImportScreen() {
                 quantity: Math.round(newQty * 10000) / 10000,
                 avg_cost_eur: Math.round(newAvg * 100) / 100,
               });
+              await insertContribution(ticker, item.trade.broker, item.trade.units);
             } else {
               // SELL + merge — subtract units
               const newQty = existing.quantity - item.trade.units;
               if (newQty <= 0.0001) {
                 await deleteHolding(item.existingId!);
+                await deleteContributionsForTicker(ticker);
               } else {
                 await updateHolding(item.existingId!, {
                   quantity: Math.round(newQty * 10000) / 10000,
                 });
+                await insertContribution(ticker, item.trade.broker, -item.trade.units);
               }
             }
             updated++;
@@ -814,12 +818,16 @@ export default function ImportScreen() {
         yield_pct: null,
       };
 
+      const brokerName = selectedBroker?.name ?? "Unknown";
       try {
         if (!item.isDuplicate) {
           await addHolding(holdingData, 0);
+          await insertContribution(ticker, brokerName, item.holding.quantity);
         } else if (item.duplicateAction === "replace") {
           if (item.existingId) await deleteHolding(item.existingId);
+          await deleteContributionsForTicker(ticker);
           await addHolding(holdingData, 0);
+          await insertContribution(ticker, brokerName, item.holding.quantity);
         } else if (item.duplicateAction === "merge") {
           const existing = holdings.find((h) => h.id === item.existingId);
           if (existing && item.existingId) {
@@ -832,6 +840,7 @@ export default function ImportScreen() {
               quantity: newQty,
               avg_cost_eur: Math.round(newAvg * 100) / 100,
             });
+            await insertContribution(ticker, brokerName, item.holding.quantity);
           }
         }
         imported++;

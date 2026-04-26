@@ -12,7 +12,7 @@ import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import type { Holding } from "@/context/PortfolioContext";
 import { CHART_COLORS } from "@/components/DonutChart";
-import { formatEUR, formatPct } from "@/utils/format";
+import { formatEUR, formatPct, formatQuantity } from "@/utils/format";
 
 interface HoldingRowProps {
   holding: Holding;
@@ -107,7 +107,7 @@ export function HoldingRow({
 
         <View style={styles.bottom}>
           <Text style={[styles.meta, { color: theme.textSecondary }]}>
-            {holding.units.toFixed(holding.units % 1 === 0 ? 0 : 4)} units ·{" "}
+            {formatQuantity(holding.units)} units ·{" "}
             {holding.isin || holding.ticker}
           </Text>
           <View style={styles.allocationRow}>

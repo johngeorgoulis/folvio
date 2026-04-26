@@ -359,3 +359,44 @@ export async function insertImportedTransactions(ids: string[]): Promise<void> {
     // silently ignore storage failures
   }
 }
+
+// ─── DCA Contributions ────────────────────────────────────────────────────────
+
+const DCA_CONTRIBUTIONS_KEY = "folvio_v2_dca_contributions";
+
+type DcaContributionRow = { ticker: string; broker: string; units: number; created_at: string };
+
+export async function insertContribution(ticker: string, broker: string, units: number): Promise<void> {
+  try {
+    const rows = await readJSON<DcaContributionRow>(DCA_CONTRIBUTIONS_KEY);
+    const now = new Date().toISOString();
+    rows.push({ ticker: ticker.toUpperCase(), broker, units, created_at: now });
+    await writeJSON(DCA_CONTRIBUTIONS_KEY, rows);
+  } catch { /* ignore */ }
+}
+
+export async function deleteContributionsForTicker(ticker: string): Promise<void> {
+  try {
+    const rows = await readJSON<DcaContributionRow>(DCA_CONTRIBUTIONS_KEY);
+    await writeJSON(DCA_CONTRIBUTIONS_KEY, rows.filter((r) => r.ticker !== ticker.toUpperCase()));
+  } catch { /* ignore */ }
+}
+
+export async function getAllContributionSummaries(): Promise<{ ticker: string; broker: string; units: number }[]> {
+  try {
+    const rows = await readJSON<DcaContributionRow>(DCA_CONTRIBUTIONS_KEY);
+    const map = new Map<string, { ticker: string; broker: string; units: number }>();
+    for (const row of rows) {
+      const key = `${row.ticker}|${row.broker}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.units += row.units;
+      } else {
+        map.set(key, { ticker: row.ticker, broker: row.broker, units: row.units });
+      }
+    }
+    return Array.from(map.values());
+  } catch {
+    return [];
+  }
+}
