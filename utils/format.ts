@@ -56,8 +56,6 @@ export function currentMonthKey(): string {
 }
 
 export function formatQuantity(qty: number): string {
-  if (!isFinite(qty)) return "0";
-  const s = qty.toFixed(6);
-  // Remove trailing zeros after decimal point
-  return s.replace(/\.?0+$/, "");
+  if (!isFinite(qty)) return "0.0000";
+  return qty.toFixed(4);
 }

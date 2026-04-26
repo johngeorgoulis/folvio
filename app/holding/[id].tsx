@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
@@ -28,7 +28,7 @@ import {
   ASSET_CLASS_OPTIONS,
   type AssetClass,
 } from "@/services/assetClassService";
-import { upsertPrice } from "@/services/db";
+import { upsertPrice, getAllContributionSummaries } from "@/services/db";
 
 const theme = Colors.dark;
 
@@ -73,6 +73,17 @@ export default function HoldingDetailScreen() {
   const [localAssetClass, setLocalAssetClass] = useState<AssetClass>(
     () => getAssetClass(holding?.ticker ?? "", holding?.isin ?? "")
   );
+  const [brokerBreakdown, setBrokerBreakdown] = useState<{ broker: string; units: number }[]>([]);
+
+  useEffect(() => {
+    if (!holding) return;
+    getAllContributionSummaries().then((rows) => {
+      const filtered = rows.filter(
+        (r) => r.ticker === holding.ticker.toUpperCase() && r.units > 0
+      );
+      setBrokerBreakdown(filtered);
+    }).catch(() => {});
+  }, [holding?.ticker]);
 
   if (!holding) {
     return (
@@ -395,6 +406,26 @@ export default function HoldingDetailScreen() {
             </View>
           )}
         </View>
+
+        {/* ── Broker Breakdown ──────────────────────────────────────────── */}
+        {brokerBreakdown.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { fontFamily: "Inter_600SemiBold", color: theme.text }]}>
+                Broker Breakdown
+              </Text>
+            </View>
+            {brokerBreakdown.map((b, idx) => (
+              <View
+                key={b.broker}
+                style={[styles.infoRow, { borderBottomWidth: idx === brokerBreakdown.length - 1 ? 0 : 1 }]}
+              >
+                <Text style={styles.infoLabel}>{b.broker}</Text>
+                <Text style={styles.infoValue}>{formatQuantity(b.units)} units</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       {/* ── Bottom action bar ─────────────────────────────────────────────── */}

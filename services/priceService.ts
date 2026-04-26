@@ -151,6 +151,29 @@ function buildSuffixWaterfall(exchange?: string): string[] {
   return [...preferred, ...rest];
 }
 
+// ─── ISIN-specific Symbol Waterfall ──────────────────────────────────────────
+// For ISINs where the standard ticker waterfall fails, try these exact EODHD
+// symbols in order. Winner is cached in AsyncStorage as "price_ticker_cache_{ISIN}".
+const ISIN_SYMBOL_WATERFALL: Record<string, string[]> = {
+  "IE00BFMXXD54": ["VUAA.XETRA", "VUAA.DE", "VUAA.LSE", "VUAA.MI", "VUSA.XETRA"],
+};
+
+const ISIN_TICKER_CACHE_PREFIX = "price_ticker_cache_";
+
+async function getCachedISINSymbol(isin: string): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(ISIN_TICKER_CACHE_PREFIX + isin.toUpperCase());
+  } catch {
+    return null;
+  }
+}
+
+async function setCachedISINSymbol(isin: string, symbol: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(ISIN_TICKER_CACHE_PREFIX + isin.toUpperCase(), symbol);
+  } catch { /* ignore */ }
+}
+
 // ─── Symbol Resolution Cache ──────────────────────────────────────────────────
 // AsyncStorage: "eodhd_symbol_cache_{TICKER}" → winning EODHD symbol
 // (e.g. "VWCE" → "VWCE.XETRA"). Bypasses the waterfall on every subsequent fetch.
@@ -178,18 +201,22 @@ async function eodhdFetchRealtime(symbol: string): Promise<EodhdRealtimeData | n
   const key = eodhdApiKey();
   if (!key) return null;
   const url = `${EODHD_BASE}/real-time/${encodeURIComponent(symbol)}?api_token=${key}&fmt=json`;
+  console.log(`[eodhdFetchRealtime] GET ${url.replace(key, "***")}`);
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 8_000);
     const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal })
       .finally(() => clearTimeout(timer));
+    console.log(`[eodhdFetchRealtime] ${symbol} → HTTP ${res.status}`);
     if (!res.ok) return null;
     const data = await res.json();
+    console.log(`[eodhdFetchRealtime] ${symbol} → ${JSON.stringify(data).slice(0, 200)}`);
     const item: EodhdRealtimeData = Array.isArray(data) ? data[0] : data;
     // Treat NA / 0 / null close as invalid
     if (!item || !item.close || item.close <= 0 || (item.close as unknown) === "NA") return null;
     return item;
-  } catch {
+  } catch (err) {
+    console.warn(`[eodhdFetchRealtime] ${symbol} error:`, err);
     return null;
   }
 }
@@ -314,8 +341,51 @@ export function normalizeToEUR(
 
 export async function fetchLivePrice(
   ticker: string,
-  exchange: string
+  exchange: string,
+  isin?: string,
 ): Promise<PriceResult | null> {
+  // If this ISIN has a known symbol list, try that waterfall first (with its own cache)
+  if (isin) {
+    const upper = isin.toUpperCase();
+    const isinWaterfall = ISIN_SYMBOL_WATERFALL[upper];
+    if (isinWaterfall) {
+      const cachedSymbol = await getCachedISINSymbol(upper);
+      if (cachedSymbol) {
+        const data = await eodhdFetchRealtime(cachedSymbol);
+        if (data) {
+          console.log(`[eodhd] ISIN ${upper} → cache hit: ${cachedSymbol}`);
+          const currency = symbolCurrency(cachedSymbol);
+          let fxRate = 1;
+          if (currency !== "EUR") {
+            const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+            try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+          }
+          const priceEUR = normalizeToEUR(data.close, currency, { [currency]: fxRate });
+          return { ticker, priceEUR, currency, source: "api", lastFetched: new Date().toISOString(), isStale: false };
+        }
+        console.warn(`[eodhd] ISIN ${upper}: cached symbol ${cachedSymbol} stale, re-resolving`);
+      }
+      for (const sym of isinWaterfall) {
+        console.log(`[eodhd] ISIN ${upper}: trying ${sym}`);
+        const data = await eodhdFetchRealtime(sym);
+        if (data) {
+          await setCachedISINSymbol(upper, sym);
+          console.log(`[eodhd] ISIN ${upper} → resolved via ${sym}`);
+          const currency = symbolCurrency(sym);
+          let fxRate = 1;
+          if (currency !== "EUR") {
+            const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+            try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+          }
+          const priceEUR = normalizeToEUR(data.close, currency, { [currency]: fxRate });
+          console.log(`[eodhd] ${ticker} (${sym}): ${data.close} ${currency} → ${priceEUR.toFixed(4)} EUR`);
+          return { ticker, priceEUR, currency, source: "api", lastFetched: new Date().toISOString(), isStale: false };
+        }
+      }
+      console.warn(`[eodhd] ISIN ${upper}: all ISIN-specific symbols failed, falling back to ticker waterfall`);
+    }
+  }
+
   const resolved = await resolveEodhdSymbol(ticker, exchange);
   if (!resolved) {
     console.warn(`[eodhd] fetchLivePrice: no price found for ${ticker}`);
@@ -360,20 +430,20 @@ export async function getCachedPrice(ticker: string): Promise<PriceResult | null
   }
 }
 
-async function fetchAndCacheOne(ticker: string, exchange: string): Promise<void> {
+async function fetchAndCacheOne(ticker: string, exchange: string, isin?: string): Promise<void> {
   const cached = await getCachedPrice(ticker);
 
   if (cached?.source === "manual") return;
   if (cached && !cached.isStale) return;
 
-  const result = await fetchLivePrice(ticker, exchange);
+  const result = await fetchLivePrice(ticker, exchange, isin);
   if (result) {
     await upsertPrice(ticker, result.priceEUR, "api");
   }
 }
 
 export async function refreshAllPrices(
-  holdings: Pick<HoldingRow, "ticker" | "exchange">[]
+  holdings: Pick<HoldingRow, "ticker" | "exchange" | "isin">[]
 ): Promise<void> {
   if (holdings.length === 0) return;
 
@@ -384,7 +454,7 @@ export async function refreshAllPrices(
   for (let i = 0; i < unique.length; i += MAX_CONCURRENT) {
     const batch = unique.slice(i, i + MAX_CONCURRENT);
     await Promise.allSettled(
-      batch.map((h) => fetchAndCacheOne(h.ticker, h.exchange))
+      batch.map((h) => fetchAndCacheOne(h.ticker, h.exchange, h.isin))
     );
   }
 }
