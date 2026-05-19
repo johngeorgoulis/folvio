@@ -221,16 +221,15 @@ function parseIBKR(content: string): ParsedHolding[] {
     const price    = parseNum(row[8]?.trim() || "0");
 
     if (!symbol || qty === 0) continue;
-    if (qty < 0) continue; // negative = sell, skip
 
     txs.push({
       ticker: symbol,
       isin:   isinMap[symbol],
-      qty,
+      qty:    Math.abs(qty),
       price,
       currency,
       date,
-      isBuy: true,
+      isBuy: qty > 0,
     });
   }
 

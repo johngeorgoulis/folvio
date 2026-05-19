@@ -44,19 +44,11 @@ const router: IRouter = Router();
  *          assetMix, weightedAverageTER, dcaMonthlyEUR } }
  * Returns: { insights: Array<{ title, body, type }> }
  */
-router.get("/debug-env", (_req, res) => {
-  res.json({
-    ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
-    FMP_API_KEY: !!process.env.FMP_API_KEY,
-    NODE_ENV: process.env.NODE_ENV ?? null,
-  });
-});
-
 router.post("/insights", async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    console.warn("[insights] ANTHROPIC_API_KEY is not set");
-    res.status(500).json({ error: "ANTHROPIC_API_KEY not configured on server" });
+    console.warn("[insights] API key not configured");
+    res.status(500).json({ error: "AI insights are not available" });
     return;
   }
 
@@ -79,7 +71,7 @@ router.post("/insights", async (req, res) => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 1024,
         system: SYSTEM_PROMPT,
         messages: [

@@ -819,24 +819,28 @@ export default function SettingsScreen() {
       )}
 
       {/* ── DEV MENU ─────────────────────────────────────────────────────── */}
-      <Text style={[styles.sectionLabel, { color: "#F59E0B", marginTop: 10 }]}>DEV — TEST SUBSCRIPTION</Text>
-      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: "#F59E0B44" }]}>
-        {(["free", "investor", "pro"] as SubscriptionTier[]).map((t, i, arr) => (
-          <TouchableOpacity
-            key={t}
-            style={[styles.settingRow, { borderBottomColor: i < arr.length - 1 ? theme.border : "transparent" }]}
-            onPress={() => {
-              if (t === "free") clearSubscription();
-              else setSubscription(t, "monthly");
-            }}
-          >
-            <Text style={[styles.rowLabel, { color: tier === t ? theme.tint : theme.text }]}>
-              {t === "free" ? "Free" : t === "investor" ? "Investor (€4,99/mo)" : "Pro (€8,99/mo)"}
-            </Text>
-            {tier === t && <Feather name="check" size={16} color={theme.tint} />}
-          </TouchableOpacity>
-        ))}
-      </View>
+      {__DEV__ && (
+        <>
+          <Text style={[styles.sectionLabel, { color: "#F59E0B", marginTop: 10 }]}>DEV — TEST SUBSCRIPTION</Text>
+          <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: "#F59E0B44" }]}>
+            {(["free", "investor", "pro"] as SubscriptionTier[]).map((t, i, arr) => (
+              <TouchableOpacity
+                key={t}
+                style={[styles.settingRow, { borderBottomColor: i < arr.length - 1 ? theme.border : "transparent" }]}
+                onPress={() => {
+                  if (t === "free") clearSubscription();
+                  else setSubscription(t, "monthly");
+                }}
+              >
+                <Text style={[styles.rowLabel, { color: tier === t ? theme.tint : theme.text }]}>
+                  {t === "free" ? "Free" : t === "investor" ? "Investor (€4,99/mo)" : "Pro (€8,99/mo)"}
+                </Text>
+                {tier === t && <Feather name="check" size={16} color={theme.tint} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
 
       {/* ── 5. ABOUT ─────────────────────────────────────────────────────── */}
       <Text style={labelStyle}>ABOUT</Text>

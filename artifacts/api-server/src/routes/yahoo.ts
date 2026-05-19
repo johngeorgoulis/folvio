@@ -63,15 +63,24 @@ async function yahooFetch(url: string): Promise<unknown> {
   return res.json();
 }
 
+const ALLOWED_INTERVALS = new Set(["1m","2m","5m","15m","30m","60m","90m","1h","1d","5d","1wk","1mo","3mo"]);
+const ALLOWED_RANGES = new Set(["1d","5d","1mo","3mo","6mo","1y","2y","5y","10y","ytd","max"]);
+
 router.get("/yahoo/chart/:symbol", async (req, res) => {
   const { symbol } = req.params;
   const { interval = "1d", range, period1, period2 } = req.query as Record<string, string>;
+
+  const safeInterval = ALLOWED_INTERVALS.has(interval) ? interval : "1d";
+  const safeRange = range && ALLOWED_RANGES.has(range) ? range : "1mo";
+  const safePeriod1 = period1 && /^\d+$/.test(period1) ? period1 : undefined;
+  const safePeriod2 = period2 && /^\d+$/.test(period2) ? period2 : undefined;
+
   try {
     let url: string;
-    if (period1 && period2) {
-      url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&period1=${period1}&period2=${period2}`;
+    if (safePeriod1 && safePeriod2) {
+      url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${safeInterval}&period1=${safePeriod1}&period2=${safePeriod2}`;
     } else {
-      url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range ?? "1mo"}`;
+      url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${safeInterval}&range=${safeRange}`;
     }
     const data = await yahooFetch(url);
     res.json(data);
