@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -122,6 +123,7 @@ function PaidPlanCard({
   badge,
   badgeColor,
   onSubscribe,
+  disabled,
 }: {
   tier:        SubscriptionTier;
   label:       string;
@@ -132,6 +134,7 @@ function PaidPlanCard({
   badge?:      string;
   badgeColor?: string;
   onSubscribe: (tier: SubscriptionTier) => void;
+  disabled?:   boolean;
 }) {
   const price      = PRICES[tier as "investor" | "pro"][billing];
   const monthlyEq  = billing === "yearly"
@@ -174,8 +177,9 @@ function PaidPlanCard({
         style={[styles.cta, { backgroundColor: accentColor }]}
         onPress={() => onSubscribe(tier)}
         activeOpacity={0.85}
+        disabled={disabled}
       >
-        <Text style={styles.ctaText}>Subscribe to {label}</Text>
+        <Text style={styles.ctaText}>{disabled ? "Processing…" : `Subscribe to ${label}`}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -189,38 +193,88 @@ interface Props {
   trigger?: string;
 }
 
+// ─── RevenueCat package IDs ────────────────────────────────────────────────────
+// These must match the package identifiers configured in the RevenueCat dashboard.
+const RC_PACKAGE_IDS: Record<SubscriptionTier, Record<BillingPeriod, string>> = {
+  free:     { monthly: "",                    yearly: "" },
+  investor: { monthly: "$rc_monthly_investor", yearly: "$rc_annual_investor" },
+  pro:      { monthly: "$rc_monthly_pro",      yearly: "$rc_annual_pro" },
+};
+
 export default function PaywallModal({ visible, onClose, trigger }: Props) {
   const [billing, setBilling] = useState<BillingPeriod>("yearly");
-  const { setSubscription, tier: currentTier } = useSubscription();
+  const [purchasing, setPurchasing] = useState(false);
+  const { refreshTier, setSubscription, tier: currentTier } = useSubscription();
   const required = requiredTierFor(trigger);
 
-  async function handleSubscribe(tier: SubscriptionTier) {
-    const tierName = tier === "investor" ? "Investor" : "Pro";
-    const price    = PRICES[tier as "investor" | "pro"][billing];
+  // Prefetch offerings when modal opens (warms the cache)
+  useEffect(() => {
+    if (!visible || Platform.OS === "web") return;
+    import("react-native-purchases")
+      .then(({ default: Purchases }) => Purchases.getOfferings())
+      .catch(() => {});
+  }, [visible]);
 
-    // TODO: Replace with RevenueCat purchase call before release.
-    Alert.alert(
-      `Subscribe to ${tierName}`,
-      `€${price.toFixed(2).replace(".", ",")}/${billing === "monthly" ? "month" : "year"}\n\nSubscription managed via App Store. Cancel anytime.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Confirm (Test)",
-          onPress: async () => {
-            await setSubscription(tier, billing);
-            onClose();
-          },
-        },
-      ]
-    );
+  async function handleSubscribe(tier: SubscriptionTier) {
+    if (Platform.OS === "web" || !process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY) {
+      // Dev / web fallback
+      if (__DEV__) {
+        await setSubscription(tier, billing);
+        onClose();
+      } else {
+        Alert.alert("Not available", "Subscriptions are only available in the iOS app.");
+      }
+      return;
+    }
+
+    setPurchasing(true);
+    try {
+      const Purchases = (await import("react-native-purchases")).default;
+      const offerings = await Purchases.getOfferings();
+      const current   = offerings.current;
+      if (!current) throw new Error("No offerings available");
+
+      const packageId = RC_PACKAGE_IDS[tier][billing];
+      const pkg = current.availablePackages.find((p) => p.identifier === packageId)
+        ?? (billing === "monthly" ? current.monthly : current.annual);
+
+      if (!pkg) throw new Error(`Package not found: ${packageId}`);
+
+      await Purchases.purchasePackage(pkg);
+      await refreshTier();
+      onClose();
+    } catch (err: unknown) {
+      const isCancel =
+        err &&
+        typeof err === "object" &&
+        "userCancelled" in err &&
+        (err as { userCancelled: boolean }).userCancelled;
+      if (!isCancel) {
+        Alert.alert("Purchase failed", "Something went wrong. Please try again.");
+        console.error("[PaywallModal] purchasePackage error:", err);
+      }
+    } finally {
+      setPurchasing(false);
+    }
   }
 
-  function handleRestorePurchase() {
-    Alert.alert(
-      "Restore Purchase",
-      "Restoring purchases via App Store…\n\n(RevenueCat restore will be wired here before release.)",
-      [{ text: "OK" }]
-    );
+  async function handleRestorePurchase() {
+    if (Platform.OS === "web" || !process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY) {
+      Alert.alert("Not available", "Purchase restore is only available in the iOS app.");
+      return;
+    }
+    setPurchasing(true);
+    try {
+      const Purchases = (await import("react-native-purchases")).default;
+      await Purchases.restorePurchases();
+      await refreshTier();
+      Alert.alert("Purchases restored", "Your subscription has been restored.");
+      onClose();
+    } catch {
+      Alert.alert("Restore failed", "Could not restore purchases. Please contact support.");
+    } finally {
+      setPurchasing(false);
+    }
   }
 
   return (
@@ -296,6 +350,7 @@ export default function PaywallModal({ visible, onClose, trigger }: Props) {
             badge="RECOMMENDED"
             badgeColor="#3B82F6"
             onSubscribe={handleSubscribe}
+            disabled={purchasing}
           />
 
           {/* Pro plan */}
@@ -309,10 +364,11 @@ export default function PaywallModal({ visible, onClose, trigger }: Props) {
             badge="PRO"
             badgeColor={theme.tint}
             onSubscribe={handleSubscribe}
+            disabled={purchasing}
           />
 
           {/* Restore purchase */}
-          <TouchableOpacity onPress={handleRestorePurchase} style={styles.restoreBtn}>
+          <TouchableOpacity onPress={handleRestorePurchase} style={styles.restoreBtn} disabled={purchasing}>
             <Text style={styles.restoreText}>Restore Purchase</Text>
           </TouchableOpacity>
 

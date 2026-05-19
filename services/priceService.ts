@@ -56,16 +56,20 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_CONCURRENT = 5;
 
 // ─── EODHD Data Source ────────────────────────────────────────────────────────
-// Direct EODHD API calls using EXPO_PUBLIC_EODHD_API_KEY.
-//   Real-time:  GET /real-time/{symbol}?api_token={key}&fmt=json
-//   Historical: GET /eod/{symbol}?api_token={key}&fmt=json&from={date}
+// All EODHD calls are proxied through the API server so the key never touches
+// the client bundle.
+//   Real-time:  GET /api/eodhd/real-time/{symbol}
+//   Historical: GET /api/eodhd/eod/{symbol}?from={date}
 
-const EODHD_BASE = "https://eodhd.com/api";
+function eodhdRealtimeUrl(symbol: string): string {
+  const base = (process.env.EXPO_PUBLIC_API_SERVER_URL ?? "").replace(/\/$/, "");
+  return `${base}/api/eodhd/real-time/${encodeURIComponent(symbol)}`;
+}
 
-function eodhdApiKey(): string {
-  const key = process.env.EXPO_PUBLIC_EODHD_API_KEY ?? "";
-  console.log(`[eodhdApiKey] key ${key ? `present (length=${key.length})` : "MISSING or empty"}`);
-  return key;
+function eodhdEodUrl(symbol: string, fromDate?: string): string {
+  const base = (process.env.EXPO_PUBLIC_API_SERVER_URL ?? "").replace(/\/$/, "");
+  const from = fromDate ? `?from=${fromDate}` : "";
+  return `${base}/api/eodhd/eod/${encodeURIComponent(symbol)}${from}`;
 }
 
 interface EodhdRealtimeData {
@@ -201,23 +205,17 @@ async function setCachedEodhdSymbol(ticker: string, symbol: string): Promise<voi
 
 // ─── Core EODHD Fetchers ──────────────────────────────────────────────────────
 
-/** Low-level: fetch EODHD real-time quote for an exact symbol. Returns null on any error. */
+/** Low-level: fetch EODHD real-time quote for an exact symbol via server proxy. Returns null on any error. */
 async function eodhdFetchRealtime(symbol: string): Promise<EodhdRealtimeData | null> {
-  const key = eodhdApiKey();
-  if (!key) return null;
-  const url = `${EODHD_BASE}/real-time/${encodeURIComponent(symbol)}?api_token=${key}&fmt=json`;
-  console.log(`[eodhdFetchRealtime] GET ${url.replace(key, "***")}`);
+  const url = eodhdRealtimeUrl(symbol);
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 8_000);
     const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal })
       .finally(() => clearTimeout(timer));
-    console.log(`[eodhdFetchRealtime] ${symbol} → HTTP ${res.status}`);
     if (!res.ok) return null;
     const data = await res.json();
-    console.log(`[eodhdFetchRealtime] ${symbol} → ${JSON.stringify(data).slice(0, 200)}`);
     const item: EodhdRealtimeData = Array.isArray(data) ? data[0] : data;
-    // Treat NA / 0 / null close as invalid
     if (!item || !item.close || item.close <= 0 || (item.close as unknown) === "NA") return null;
     return item;
   } catch (err) {
@@ -226,11 +224,9 @@ async function eodhdFetchRealtime(symbol: string): Promise<EodhdRealtimeData | n
   }
 }
 
-/** Fetch EODHD EOD historical bars from fromDate onwards, sorted ascending by date. */
+/** Fetch EODHD EOD historical bars from fromDate onwards via server proxy, sorted ascending by date. */
 async function eodhdFetchHistory(symbol: string, fromDate: string): Promise<EodhdHistoricalBar[]> {
-  const key = eodhdApiKey();
-  if (!key) return [];
-  const url = `${EODHD_BASE}/eod/${encodeURIComponent(symbol)}?api_token=${key}&fmt=json&from=${fromDate}`;
+  const url = eodhdEodUrl(symbol, fromDate);
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12_000);

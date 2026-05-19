@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import React, {
   createContext,
   useCallback,
@@ -12,7 +13,7 @@ import React, {
 export type SubscriptionTier = "free" | "investor" | "pro";
 export type BillingPeriod = "monthly" | "yearly";
 
-// ─── Pricing ───────────────────────────────────────────────────────────────────
+// ─── Pricing (display only — real prices come from RevenueCat offerings) ───────
 
 export const PRICES = {
   investor: { monthly: 4.99, yearly: 39.99 },
@@ -27,7 +28,6 @@ export const YEARLY_SAVINGS_PCT = {
 // ─── Feature gates ─────────────────────────────────────────────────────────────
 
 export interface FeatureGates {
-  // Investor+
   canAddUnlimitedHoldings:   boolean;
   canUseFullRebalance:       boolean;
   canUseAllScenarios:        boolean;
@@ -35,7 +35,6 @@ export interface FeatureGates {
   canUsePushNotifications:   boolean;
   canUseBenchmarkComparison: boolean;
   canImportCSV:              boolean;
-  // Pro only
   canExportCSV:              boolean;
   canUseAIInsights:          boolean;
   canUseCrisisBacktest:      boolean;
@@ -46,7 +45,6 @@ function getFeatureGates(tier: SubscriptionTier): FeatureGates {
   const isInvestorOrHigher = tier === "investor" || tier === "pro";
   const isPro              = tier === "pro";
   return {
-    // Investor+
     canAddUnlimitedHoldings:   isInvestorOrHigher,
     canUseFullRebalance:       isInvestorOrHigher,
     canUseAllScenarios:        isInvestorOrHigher,
@@ -54,13 +52,55 @@ function getFeatureGates(tier: SubscriptionTier): FeatureGates {
     canUsePushNotifications:   isInvestorOrHigher,
     canUseBenchmarkComparison: isInvestorOrHigher,
     canImportCSV:              isInvestorOrHigher,
-    // Pro only
     canExportCSV:              isPro,
     canUseAIInsights:          isPro,
     canUseCrisisBacktest:      isPro,
     canUseWealthProjections:   isPro,
   };
 }
+
+// ─── RevenueCat helpers ────────────────────────────────────────────────────────
+
+// RevenueCat entitlement IDs — must match what's configured in the RC dashboard.
+const ENTITLEMENT_INVESTOR = "investor";
+const ENTITLEMENT_PRO      = "pro";
+
+// RevenueCat iOS public API key — safe to bundle (it's a publishable key, not a secret).
+const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? "";
+
+let rcConfigured = false;
+
+async function configureRevenueCat(): Promise<void> {
+  if (Platform.OS === "web" || !RC_API_KEY || rcConfigured) return;
+  try {
+    const Purchases = (await import("react-native-purchases")).default;
+    Purchases.configure({ apiKey: RC_API_KEY });
+    rcConfigured = true;
+  } catch (err) {
+    console.warn("[RevenueCat] configure failed:", err);
+  }
+}
+
+async function fetchTierFromRevenueCat(): Promise<SubscriptionTier> {
+  if (Platform.OS === "web" || !RC_API_KEY) return "free";
+  try {
+    const Purchases = (await import("react-native-purchases")).default;
+    const info = await Purchases.getCustomerInfo();
+    if (info.entitlements.active[ENTITLEMENT_PRO])      return "pro";
+    if (info.entitlements.active[ENTITLEMENT_INVESTOR]) return "investor";
+    return "free";
+  } catch (err) {
+    console.warn("[RevenueCat] getCustomerInfo failed:", err);
+    return "free";
+  }
+}
+
+// ─── Dev-only AsyncStorage fallback (hidden behind __DEV__ at call sites) ──────
+
+const DEV_STORAGE_KEYS = {
+  tier:    "folvio_subscription_tier",
+  billing: "folvio_subscription_billing",
+} as const;
 
 // ─── Context ───────────────────────────────────────────────────────────────────
 
@@ -69,21 +109,16 @@ interface SubscriptionContextType extends FeatureGates {
   billingPeriod: BillingPeriod | null;
   isLoaded:      boolean;
 
-  // Paywall sheet
   paywallVisible: boolean;
   paywallTrigger: string | undefined;
   showPaywall:    (trigger?: string) => void;
   hidePaywall:    () => void;
 
-  // Subscription management (stub — wire to RevenueCat before release)
+  refreshTier:       () => Promise<void>;
+  // Dev-only overrides (guarded by __DEV__ at call sites)
   setSubscription:   (tier: SubscriptionTier, period: BillingPeriod) => Promise<void>;
   clearSubscription: () => Promise<void>;
 }
-
-const STORAGE_KEYS = {
-  tier:    "folvio_subscription_tier",
-  billing: "folvio_subscription_billing",
-} as const;
 
 const SubscriptionContext = createContext<SubscriptionContextType | null>(null);
 
@@ -96,17 +131,41 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [paywallVisible, setPaywallVisible] = useState(false);
   const [paywallTrigger, setPaywallTrigger] = useState<string | undefined>();
 
-  // Load persisted subscription on mount
+  const refreshTier = useCallback(async () => {
+    const resolved = await fetchTierFromRevenueCat();
+    _setTier(resolved);
+  }, []);
+
   useEffect(() => {
     (async () => {
-      try {
-        const [t, b] = await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEYS.tier),
-          AsyncStorage.getItem(STORAGE_KEYS.billing),
-        ]);
-        if (t === "investor" || t === "pro") _setTier(t);
-        if (b === "monthly"  || b === "yearly") _setBilling(b);
-      } catch {}
+      await configureRevenueCat();
+
+      if (Platform.OS !== "web" && RC_API_KEY) {
+        // Live path: read from RevenueCat
+        const resolved = await fetchTierFromRevenueCat();
+        _setTier(resolved);
+
+        // Subscribe to real-time entitlement changes (e.g. after purchase)
+        try {
+          const Purchases = (await import("react-native-purchases")).default;
+          Purchases.addCustomerInfoUpdateListener((info) => {
+            if (info.entitlements.active[ENTITLEMENT_PRO])      _setTier("pro");
+            else if (info.entitlements.active[ENTITLEMENT_INVESTOR]) _setTier("investor");
+            else _setTier("free");
+          });
+        } catch {}
+      } else if (__DEV__) {
+        // Dev fallback: read from AsyncStorage override
+        try {
+          const [t, b] = await Promise.all([
+            AsyncStorage.getItem(DEV_STORAGE_KEYS.tier),
+            AsyncStorage.getItem(DEV_STORAGE_KEYS.billing),
+          ]);
+          if (t === "investor" || t === "pro") _setTier(t);
+          if (b === "monthly"  || b === "yearly") _setBilling(b);
+        } catch {}
+      }
+
       setIsLoaded(true);
     })();
   }, []);
@@ -121,15 +180,17 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     setPaywallTrigger(undefined);
   }, []);
 
-  // TODO: Replace with actual RevenueCat purchase flow before release.
+  // Dev-only: bypass RevenueCat via AsyncStorage
   const setSubscription = useCallback(
     async (newTier: SubscriptionTier, newPeriod: BillingPeriod) => {
       _setTier(newTier);
       _setBilling(newPeriod);
-      await Promise.all([
-        AsyncStorage.setItem(STORAGE_KEYS.tier,    newTier),
-        AsyncStorage.setItem(STORAGE_KEYS.billing, newPeriod),
-      ]);
+      if (__DEV__) {
+        await Promise.all([
+          AsyncStorage.setItem(DEV_STORAGE_KEYS.tier,    newTier),
+          AsyncStorage.setItem(DEV_STORAGE_KEYS.billing, newPeriod),
+        ]);
+      }
     },
     []
   );
@@ -137,10 +198,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const clearSubscription = useCallback(async () => {
     _setTier("free");
     _setBilling(null);
-    await Promise.all([
-      AsyncStorage.removeItem(STORAGE_KEYS.tier),
-      AsyncStorage.removeItem(STORAGE_KEYS.billing),
-    ]);
+    if (__DEV__) {
+      await Promise.all([
+        AsyncStorage.removeItem(DEV_STORAGE_KEYS.tier),
+        AsyncStorage.removeItem(DEV_STORAGE_KEYS.billing),
+      ]);
+    }
   }, []);
 
   const gates = getFeatureGates(tier);
@@ -156,6 +219,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         paywallTrigger,
         showPaywall,
         hidePaywall,
+        refreshTier,
         setSubscription,
         clearSubscription,
       }}
@@ -183,7 +247,6 @@ export function tierLabel(tier: SubscriptionTier): string {
   }
 }
 
-/** Which paid tier is required for a given feature trigger */
 export function requiredTierFor(trigger?: string): SubscriptionTier {
   switch (trigger) {
     case "ai-insights":
