@@ -7,6 +7,7 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "concurrently --raw --names ports,expo 'bash mobile-scripts/kill-ports.sh' 'bash mobile-scripts/expo-loop.sh'",
+    "preview": "bash mobile-scripts/push-preview.sh",
     "stability-check": "bash mobile-scripts/stability-check.sh",
     "web-static": "node mobile-scripts/free-port.mjs && EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID pnpm exec expo export -p web && pnpm exec serve dist --single -l $PORT",
     "build": "node mobile-scripts/build.js",
@@ -22,7 +23,6 @@
     "@babel/core": "^7.25.2",
     "@expo-google-fonts/inter": "^0.4.0",
     "@expo/cli": "54.0.23",
-    "eas-cli": "^16.0.0",
     "@expo/ngrok": "^4.1.0",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -34,6 +34,7 @@
     "@workspace/api-client-react": "workspace:*",
     "babel-plugin-react-compiler": "^19.0.0-beta-e993439-20250117",
     "concurrently": "^9.2.1",
+    "eas-cli": "^16.0.0",
     "expo": "~54.0.27",
     "expo-blur": "~15.0.8",
     "expo-constants": "~18.0.11",
@@ -74,6 +75,7 @@
     "expo-file-system": "^19.0.21",
     "expo-notifications": "^0.32.16",
     "expo-sqlite": "^16.0.10",
+    "expo-updates": "^56.0.12",
     "papaparse": "^5.5.3",
     "react-native-purchases": "^9.12.0",
     "replit-revenuecat-v2": "^2.0.2"
