@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 
 interface EmptyStateProps {
   icon: string;
@@ -11,8 +11,6 @@ interface EmptyStateProps {
   onAction?: () => void;
 }
 
-const theme = Colors.dark;
-
 export function EmptyState({
   icon,
   title,
@@ -20,20 +18,21 @@ export function EmptyState({
   actionLabel,
   onAction,
 }: EmptyStateProps) {
+  const { theme } = useTheme();
   return (
     <View style={styles.container}>
-      <View style={[styles.iconWrap, { backgroundColor: theme.backgroundElevated }]}>
-        <Feather name={icon as any} size={28} color={theme.textTertiary} />
+      <View style={[styles.iconWrap, { backgroundColor: theme.surface }]}>
+        <Feather name={icon as any} size={28} color={theme.textMuted} />
       </View>
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
       {actionLabel && onAction && (
         <TouchableOpacity
-          style={[styles.btn, { backgroundColor: theme.tint }]}
+          style={[styles.btn, { backgroundColor: theme.accent }]}
           onPress={onAction}
           activeOpacity={0.8}
         >
-          <Text style={styles.btnText}>{actionLabel}</Text>
+          <Text style={[styles.btnText, { color: theme.background }]}>{actionLabel}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -50,7 +49,7 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 64,
     height: 64,
-    borderRadius: 20,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 4,
@@ -70,10 +69,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 0,
   },
   btnText: {
-    color: "#0A0F1A",
     fontSize: 14,
     fontFamily: "Archivo_600SemiBold",
   },

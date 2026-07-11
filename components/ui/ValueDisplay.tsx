@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 
 interface ValueDisplayProps {
   label: string;
@@ -11,7 +11,6 @@ interface ValueDisplayProps {
   align?: "left" | "center";
 }
 
-const theme = Colors.dark;
 
 export function ValueDisplay({
   label,
@@ -21,6 +20,7 @@ export function ValueDisplay({
   size = "md",
   align = "left",
 }: ValueDisplayProps) {
+  const { theme } = useTheme();
   const valueFontSize =
     size === "xl" ? 36 : size === "lg" ? 28 : size === "md" ? 22 : 16;
   const labelFontSize = size === "xl" ? 13 : size === "lg" ? 12 : 11;

@@ -111,7 +111,7 @@ function RiskProfileCard({ profile }: { profile: RiskProfile }) {
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
       <View style={riskStyles.header}>
         <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>Portfolio Risk Profile</Text>
         <TouchableOpacity onPress={showInfo} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -121,25 +121,25 @@ function RiskProfileCard({ profile }: { profile: RiskProfile }) {
       <Text style={[riskStyles.sub, { color: theme.textSecondary }]}>Based on your current allocation</Text>
 
       <View style={riskStyles.grid}>
-        <View style={[riskStyles.cell, { borderColor: theme.border }]}>
+        <View style={[riskStyles.cell, { borderColor: theme.hairline }]}>
           <Text style={[riskStyles.cellLabel, { color: theme.textSecondary }]}>Est. Annual Return</Text>
           <Text style={[riskStyles.cellValue, { color: theme.positive }]}>
             +{profile.annualReturn.toFixed(1)}%
           </Text>
         </View>
-        <View style={[riskStyles.cell, riskStyles.cellRight, { borderColor: theme.border }]}>
+        <View style={[riskStyles.cell, riskStyles.cellRight, { borderColor: theme.hairline }]}>
           <Text style={[riskStyles.cellLabel, { color: theme.textSecondary }]}>Volatility</Text>
           <Text style={[riskStyles.cellValue, { color: volatilityColor }]}>
             {profile.volatility.toFixed(1)}%
           </Text>
         </View>
-        <View style={[riskStyles.cell, riskStyles.cellBottom, { borderColor: theme.border }]}>
+        <View style={[riskStyles.cell, riskStyles.cellBottom, { borderColor: theme.hairline }]}>
           <Text style={[riskStyles.cellLabel, { color: theme.textSecondary }]}>Max Drawdown</Text>
           <Text style={[riskStyles.cellValue, { color: theme.negative }]}>
             {profile.maxDrawdown.toFixed(1)}%
           </Text>
         </View>
-        <View style={[riskStyles.cell, riskStyles.cellRight, riskStyles.cellBottom, { borderColor: theme.border }]}>
+        <View style={[riskStyles.cell, riskStyles.cellRight, riskStyles.cellBottom, { borderColor: theme.hairline }]}>
           <Text style={[riskStyles.cellLabel, { color: theme.textSecondary }]}>Sharpe Ratio</Text>
           <Text style={[riskStyles.cellValue, { color: sharpeColor }]}>
             {profile.sharpe.toFixed(2)}
@@ -159,7 +159,7 @@ const riskStyles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 0,
     overflow: "hidden",
     borderColor: "#1E3A5F",
     marginBottom: 14,
@@ -302,7 +302,7 @@ function CrisisBacktestSection() {
 
   if (holdings.length === 0) {
     return (
-      <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Crisis Backtest</Text>
         <Text style={[crisisStyles.emptyHint, { color: theme.textSecondary }]}>
           Add holdings to your portfolio to see crisis analysis.
@@ -316,7 +316,7 @@ function CrisisBacktestSection() {
   const diffAbs = Math.abs(analysis?.drawdownDiff ?? 0);
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>Crisis Backtest</Text>
       <Text style={[crisisStyles.subtitle, { color: theme.textSecondary }]}>
         How would your portfolio have behaved during major market crises?
@@ -331,16 +331,16 @@ function CrisisBacktestSection() {
               style={[
                 crisisStyles.crisisChip,
                 {
-                  backgroundColor: selectedId === c.id ? theme.tint + "22" : theme.backgroundElevated,
-                  borderColor: selectedId === c.id ? theme.tint : theme.border,
+                  backgroundColor: selectedId === c.id ? theme.accent + "22" : theme.surface,
+                  borderColor: selectedId === c.id ? theme.accent : theme.hairline,
                 },
               ]}
               onPress={() => setSelectedId(c.id)}
             >
-              <Text style={[crisisStyles.crisisName, { color: selectedId === c.id ? theme.tint : theme.text }]}>
+              <Text style={[crisisStyles.crisisName, { color: selectedId === c.id ? theme.accent : theme.text }]}>
                 {c.name}
               </Text>
-              <Text style={[crisisStyles.crisisDate, { color: selectedId === c.id ? theme.tint + "BB" : theme.textTertiary }]}>
+              <Text style={[crisisStyles.crisisDate, { color: selectedId === c.id ? theme.accent + "BB" : theme.textTertiary }]}>
                 {c.dateRange}
               </Text>
             </TouchableOpacity>
@@ -364,7 +364,7 @@ function CrisisBacktestSection() {
           )}
 
           {/* Block 1 — Drawdown */}
-          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.backgroundElevated }]}>
+          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.surface }]}>
             <Text style={[crisisStyles.metricTitle, { color: theme.textSecondary }]}>Estimated Max Drawdown</Text>
             <View style={crisisStyles.metricRow}>
               <View style={crisisStyles.metricHalf}>
@@ -373,7 +373,7 @@ function CrisisBacktestSection() {
                 </Text>
                 <Text style={[crisisStyles.metricSmall, { color: theme.textTertiary }]}>Your Portfolio</Text>
               </View>
-              <View style={[crisisStyles.metricDivider, { backgroundColor: theme.border }]} />
+              <View style={[crisisStyles.metricDivider, { backgroundColor: theme.hairline }]} />
               <View style={crisisStyles.metricHalf}>
                 <Text style={[crisisStyles.metricBig, { color: theme.negative }]}>
                   {crisis.msciDrawdown.toFixed(1)}%
@@ -389,7 +389,7 @@ function CrisisBacktestSection() {
           </View>
 
           {/* Block 2 — Recovery Time */}
-          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.backgroundElevated }]}>
+          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.surface }]}>
             <Text style={[crisisStyles.metricTitle, { color: theme.textSecondary }]}>Estimated Recovery</Text>
             <Text style={[crisisStyles.metricBig, { color: theme.positive, textAlign: "center" }]}>
               ~{analysis.recoveryMonths} months
@@ -401,7 +401,7 @@ function CrisisBacktestSection() {
           </View>
 
           {/* Block 3 — DCA Effect */}
-          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.backgroundElevated }]}>
+          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.surface }]}>
             <Text style={[crisisStyles.metricTitle, { color: theme.textSecondary }]}>DCA Effect</Text>
             <Text style={[crisisStyles.metricBig, { color: theme.positive, textAlign: "center" }]}>
               +{analysis.dcaAdvantage.toFixed(1)}% more units
@@ -412,7 +412,7 @@ function CrisisBacktestSection() {
           </View>
 
           {/* Block 4 — Lump Sum vs DCA */}
-          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.backgroundElevated }]}>
+          <View style={[crisisStyles.metricBlock, { backgroundColor: theme.surface }]}>
             <Text style={[crisisStyles.metricTitle, { color: theme.textSecondary }]}>Lump Sum vs DCA</Text>
             <Text style={[crisisStyles.metricCaption, { color: theme.textTertiary }]}>
               Capital: {formatEUR(analysis.capital)} ({formatEUR(dca)}/mo × {crisis.durationMonths} months)
@@ -424,7 +424,7 @@ function CrisisBacktestSection() {
                 </Text>
                 <Text style={[crisisStyles.metricSmall, { color: theme.textTertiary }]}>Lump Sum</Text>
               </View>
-              <View style={[crisisStyles.metricDivider, { backgroundColor: theme.border }]} />
+              <View style={[crisisStyles.metricDivider, { backgroundColor: theme.hairline }]} />
               <View style={crisisStyles.metricHalf}>
                 <Text style={[crisisStyles.metricBig, { color: theme.positive }]}>
                   {formatEUR(analysis.dcaFinal)}
@@ -452,12 +452,12 @@ const crisisStyles = StyleSheet.create({
   subtitle: { fontSize: 12, fontFamily: "Archivo_400Regular", marginBottom: 16, lineHeight: 18 },
   selectorScroll: { marginBottom: 16 },
   selectorRow: { flexDirection: "row", gap: 8 },
-  crisisChip: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, minWidth: 120 },
+  crisisChip: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 0, borderWidth: 1, minWidth: 120 },
   crisisName: { fontSize: 12, fontFamily: "Archivo_600SemiBold" },
   crisisDate: { fontSize: 10, fontFamily: "Archivo_400Regular", marginTop: 2 },
-  warningBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 12 },
+  warningBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, borderWidth: 1, borderRadius: 0, padding: 10, marginBottom: 12 },
   warningText: { fontSize: 11, fontFamily: "Archivo_400Regular", flex: 1, lineHeight: 16 },
-  metricBlock: { borderRadius: 12, padding: 14, gap: 10, marginBottom: 10 },
+  metricBlock: { borderRadius: 0, padding: 14, gap: 10, marginBottom: 10 },
   metricTitle: { fontSize: 11, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.3 },
   metricRow: { flexDirection: "row", alignItems: "center" },
   metricHalf: { flex: 1, alignItems: "center", gap: 4 },
@@ -481,7 +481,7 @@ function InsightCard({ insight }: { insight: AIInsight }) {
   const { theme } = useTheme();
   const { name, color } = insightIcon(insight.type);
   return (
-    <View style={[aiStyles.insightCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+    <View style={[aiStyles.insightCard, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
       <View style={[aiStyles.insightIcon, { backgroundColor: color + "18" }]}>
         <Feather name={name} size={16} color={color} />
       </View>
@@ -496,12 +496,12 @@ function InsightCard({ insight }: { insight: AIInsight }) {
 function SkeletonCard() {
   const { theme } = useTheme();
   return (
-    <View style={[aiStyles.insightCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-      <View style={[aiStyles.insightIcon, { backgroundColor: theme.backgroundElevated }]} />
+    <View style={[aiStyles.insightCard, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
+      <View style={[aiStyles.insightIcon, { backgroundColor: theme.surface }]} />
       <View style={aiStyles.insightBody}>
-        <View style={[aiStyles.skeletonLine, { width: "55%", backgroundColor: theme.backgroundElevated }]} />
-        <View style={[aiStyles.skeletonLine, { width: "90%", backgroundColor: theme.backgroundElevated, marginTop: 8 }]} />
-        <View style={[aiStyles.skeletonLine, { width: "70%", backgroundColor: theme.backgroundElevated, marginTop: 4 }]} />
+        <View style={[aiStyles.skeletonLine, { width: "55%", backgroundColor: theme.surface }]} />
+        <View style={[aiStyles.skeletonLine, { width: "90%", backgroundColor: theme.surface, marginTop: 8 }]} />
+        <View style={[aiStyles.skeletonLine, { width: "70%", backgroundColor: theme.surface, marginTop: 4 }]} />
       </View>
     </View>
   );
@@ -560,13 +560,13 @@ function AIInsightsSection({
   useEffect(() => { load(); }, [load]);
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
       {/* Header */}
       <View style={aiStyles.header}>
         <View style={aiStyles.headerLeft}>
-          <View style={[aiStyles.claudeBadge, { backgroundColor: theme.tint + "18" }]}>
-            <Feather name="cpu" size={12} color={theme.tint} />
-            <Text style={[aiStyles.claudeLabel, { color: theme.tint }]}>Claude AI</Text>
+          <View style={[aiStyles.claudeBadge, { backgroundColor: theme.accent + "18" }]}>
+            <Feather name="cpu" size={12} color={theme.accent} />
+            <Text style={[aiStyles.claudeLabel, { color: theme.accent }]}>Claude AI</Text>
           </View>
           <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>Portfolio Insights</Text>
         </View>
@@ -575,7 +575,7 @@ function AIInsightsSection({
           disabled={loading}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Feather name="refresh-cw" size={16} color={loading ? theme.textTertiary : theme.tint} />
+          <Feather name="refresh-cw" size={16} color={loading ? theme.textTertiary : theme.accent} />
         </TouchableOpacity>
       </View>
 
@@ -589,7 +589,7 @@ function AIInsightsSection({
           {[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}
         </View>
       ) : error ? (
-        <View style={[aiStyles.errorBox, { backgroundColor: theme.backgroundElevated, borderColor: theme.border }]}>
+        <View style={[aiStyles.errorBox, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
           <Feather name="alert-circle" size={18} color={theme.negative} />
           <View style={{ flex: 1 }}>
             <Text style={[aiStyles.errorText, { color: theme.textSecondary }]}>
@@ -632,14 +632,14 @@ const aiStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     padding: 14,
   },
   insightIcon: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -648,7 +648,7 @@ const aiStyles = StyleSheet.create({
   insightTitle: { fontSize: 13, fontFamily: "Archivo_600SemiBold", marginBottom: 4, lineHeight: 18 },
   insightText: { fontSize: 12, fontFamily: "Archivo_400Regular", lineHeight: 18 },
   skeletonLine: { height: 12, borderRadius: 6 },
-  errorBox: { flexDirection: "row", alignItems: "flex-start", gap: 10, borderRadius: 12, borderWidth: 1, padding: 14 },
+  errorBox: { flexDirection: "row", alignItems: "flex-start", gap: 10, borderRadius: 0, borderWidth: 1, padding: 14 },
   errorText: { fontSize: 12, fontFamily: "Archivo_400Regular", lineHeight: 18 },
   debugText: { fontSize: 10, fontFamily: "Archivo_400Regular", marginTop: 6 },
 });
@@ -671,22 +671,22 @@ function ProLockedSection({
 
   return (
     <TouchableOpacity
-      style={[styles.card, lockedStyles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}
+      style={[styles.card, lockedStyles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}
       onPress={() => showPaywall(trigger)}
       activeOpacity={0.85}
     >
       <View style={lockedStyles.header}>
-        <View style={[lockedStyles.iconWrap, { backgroundColor: theme.backgroundElevated }]}>
-          <Feather name={icon} size={24} color={theme.tint} />
+        <View style={[lockedStyles.iconWrap, { backgroundColor: theme.surface }]}>
+          <Feather name={icon} size={24} color={theme.accent} />
         </View>
-        <View style={[lockedStyles.proBadge, { backgroundColor: theme.tint + "22" }]}>
-          <Feather name="lock" size={10} color={theme.tint} />
-          <Text style={[lockedStyles.proBadgeText, { color: theme.tint }]}>PRO</Text>
+        <View style={[lockedStyles.proBadge, { backgroundColor: theme.accent + "22" }]}>
+          <Feather name="lock" size={10} color={theme.accent} />
+          <Text style={[lockedStyles.proBadgeText, { color: theme.accent }]}>PRO</Text>
         </View>
       </View>
       <Text style={[lockedStyles.title, { color: theme.text }]}>{title}</Text>
       <Text style={[lockedStyles.desc, { color: theme.textSecondary }]}>{description}</Text>
-      <View style={[lockedStyles.cta, { backgroundColor: theme.tint }]}>
+      <View style={[lockedStyles.cta, { backgroundColor: theme.accent }]}>
         <Text style={lockedStyles.ctaText}>Unlock with Pro</Text>
       </View>
     </TouchableOpacity>
@@ -699,7 +699,7 @@ const lockedStyles = StyleSheet.create({
   iconWrap: {
     width: 52,
     height: 52,
-    borderRadius: 16,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -709,18 +709,18 @@ const lockedStyles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 0,
   },
   proBadgeText: { fontSize: 11, fontFamily: "Archivo_800ExtraBold", letterSpacing: 0.5 },
   title: { fontSize: 16, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.3 },
   desc: { fontSize: 13, fontFamily: "Archivo_400Regular", lineHeight: 19 },
   cta: {
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 0,
     alignItems: "center",
     marginTop: 4,
   },
-  ctaText: { fontSize: 14, fontFamily: "Archivo_800ExtraBold", color: "#0A0F1E" },
+  ctaText: { fontSize: 14, fontFamily: "Archivo_800ExtraBold", color: "#f3f2f2" },
 });
 
 // ─── Investor Profile Card ────────────────────────────────────────────────────
@@ -745,12 +745,12 @@ function InvestorProfileCard({ profile }: { profile: InvestorProfileRow | null }
   if (!profile) {
     return (
       <TouchableOpacity
-        style={[styles.card, ipStyles.setupCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}
+        style={[styles.card, ipStyles.setupCard, { backgroundColor: theme.surface, borderColor: theme.hairline }]}
         onPress={() => router.push("/investor-profile")}
         activeOpacity={0.85}
       >
-        <View style={[ipStyles.setupIcon, { backgroundColor: theme.tint + "18" }]}>
-          <Feather name="user" size={22} color={theme.tint} />
+        <View style={[ipStyles.setupIcon, { backgroundColor: theme.accent + "18" }]}>
+          <Feather name="user" size={22} color={theme.accent} />
         </View>
         <View style={ipStyles.setupBody}>
           <Text style={[ipStyles.setupTitle, { color: theme.text }]}>Set up your investor profile</Text>
@@ -767,21 +767,21 @@ function InvestorProfileCard({ profile }: { profile: InvestorProfileRow | null }
   const description = PROFILE_DESCRIPTIONS_MAP[profile.profile_label] ?? "";
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
       <View style={ipStyles.header}>
         <View style={ipStyles.titleRow}>
-          <View style={[ipStyles.iconWrap, { backgroundColor: theme.tint + "18" }]}>
-            <Feather name={icon} size={18} color={theme.tint} />
+          <View style={[ipStyles.iconWrap, { backgroundColor: theme.accent + "18" }]}>
+            <Feather name={icon} size={18} color={theme.accent} />
           </View>
           <View>
-            <Text style={[ipStyles.label, { color: theme.tint }]}>{profile.profile_label} Investor</Text>
+            <Text style={[ipStyles.label, { color: theme.accent }]}>{profile.profile_label} Investor</Text>
             <Text style={[ipStyles.scoreText, { color: theme.textSecondary }]}>
               Risk score {profile.risk_score.toFixed(1)}/5
             </Text>
           </View>
         </View>
         <TouchableOpacity
-          style={[ipStyles.editBtn, { backgroundColor: theme.backgroundElevated }]}
+          style={[ipStyles.editBtn, { backgroundColor: theme.surface }]}
           onPress={() => router.push("/investor-profile")}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -792,11 +792,11 @@ function InvestorProfileCard({ profile }: { profile: InvestorProfileRow | null }
       <Text style={[ipStyles.description, { color: theme.textSecondary }]}>{description}</Text>
       {profile.investment_horizon ? (
         <View style={ipStyles.tagsRow}>
-          <View style={[ipStyles.tag, { backgroundColor: theme.backgroundElevated }]}>
+          <View style={[ipStyles.tag, { backgroundColor: theme.surface }]}>
             <Text style={[ipStyles.tagText, { color: theme.textTertiary }]}>{profile.investment_horizon}</Text>
           </View>
           {profile.monthly_dca_range ? (
-            <View style={[ipStyles.tag, { backgroundColor: theme.backgroundElevated }]}>
+            <View style={[ipStyles.tag, { backgroundColor: theme.surface }]}>
               <Text style={[ipStyles.tagText, { color: theme.textTertiary }]}>{profile.monthly_dca_range}/mo</Text>
             </View>
           ) : null}
@@ -811,7 +811,7 @@ const ipStyles = StyleSheet.create({
   setupIcon: {
     width: 46,
     height: 46,
-    borderRadius: 14,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -824,7 +824,7 @@ const ipStyles = StyleSheet.create({
   iconWrap: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -836,7 +836,7 @@ const ipStyles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: 0,
   },
   editText: { fontSize: 12, fontFamily: "Archivo_600SemiBold" },
   description: { fontSize: 13, fontFamily: "Archivo_400Regular", lineHeight: 19, marginBottom: 12 },
@@ -875,11 +875,11 @@ function OverlapCard({
     ? "alert-triangle"
     : "check-circle";
   const cardBorder = hasOverlap
-    ? (theme.border)
-    : (theme.border);
+    ? (theme.hairline)
+    : (theme.hairline);
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: cardBorder }]}>
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: cardBorder }]}>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>ETF Overlap Analysis</Text>
 
       <View style={overlapStyles.body}>
@@ -937,7 +937,7 @@ const overlapStyles = StyleSheet.create({
   iconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -1023,11 +1023,11 @@ export default function InsightsScreen() {
       )}
 
       {/* ── Dividend Estimate ─────────────────────────────────────────────── */}
-      <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Dividend Estimate</Text>
-        <View style={[divStyles.box, { backgroundColor: theme.backgroundElevated }]}>
+        <View style={[divStyles.box, { backgroundColor: theme.surface }]}>
           <Text style={[divStyles.label, { color: theme.textSecondary }]}>Estimated annual income</Text>
-          <Text style={[divStyles.value, { color: "#C9A84C" }]}>
+          <Text style={[divStyles.value, { color: theme.accent }]}>
             {formatEUR(estimatedAnnualDividend)}/yr
           </Text>
         </View>
@@ -1048,7 +1048,7 @@ export default function InsightsScreen() {
 }
 
 const divStyles = StyleSheet.create({
-  box: { borderRadius: 12, padding: 16, alignItems: "center", gap: 6, marginBottom: 10 },
+  box: { borderRadius: 0, padding: 16, alignItems: "center", gap: 6, marginBottom: 10 },
   label: { fontSize: 12, fontFamily: "Archivo_400Regular" },
   value: { fontSize: 28, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.8 },
   hint: { fontSize: 12, fontFamily: "Archivo_400Regular", textAlign: "center", lineHeight: 18, marginBottom: 8 },
@@ -1058,7 +1058,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 16, gap: 14 },
   pageTitle: { fontSize: 28, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.8, marginBottom: 2 },
-  card: { borderRadius: 16, padding: 18, borderWidth: 1 },
+  card: { borderRadius: 0, padding: 18, borderWidth: 1 },
   sectionTitle: { fontSize: 15, fontFamily: "Archivo_600SemiBold", marginBottom: 14 },
   disclaimer: {
     fontSize: 10,

@@ -11,11 +11,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  useColorScheme,
+  View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { todayISO } from "@/utils/format";
 
@@ -28,11 +27,9 @@ interface AddContributionSheetProps {
 export function AddContributionSheet({
   visible,
   onClose,
-  preselectedHoldingId,
+  preselectedHoldingId
 }: AddContributionSheetProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { holdings, addContribution } = usePortfolio();
 
@@ -46,7 +43,7 @@ export function AddContributionSheet({
 
   const inputStyle = [
     styles.input,
-    { backgroundColor: isDark ? "#1E1E1E" : "#F8F9FA", borderColor: theme.border, color: theme.text },
+    { backgroundColor: isDark ? "#1E1E1E" : "#F8F9FA", borderColor: theme.hairline, color: theme.text },
   ];
   const labelStyle = [styles.label, { color: theme.textSecondary }];
 
@@ -76,8 +73,8 @@ export function AddContributionSheet({
       date,
       unitsPurchased: Number(units),
       pricePerUnit: Number(price),
-      notes: notes.trim(),
-    });
+      notes: notes.trim()
+});
     reset();
     onClose();
   };
@@ -99,7 +96,7 @@ export function AddContributionSheet({
             { backgroundColor: theme.background, paddingBottom: insets.bottom + 16 },
           ]}
         >
-          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <View style={[styles.header, { borderBottomColor: theme.hairline }]}>
             <TouchableOpacity onPress={() => { reset(); onClose(); }}>
               <Feather name="x" size={22} color={theme.textSecondary} />
             </TouchableOpacity>
@@ -107,7 +104,7 @@ export function AddContributionSheet({
               Log DCA Contribution
             </Text>
             <TouchableOpacity onPress={handleSave}>
-              <Text style={[styles.saveBtn, { color: theme.tint }]}>Save</Text>
+              <Text style={[styles.saveBtn, { color: theme.accent }]}>Save</Text>
             </TouchableOpacity>
           </View>
 
@@ -118,16 +115,16 @@ export function AddContributionSheet({
             keyboardShouldPersistTaps="handled"
           >
             <Text style={labelStyle}>HOLDING</Text>
-            <View style={[styles.holdingList, { borderColor: theme.border }]}>
+            <View style={[styles.holdingList, { borderColor: theme.hairline }]}>
               {holdings.map((h) => (
                 <TouchableOpacity
                   key={h.id}
                   style={[
                     styles.holdingItem,
-                    { borderBottomColor: theme.borderLight },
+                    { borderBottomColor: theme.hairline },
                     selectedHoldingId === h.id && {
-                      backgroundColor: isDark ? "#1E1E1E" : "#F0FDF8",
-                    },
+                      backgroundColor: isDark ? "#1E1E1E" : "#F0FDF8"
+},
                   ]}
                   onPress={() => setSelectedHoldingId(h.id)}
                 >
@@ -137,12 +134,12 @@ export function AddContributionSheet({
                         styles.holdingName,
                         {
                           color:
-                            selectedHoldingId === h.id ? theme.tint : theme.text,
+                            selectedHoldingId === h.id ? theme.accent : theme.text,
                           fontFamily:
                             selectedHoldingId === h.id
                               ? "Archivo_600SemiBold"
-                              : "Archivo_400Regular",
-                        },
+                              : "Archivo_400Regular"
+},
                       ]}
                     >
                       {h.name}
@@ -152,7 +149,7 @@ export function AddContributionSheet({
                     </Text>
                   </View>
                   {selectedHoldingId === h.id && (
-                    <Feather name="check" size={16} color={theme.tint} />
+                    <Feather name="check" size={16} color={theme.accent} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -221,8 +218,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
+    borderBottomWidth: 1
+},
   headerTitle: { fontSize: 16, fontFamily: "Archivo_600SemiBold" },
   saveBtn: { fontSize: 16, fontFamily: "Archivo_600SemiBold" },
   scrollContent: { padding: 20, gap: 6 },
@@ -230,26 +227,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Archivo_600SemiBold",
     letterSpacing: 0.8,
-    marginBottom: 6,
-  },
+    marginBottom: 6
+},
   input: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    fontFamily: "Archivo_400Regular",
-  },
-  holdingList: { borderRadius: 12, borderWidth: 1, overflow: "hidden" },
+    fontFamily: "Archivo_400Regular"
+},
+  holdingList: { borderRadius: 0, borderWidth: 1, overflow: "hidden" },
   holdingItem: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
+    borderBottomWidth: 1
+},
   holdingName: { fontSize: 14 },
   holdingMeta: { fontSize: 12, fontFamily: "Archivo_400Regular", marginTop: 2 },
-  row: { flexDirection: "row", gap: 12 },
+  row: { flexDirection: "row", gap: 12 }
 });

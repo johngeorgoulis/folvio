@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { EXCHANGE_OPTIONS } from "@/components/ExchangePicker";
 
 function searchUrl(q: string): string {
@@ -21,7 +21,6 @@ function searchUrl(q: string): string {
   return `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0&listsCount=0`;
 }
 
-const theme = Colors.dark;
 
 const SUFFIX_MAP: Record<string, string> = Object.fromEntries(
   EXCHANGE_OPTIONS.map((e) => [e.suffix, e.value])
@@ -67,6 +66,7 @@ function parseSymbol(symbol: string): { ticker: string; exchange: string } {
 }
 
 export default function TickerSearchInput({ value, onChange, onSelect, inputStyle }: Props) {
+  const { theme } = useTheme();
   const [results, setResults] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -228,10 +228,10 @@ const styles = StyleSheet.create({
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.backgroundElevated,
-    borderRadius: 10,
+    backgroundColor: theme.surface,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: theme.hairline,
   },
   input: {
     flex: 1,
@@ -248,10 +248,10 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    backgroundColor: theme.backgroundCard,
-    borderRadius: 12,
+    backgroundColor: theme.surface,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: theme.hairline,
     zIndex: 9999,
     elevation: 30,
     shadowColor: "#000",
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: theme.hairline,
     gap: 8,
   },
   dropLeft: {
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   },
   exBadge: {
     backgroundColor: "rgba(201,168,76,0.18)",
-    borderRadius: 5,
+    borderRadius: 0,
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderWidth: 1,

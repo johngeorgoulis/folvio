@@ -278,14 +278,14 @@ export default function SettingsScreen() {
     ]);
   }
 
-  const inputStyle = [styles.input, { backgroundColor: theme.backgroundElevated, borderColor: theme.border, color: theme.text }];
+  const inputStyle = [styles.input, { backgroundColor: theme.surface, borderColor: theme.hairline, color: theme.text }];
   const labelStyle = [styles.sectionLabel, { color: theme.textSecondary }];
 
   // ─── Row helpers ──────────────────────────────────────────────────────────
 
   function Row({ label, children }: { label: string; children: React.ReactNode }) {
     return (
-      <View style={[styles.settingRow, { borderBottomColor: theme.border }]}>
+      <View style={[styles.settingRow, { borderBottomColor: theme.hairline }]}>
         <Text style={[styles.rowLabel, { color: theme.text }]}>{label}</Text>
         {children}
       </View>
@@ -302,10 +302,10 @@ export default function SettingsScreen() {
 
       {/* ── 1. PORTFOLIO ─────────────────────────────────────────────────── */}
       <Text style={labelStyle}>PORTFOLIO</Text>
-      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+      <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
 
         {/* Rebalancing threshold */}
-        <View style={[styles.settingBlock, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
+        <View style={[styles.settingBlock, { borderBottomColor: theme.hairline, borderBottomWidth: 1 }]}>
           <Text style={[styles.rowLabel, { color: theme.text }]}>Rebalancing Threshold</Text>
           <View style={styles.chipRow}>
             {THRESHOLD_OPTIONS.map((opt) => (
@@ -314,13 +314,13 @@ export default function SettingsScreen() {
                 style={[
                   styles.chip,
                   {
-                    backgroundColor: rebalanceThreshold === opt ? theme.deepBlue : theme.backgroundElevated,
-                    borderColor: rebalanceThreshold === opt ? theme.tint : theme.border,
+                    backgroundColor: rebalanceThreshold === opt ? theme.surface : theme.surface,
+                    borderColor: rebalanceThreshold === opt ? theme.accent : theme.hairline,
                   },
                 ]}
                 onPress={() => setRebalanceThreshold(opt as ThresholdOption)}
               >
-                <Text style={[styles.chipText, { color: rebalanceThreshold === opt ? theme.tint : theme.textSecondary }]}>
+                <Text style={[styles.chipText, { color: rebalanceThreshold === opt ? theme.accent : theme.textSecondary }]}>
                   ±{opt}%
                 </Text>
               </TouchableOpacity>
@@ -329,7 +329,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* Default Benchmark */}
-        <View style={[styles.settingBlock, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
+        <View style={[styles.settingBlock, { borderBottomColor: theme.hairline, borderBottomWidth: 1 }]}>
           <Text style={[styles.rowLabel, { color: theme.text }]}>Default Benchmark</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
             <View style={{ flexDirection: "row", gap: 8 }}>
@@ -339,8 +339,8 @@ export default function SettingsScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: defaultBenchmark === bm.symbol ? theme.deepBlue : theme.backgroundElevated,
-                      borderColor: defaultBenchmark === bm.symbol ? theme.tint : theme.border,
+                      backgroundColor: defaultBenchmark === bm.symbol ? theme.surface : theme.surface,
+                      borderColor: defaultBenchmark === bm.symbol ? theme.accent : theme.hairline,
                     },
                   ]}
                   onPress={async () => {
@@ -348,7 +348,7 @@ export default function SettingsScreen() {
                     await AsyncStorage.setItem(ASYNC_KEYS.defaultBenchmark, bm.symbol);
                   }}
                 >
-                  <Text style={[styles.chipText, { color: defaultBenchmark === bm.symbol ? theme.tint : theme.textSecondary }]}>
+                  <Text style={[styles.chipText, { color: defaultBenchmark === bm.symbol ? theme.accent : theme.textSecondary }]}>
                     {bm.label}
                   </Text>
                 </TouchableOpacity>
@@ -367,20 +367,20 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <TouchableOpacity
-              style={[styles.addBtn, { backgroundColor: theme.tint + "22", borderColor: theme.tint + "44" }]}
+              style={[styles.addBtn, { backgroundColor: theme.accent + "22", borderColor: theme.accent + "44" }]}
               onPress={() => setShowAddRow(true)}
             >
-              <Feather name="plus" size={16} color={theme.tint} />
+              <Feather name="plus" size={16} color={theme.accent} />
             </TouchableOpacity>
           </View>
 
           {targets.map((t) => (
-            <View key={t.ticker} style={[styles.allocationRow, { borderTopColor: theme.border }]}>
+            <View key={t.ticker} style={[styles.allocationRow, { borderTopColor: theme.hairline }]}>
               <Text style={[styles.allocationTicker, { color: theme.text }]}>{t.ticker}</Text>
               {editingTicker === t.ticker ? (
                 <View style={styles.editInline}>
                   <TextInput
-                    style={[styles.editInput, { backgroundColor: theme.backgroundElevated, borderColor: theme.tint, color: theme.text }]}
+                    style={[styles.editInput, { backgroundColor: theme.surface, borderColor: theme.accent, color: theme.text }]}
                     value={editingValue}
                     onChangeText={setEditingValue}
                     keyboardType="decimal-pad"
@@ -405,7 +405,7 @@ export default function SettingsScreen() {
                       setEditingValue(t.target_pct.toString());
                     }}
                   >
-                    <Feather name="edit-2" size={15} color={theme.tint} />
+                    <Feather name="edit-2" size={15} color={theme.accent} />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleRemoveTarget(t.ticker)}>
                     <Feather name="trash-2" size={15} color={theme.negative} />
@@ -416,7 +416,7 @@ export default function SettingsScreen() {
           ))}
 
           {showAddRow && (
-            <View style={[styles.addRow, { borderTopColor: theme.border }]}>
+            <View style={[styles.addRow, { borderTopColor: theme.hairline }]}>
               <TextInput
                 style={[inputStyle, { flex: 1, paddingVertical: 8 }]}
                 placeholder="TICKER"
@@ -447,7 +447,7 @@ export default function SettingsScreen() {
 
       {/* ── 2. DISPLAY ───────────────────────────────────────────────────── */}
       <Text style={labelStyle}>DISPLAY</Text>
-      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+      <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
         <Row label="Dark Mode">
           <Switch
             value={isDark}
@@ -463,8 +463,8 @@ export default function SettingsScreen() {
               setShowCostBasis(v);
               await persistToggle(ASYNC_KEYS.showCostBasis, v);
             }}
-            trackColor={{ false: theme.border, true: theme.tint + "88" }}
-            thumbColor={showCostBasis ? theme.tint : theme.textTertiary}
+            trackColor={{ false: theme.hairline, true: theme.accent + "88" }}
+            thumbColor={showCostBasis ? theme.accent : theme.textTertiary}
           />
         </Row>
         <Row label="Show Estimated Dividends">
@@ -474,8 +474,8 @@ export default function SettingsScreen() {
               setShowDividends(v);
               await persistToggle(ASYNC_KEYS.showDividends, v);
             }}
-            trackColor={{ false: theme.border, true: theme.tint + "88" }}
-            thumbColor={showDividends ? theme.tint : theme.textTertiary}
+            trackColor={{ false: theme.hairline, true: theme.accent + "88" }}
+            thumbColor={showDividends ? theme.accent : theme.textTertiary}
           />
         </Row>
         <View style={[styles.settingRow, { borderBottomColor: "transparent" }]}>
@@ -490,40 +490,40 @@ export default function SettingsScreen() {
       {/* Investor+ gate banner */}
       {!canUsePushNotifications && (
         <TouchableOpacity
-          style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.tint + "44", padding: 14, flexDirection: "row", alignItems: "center", gap: 12 }]}
+          style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.accent + "44", padding: 14, flexDirection: "row", alignItems: "center", gap: 12 }]}
           onPress={() => showPaywall("notifications")}
           activeOpacity={0.85}
         >
-          <Feather name="lock" size={16} color={theme.tint} />
+          <Feather name="lock" size={16} color={theme.accent} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.rowLabel, { color: theme.tint }]}>Investor plan required</Text>
+            <Text style={[styles.rowLabel, { color: theme.accent }]}>Investor plan required</Text>
             <Text style={[styles.notifRowSub, { color: theme.textSecondary }]}>
               Push notifications are available on the Investor plan.
             </Text>
           </View>
-          <Feather name="chevron-right" size={14} color={theme.tint} />
+          <Feather name="chevron-right" size={14} color={theme.accent} />
         </TouchableOpacity>
       )}
 
       {/* Permission denied banner */}
       {canUsePushNotifications && notifPermission === "denied" && Platform.OS !== "web" && (
-        <View style={[styles.permDeniedBanner, { backgroundColor: theme.backgroundElevated, borderColor: theme.border }]}>
+        <View style={[styles.permDeniedBanner, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
           <Feather name="bell-off" size={15} color={theme.textSecondary} style={{ marginRight: 8 }} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.permDeniedText, { color: theme.textSecondary }]}>
               Notifications are disabled. Enable them in your device settings to receive DCA reminders and portfolio alerts.
             </Text>
             <TouchableOpacity onPress={() => Linking.openSettings()}>
-              <Text style={[styles.permDeniedLink, { color: theme.tint }]}>Open Settings →</Text>
+              <Text style={[styles.permDeniedLink, { color: theme.accent }]}>Open Settings →</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
 
-      {canUsePushNotifications && <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+      {canUsePushNotifications && <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
 
         {/* DCA Reminder */}
-        <View style={[styles.notifRow, { borderBottomColor: theme.border }]}>
+        <View style={[styles.notifRow, { borderBottomColor: theme.hairline }]}>
           <View style={styles.notifRowLeft}>
             <Text style={[styles.notifRowTitle, { color: theme.text }]}>DCA Reminder</Text>
             <Text style={[styles.notifRowSub, { color: theme.textSecondary }]}>
@@ -533,13 +533,13 @@ export default function SettingsScreen() {
           <Switch
             value={dcaNotifEnabled && notifPermission !== "denied"}
             onValueChange={handleDcaNotifToggle}
-            trackColor={{ false: theme.border, true: theme.tint + "88" }}
-            thumbColor={dcaNotifEnabled ? theme.tint : theme.textTertiary}
+            trackColor={{ false: theme.hairline, true: theme.accent + "88" }}
+            thumbColor={dcaNotifEnabled ? theme.accent : theme.textTertiary}
           />
         </View>
 
         {/* Drift Alert */}
-        <View style={[styles.notifRow, { borderBottomColor: theme.border }]}>
+        <View style={[styles.notifRow, { borderBottomColor: theme.hairline }]}>
           <View style={styles.notifRowLeft}>
             <Text style={[styles.notifRowTitle, { color: theme.text }]}>Drift Alert</Text>
             <Text style={[styles.notifRowSub, { color: theme.textSecondary }]}>
@@ -549,13 +549,13 @@ export default function SettingsScreen() {
           <Switch
             value={driftNotifEnabled && notifPermission !== "denied"}
             onValueChange={handleDriftNotifToggle}
-            trackColor={{ false: theme.border, true: theme.tint + "88" }}
-            thumbColor={driftNotifEnabled ? theme.tint : theme.textTertiary}
+            trackColor={{ false: theme.hairline, true: theme.accent + "88" }}
+            thumbColor={driftNotifEnabled ? theme.accent : theme.textTertiary}
           />
         </View>
 
         {/* Weekly Summary */}
-        <View style={[styles.notifRow, { borderBottomColor: theme.border }]}>
+        <View style={[styles.notifRow, { borderBottomColor: theme.hairline }]}>
           <View style={styles.notifRowLeft}>
             <Text style={[styles.notifRowTitle, { color: theme.text }]}>Weekly Summary</Text>
             <Text style={[styles.notifRowSub, { color: theme.textSecondary }]}>
@@ -565,8 +565,8 @@ export default function SettingsScreen() {
           <Switch
             value={weeklyNotifEnabled && notifPermission !== "denied"}
             onValueChange={handleWeeklyNotifToggle}
-            trackColor={{ false: theme.border, true: theme.tint + "88" }}
-            thumbColor={weeklyNotifEnabled ? theme.tint : theme.textTertiary}
+            trackColor={{ false: theme.hairline, true: theme.accent + "88" }}
+            thumbColor={weeklyNotifEnabled ? theme.accent : theme.textTertiary}
           />
         </View>
 
@@ -582,7 +582,7 @@ export default function SettingsScreen() {
             </Text>
           </View>
           <View style={styles.dcaDayBadge}>
-            <Text style={[styles.dcaDayBadgeText, { color: theme.tint }]}>
+            <Text style={[styles.dcaDayBadgeText, { color: theme.accent }]}>
               {dcaDay ? ordinalSuffix(dcaDay) : "Set"}
             </Text>
             <Feather name="chevron-right" size={14} color={theme.textTertiary} style={{ marginLeft: 4 }} />
@@ -598,7 +598,7 @@ export default function SettingsScreen() {
         onRequestClose={() => setShowDcaDayPicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+          <View style={[styles.modalCard, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Select Your DCA Day</Text>
             <Text style={[styles.modalSub, { color: theme.textSecondary }]}>
               Which day of the month do you invest?
@@ -611,13 +611,13 @@ export default function SettingsScreen() {
                     style={[
                       styles.dayCell,
                       {
-                        backgroundColor: dcaDay === d ? theme.deepBlue : theme.backgroundElevated,
-                        borderColor: dcaDay === d ? theme.tint : theme.border,
+                        backgroundColor: dcaDay === d ? theme.surface : theme.surface,
+                        borderColor: dcaDay === d ? theme.accent : theme.hairline,
                       },
                     ]}
                     onPress={() => handleDcaDaySelect(d)}
                   >
-                    <Text style={[styles.dayCellText, { color: dcaDay === d ? theme.tint : theme.text }]}>
+                    <Text style={[styles.dayCellText, { color: dcaDay === d ? theme.accent : theme.text }]}>
                       {d}
                     </Text>
                   </TouchableOpacity>
@@ -625,7 +625,7 @@ export default function SettingsScreen() {
               </View>
             </ScrollView>
             <TouchableOpacity
-              style={[styles.modalCancel, { borderColor: theme.border }]}
+              style={[styles.modalCancel, { borderColor: theme.hairline }]}
               onPress={() => setShowDcaDayPicker(false)}
             >
               <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>Cancel</Text>
@@ -636,10 +636,10 @@ export default function SettingsScreen() {
 
       {/* ── 4. DATA ──────────────────────────────────────────────────────── */}
       <Text style={labelStyle}>DATA</Text>
-      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+      <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
         {/* Import from CSV */}
         <TouchableOpacity
-          style={[styles.dataRow, { borderBottomColor: theme.border }]}
+          style={[styles.dataRow, { borderBottomColor: theme.hairline }]}
           onPress={() => {
             if (!canImportCSV) {
               showPaywall("import");
@@ -649,12 +649,12 @@ export default function SettingsScreen() {
           }}
         >
           <View style={styles.dataRowLeft}>
-            <Feather name="upload" size={17} color={theme.tint} />
+            <Feather name="upload" size={17} color={theme.accent} />
             <Text style={[styles.rowLabel, { color: theme.text }]}>Import from CSV</Text>
           </View>
           {!canImportCSV && (
-            <View style={[styles.premiumPill, { backgroundColor: theme.tint + "22" }]}>
-              <Text style={[styles.premiumPillText, { color: theme.tint }]}>Investor+</Text>
+            <View style={[styles.premiumPill, { backgroundColor: theme.accent + "22" }]}>
+              <Text style={[styles.premiumPillText, { color: theme.accent }]}>Investor+</Text>
             </View>
           )}
           {canImportCSV && (
@@ -664,16 +664,16 @@ export default function SettingsScreen() {
 
         {/* Export CSV */}
         <TouchableOpacity
-          style={[styles.dataRow, { borderBottomColor: theme.border }]}
+          style={[styles.dataRow, { borderBottomColor: theme.hairline }]}
           onPress={handleExportCSV}
         >
           <View style={styles.dataRowLeft}>
-            <Feather name="download" size={17} color={theme.tint} />
+            <Feather name="download" size={17} color={theme.accent} />
             <Text style={[styles.rowLabel, { color: theme.text }]}>Export to CSV</Text>
           </View>
           {!canExportCSV ? (
-            <View style={[styles.premiumPill, { backgroundColor: theme.tint + "22" }]}>
-              <Text style={[styles.premiumPillText, { color: theme.tint }]}>Pro+</Text>
+            <View style={[styles.premiumPill, { backgroundColor: theme.accent + "22" }]}>
+              <Text style={[styles.premiumPillText, { color: theme.accent }]}>Pro+</Text>
             </View>
           ) : (
             <Feather name="chevron-right" size={16} color={theme.textTertiary} />
@@ -682,16 +682,16 @@ export default function SettingsScreen() {
 
         {/* Refresh All Prices */}
         <TouchableOpacity
-          style={[styles.dataRow, { borderBottomColor: theme.border }]}
+          style={[styles.dataRow, { borderBottomColor: theme.hairline }]}
           onPress={handleRefreshPrices}
           disabled={isRefreshingPrices}
         >
           <View style={styles.dataRowLeft}>
-            <Feather name="refresh-cw" size={17} color={theme.tint} />
+            <Feather name="refresh-cw" size={17} color={theme.accent} />
             <Text style={[styles.rowLabel, { color: theme.text }]}>Refresh All Prices</Text>
           </View>
           {isRefreshingPrices ? (
-            <ActivityIndicator size="small" color={theme.tint} />
+            <ActivityIndicator size="small" color={theme.accent} />
           ) : refreshDone ? (
             <Feather name="check" size={16} color={theme.positive} />
           ) : (
@@ -764,7 +764,7 @@ export default function SettingsScreen() {
       {/* Tier comparison cards — only show when on free */}
       {tier === "free" && (
         <>
-          <View style={[styles.tierCard, { borderColor: theme.border }]}>
+          <View style={[styles.tierCard, { borderColor: theme.hairline }]}>
             <View style={{ flex: 1 }}>
               <Text style={styles.tierName}>Investor</Text>
               <Text style={styles.tierDesc}>Unlimited holdings · DCA log · Projections · Rebalancing · Notifications</Text>
@@ -785,7 +785,7 @@ export default function SettingsScreen() {
             </View>
           </View>
           <TouchableOpacity
-            style={[styles.upgradeFullBtn, { backgroundColor: theme.tint }]}
+            style={[styles.upgradeFullBtn, { backgroundColor: theme.accent }]}
             onPress={() => showPaywall()}
           >
             <Text style={styles.upgradeFullBtnText}>View Plans & Upgrade</Text>
@@ -795,13 +795,13 @@ export default function SettingsScreen() {
 
       {/* Manage subscription when subscribed */}
       {tier !== "free" && (
-        <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+        <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
           <TouchableOpacity
-            style={[styles.dataRow, { borderBottomColor: theme.border }]}
+            style={[styles.dataRow, { borderBottomColor: theme.hairline }]}
             onPress={() => showPaywall()}
           >
             <View style={styles.dataRowLeft}>
-              <Feather name="arrow-up-circle" size={17} color={theme.tint} />
+              <Feather name="arrow-up-circle" size={17} color={theme.accent} />
               <Text style={[styles.rowLabel, { color: theme.text }]}>
                 {tier === "investor" ? "Upgrade to Pro" : "Manage Subscription"}
               </Text>
@@ -829,31 +829,31 @@ export default function SettingsScreen() {
 
       {/* ── DEV MENU ─────────────────────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { color: "#F59E0B", marginTop: 10 }]}>DEV — TEST SUBSCRIPTION</Text>
-      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: "#F59E0B44" }]}>
+      <View style={[styles.section, { backgroundColor: theme.surface, borderColor: "#F59E0B44" }]}>
         {(["free", "investor", "pro"] as SubscriptionTier[]).map((t, i, arr) => (
           <TouchableOpacity
             key={t}
-            style={[styles.settingRow, { borderBottomColor: i < arr.length - 1 ? theme.border : "transparent" }]}
+            style={[styles.settingRow, { borderBottomColor: i < arr.length - 1 ? theme.hairline : "transparent" }]}
             onPress={() => {
               if (t === "free") clearSubscription();
               else setSubscription(t, "monthly");
             }}
           >
-            <Text style={[styles.rowLabel, { color: tier === t ? theme.tint : theme.text }]}>
+            <Text style={[styles.rowLabel, { color: tier === t ? theme.accent : theme.text }]}>
               {t === "free" ? "Free" : t === "investor" ? "Investor (€4,99/mo)" : "Pro (€8,99/mo)"}
             </Text>
-            {tier === t && <Feather name="check" size={16} color={theme.tint} />}
+            {tier === t && <Feather name="check" size={16} color={theme.accent} />}
           </TouchableOpacity>
         ))}
       </View>
 
       {/* ── 5. ABOUT ─────────────────────────────────────────────────────── */}
       <Text style={labelStyle}>ABOUT</Text>
-      <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+      <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
         <Row label="Version">
           <Text style={[styles.rowValue, { color: theme.textSecondary }]}>{APP_VERSION}</Text>
         </Row>
-        <View style={[styles.settingRow, { borderBottomColor: theme.border }]}>
+        <View style={[styles.settingRow, { borderBottomColor: theme.hairline }]}>
           <Text style={[styles.rowLabel, { color: theme.text }]}>Built for</Text>
           <Text style={[styles.rowValue, { color: theme.textSecondary }]}>European ETF investors</Text>
         </View>
@@ -884,7 +884,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   section: {
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: 1,
     overflow: "hidden",
     marginBottom: 4,
@@ -911,7 +911,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
   },
   chipText: { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
   addBtn: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -945,7 +945,7 @@ const styles = StyleSheet.create({
   editInline: { flexDirection: "row", alignItems: "center", gap: 8 },
   editInput: {
     width: 64,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 5,
@@ -963,7 +963,7 @@ const styles = StyleSheet.create({
   },
   addPctSign: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
   input: {
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 12,
     fontSize: 14,
@@ -983,13 +983,13 @@ const styles = StyleSheet.create({
   premiumPill: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 0,
   },
   premiumPillText: { fontSize: 11, fontFamily: "Archivo_600SemiBold" },
 
   // ── Premium section ─────────────────────────────────────────────────────
   premiumCard: {
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: "#1E2D45",
     overflow: "hidden",
@@ -1013,20 +1013,20 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: 4,
     backgroundColor: "#1E2D45",
-    borderRadius: 2,
+    borderRadius: 0,
     marginTop: 4,
     overflow: "hidden",
   },
   progressFill: {
     height: 4,
     backgroundColor: "#F59E0B",
-    borderRadius: 2,
+    borderRadius: 0,
   },
   upgradeBtn: {
     minHeight: 44,
     paddingHorizontal: 18,
     paddingVertical: 11,
-    borderRadius: 12,
+    borderRadius: 0,
     backgroundColor: "#F59E0B",
     alignItems: "center",
     justifyContent: "center",
@@ -1050,7 +1050,7 @@ const styles = StyleSheet.create({
   },
   tierCard: {
     backgroundColor: "#111827",
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     padding: 16,
     flexDirection: "row",
@@ -1084,7 +1084,7 @@ const styles = StyleSheet.create({
   },
   upgradeFullBtn: {
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 0,
     alignItems: "center",
     marginBottom: 4,
   },
@@ -1113,7 +1113,7 @@ const styles = StyleSheet.create({
   permDeniedBanner: {
     flexDirection: "row",
     alignItems: "flex-start",
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     padding: 12,
     marginBottom: 4,
@@ -1132,7 +1132,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: "100%",
     maxHeight: "75%",
-    borderRadius: 20,
+    borderRadius: 0,
     borderWidth: 1,
     padding: 20,
   },
@@ -1147,7 +1147,7 @@ const styles = StyleSheet.create({
   dayCell: {
     width: 52,
     height: 44,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",

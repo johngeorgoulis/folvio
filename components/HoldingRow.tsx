@@ -6,9 +6,8 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { Badge } from "@/components/ui/Badge";
 import type { Holding } from "@/context/PortfolioContext";
 import { CHART_COLORS } from "@/components/DonutChart";
@@ -29,20 +28,16 @@ export function HoldingRow({
   onPress,
   onDelete,
 }: HoldingRowProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+  const { theme } = useTheme();
 
-  const currentValue = holding.units * holding.currentPrice;
-  const invested = holding.units * holding.avgPurchasePrice;
+  const currentValue = holding.quantity * holding.currentPrice;
+  const invested = holding.quantity * holding.avg_cost_eur;
   const gain = currentValue - invested;
   const gainPct = invested > 0 ? (gain / invested) * 100 : 0;
   const isPositive = gain >= 0;
 
   const actualAllocationPct =
     totalPortfolioValue > 0 ? (currentValue / totalPortfolioValue) * 100 : 0;
-  const drift = actualAllocationPct - holding.targetAllocationPct;
-  const hasDrift = Math.abs(drift) >= 5 && holding.targetAllocationPct > 0;
 
   const color = CHART_COLORS[index % CHART_COLORS.length];
 
@@ -50,7 +45,7 @@ export function HoldingRow({
     <TouchableOpacity
       style={[
         styles.container,
-        { backgroundColor: theme.backgroundCard, borderColor: theme.border },
+        { backgroundColor: theme.surface, borderColor: theme.hairline },
       ]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -61,38 +56,27 @@ export function HoldingRow({
       <View style={[styles.colorBar, { backgroundColor: color }]} />
       <View style={styles.main}>
         <View style={styles.top}>
-          <View style={styles.nameRow}>
-            <Text
-              style={[styles.name, { color: theme.text }]}
-              numberOfLines={1}
-            >
-              {holding.name}
-            </Text>
-            {hasDrift && (
-              <View
-                style={[
-                  styles.driftDot,
-                  { backgroundColor: drift < 0 ? theme.negative : theme.warning },
-                ]}
-              />
-            )}
-          </View>
+          <Text
+            style={[styles.name, { color: theme.text }]}
+            numberOfLines={1}
+          >
+            {holding.name || holding.ticker}
+          </Text>
           <Text style={[styles.value, { color: theme.text }]}>
             {formatEUR(currentValue)}
           </Text>
         </View>
 
         <View style={styles.middle}>
-          <View style={styles.badgeRow}>
-            <Badge label={holding.broker} variant="default" />
-            <Badge
-              label={holding.holdingType}
-              variant={holding.holdingType === "ETF" ? "etf" : "stock"}
-            />
-            <Badge
-              label={holding.shareClass}
-              variant={holding.shareClass === "ACC" ? "acc" : "dist"}
-            />
+          <View style={styles.tagRow}>
+            {!!holding.exchange && (
+              <Text style={[styles.tag, { color: theme.textMuted, borderColor: theme.hairline }]}>
+                {holding.exchange}
+              </Text>
+            )}
+            <Text style={[styles.tag, { color: theme.textMuted, borderColor: theme.hairline }]}>
+              {holding.ticker}
+            </Text>
           </View>
           <Text
             style={[
@@ -107,17 +91,14 @@ export function HoldingRow({
 
         <View style={styles.bottom}>
           <Text style={[styles.meta, { color: theme.textSecondary }]}>
-            {formatQuantity(holding.units)} units ·{" "}
-            {holding.isin || holding.ticker}
+            {formatQuantity(holding.quantity)} units · avg {formatEUR(holding.avg_cost_eur)}
           </Text>
           <View style={styles.allocationRow}>
             <Text style={[styles.meta, { color: theme.textSecondary }]}>
               {actualAllocationPct.toFixed(1)}%
-              {holding.targetAllocationPct > 0 &&
-                ` / ${holding.targetAllocationPct}% target`}
             </Text>
             <View
-              style={[styles.allocationBar, { backgroundColor: isDark ? "#2A2A2A" : "#E5E7EB" }]}
+              style={[styles.allocationBar, { backgroundColor: theme.surface }]}
             >
               <View
                 style={[
@@ -151,7 +132,7 @@ export function HoldingRow({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     marginBottom: 10,
     flexDirection: "row",
@@ -170,22 +151,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    flex: 1,
-    marginRight: 8,
-  },
   name: {
     fontSize: 15,
     fontFamily: "Archivo_600SemiBold",
     flex: 1,
-  },
-  driftDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    marginRight: 8,
   },
   value: {
     fontSize: 15,
@@ -198,9 +168,17 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 6,
   },
-  badgeRow: {
+  tagRow: {
     flexDirection: "row",
     gap: 4,
+  },
+  tag: {
+    fontSize: 11,
+    fontFamily: "Archivo_600SemiBold",
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    letterSpacing: 0.3,
   },
   gain: {
     fontSize: 12,
@@ -221,12 +199,12 @@ const styles = StyleSheet.create({
   allocationBar: {
     flex: 1,
     height: 3,
-    borderRadius: 2,
+    borderRadius: 0,
     overflow: "hidden",
   },
   allocationFill: {
     height: 3,
-    borderRadius: 2,
+    borderRadius: 0,
   },
   deleteBtn: {
     padding: 14,

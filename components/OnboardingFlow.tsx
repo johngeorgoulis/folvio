@@ -9,6 +9,7 @@ import {
   View,
   ViewToken,
 } from "react-native";
+import { useTheme } from "@/context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -16,12 +17,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 export const ONBOARDING_KEY = "folvio_onboarding_complete";
 
-const NAVY    = "#0F1923";
-const GOLD    = "#C9A84C";
-const WHITE   = "#FFFFFF";
-const MUTED   = "#6B7A8D";
-const CHIP_BG = "#1A2E42";
-const DARK_BG = "#0A0F1E";
+const NAVY    = "#201e1d";
+const GOLD    = "#ec3013";
+const WHITE   = "#f3f2f2";
+const MUTED   = "#7d7979";
+const CHIP_BG = "#eae9e9";
+const DARK_BG = "#f3f2f2";
 
 // ─── Page data ────────────────────────────────────────────────────────────────
 
@@ -340,7 +341,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 14,
     backgroundColor: CHIP_BG,
-    borderRadius: 14,
+    borderRadius: 0,
     padding: 16,
     borderWidth: 1,
     borderColor: GOLD + "22",
@@ -361,7 +362,7 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 96,
     height: 96,
-    borderRadius: 48,
+    borderRadius: 0,
     backgroundColor: CHIP_BG,
     alignItems: "center",
     justifyContent: "center",
@@ -388,7 +389,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: CHIP_BG,
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: GOLD + "44",
     paddingHorizontal: 16,
@@ -426,7 +427,7 @@ const styles = StyleSheet.create({
   primaryBtn: {
     width: "100%",
     backgroundColor: GOLD,
-    borderRadius: 14,
+    borderRadius: 0,
     paddingVertical: 17,
     alignItems: "center",
   },

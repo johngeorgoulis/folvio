@@ -15,7 +15,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useAllocation, THRESHOLD_OPTIONS } from "@/context/AllocationContext";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -32,9 +32,9 @@ import { buildYahooSymbol } from "@/services/priceService";
 import { formatEUR, formatQuantity } from "@/utils/format";
 
 const ETF_COLORS = [
-  "#C9A84C",
-  "#34D399",
   "#60A5FA",
+  "#34D399",
+  "#FBBF24",
   "#F472B6",
   "#A78BFA",
   "#FB923C",
@@ -65,13 +65,13 @@ function StatusBadge({ status }: { status: AllocationRow["status"] }) {
   );
 }
 
-function AllocationBar({ rows }: { rows: AllocationRow[] }) {
+function AllocationBar({ rows, theme }: { rows: AllocationRow[]; theme: any }) {
   const pricedRows = rows.filter((r) => r.actualPct > 0);
   const totalShown = pricedRows.reduce((s, r) => s + r.actualPct, 0);
   if (totalShown === 0) return null;
 
   return (
-    <View style={styles.barContainer}>
+    <View style={[styles.barContainer, { backgroundColor: theme.surface }]}>
       {pricedRows.map((r, i) => (
         <View
           key={r.ticker}
@@ -80,7 +80,6 @@ function AllocationBar({ rows }: { rows: AllocationRow[] }) {
             {
               flex: r.actualPct / totalShown,
               backgroundColor: getColor(i),
-              borderRadius: i === 0 ? 4 : i === pricedRows.length - 1 ? 4 : 0,
               marginLeft: i === 0 ? 0 : 1,
             },
           ]}
@@ -90,14 +89,14 @@ function AllocationBar({ rows }: { rows: AllocationRow[] }) {
   );
 }
 
-function AllocationLegend({ rows }: { rows: AllocationRow[] }) {
+function AllocationLegend({ rows, theme }: { rows: AllocationRow[]; theme: any }) {
   const pricedRows = rows.filter((r) => r.actualPct > 0);
   return (
     <View style={styles.legendGrid}>
       {pricedRows.map((r, i) => (
         <View key={r.ticker} style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: getColor(i) }]} />
-          <Text style={styles.legendText}>{r.ticker}</Text>
+          <Text style={[styles.legendText, { color: theme.textSecondary }]}>{r.ticker}</Text>
         </View>
       ))}
     </View>
@@ -105,7 +104,7 @@ function AllocationLegend({ rows }: { rows: AllocationRow[] }) {
 }
 
 export default function RebalanceScreen() {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 24 : insets.top;
 
@@ -170,7 +169,7 @@ export default function RebalanceScreen() {
   if (isLoadingTargets) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background, justifyContent: "center", alignItems: "center" }]}>
-        <ActivityIndicator color={theme.tint} />
+        <ActivityIndicator color={theme.accent} />
       </View>
     );
   }
@@ -180,16 +179,16 @@ export default function RebalanceScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={[styles.navBar, { paddingTop: topPad + 8, borderBottomColor: theme.border }]}>
+      <View style={[styles.navBar, { paddingTop: topPad + 8, borderBottomColor: theme.divider, borderBottomWidth: 2, backgroundColor: theme.surface }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.navTitle, { color: theme.text }]}>Rebalance</Text>
+        <Text style={[styles.navTitle, { color: theme.text }]}>REBALANCE</Text>
         <TouchableOpacity
           onPress={() => router.push("/settings" as never)}
           style={styles.navAction}
         >
-          <Feather name="sliders" size={18} color={theme.tint} />
+          <Feather name="sliders" size={18} color={theme.accent} />
         </TouchableOpacity>
       </View>
 
@@ -199,7 +198,7 @@ export default function RebalanceScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {totalEUR === 0 && (
-          <View style={[styles.emptyCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+          <View style={[styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
             <Text style={[styles.emptyTitle, { color: theme.text }]}>No portfolio data</Text>
             <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
               Add holdings with live prices to use the rebalance calculator.
@@ -214,10 +213,10 @@ export default function RebalanceScreen() {
           </View>
         )}
 
-        <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Allocation Overview</Text>
-          <AllocationBar rows={allocations} />
-          <AllocationLegend rows={allocations} />
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>ALLOCATION OVERVIEW</Text>
+          <AllocationBar rows={allocations} theme={theme} />
+          <AllocationLegend rows={allocations} theme={theme} />
 
           <View style={styles.tableHeader}>
             <Text style={[styles.thTicker, { color: theme.textSecondary }]}>TICKER</Text>
@@ -226,13 +225,13 @@ export default function RebalanceScreen() {
             <Text style={[styles.thNum, { color: theme.textSecondary }]}>DRIFT</Text>
             <Text style={[styles.thStatus, { color: theme.textSecondary }]}>STATUS</Text>
           </View>
-          <View style={[styles.tableDivider, { backgroundColor: theme.border }]} />
+          <View style={[styles.tableDivider, { backgroundColor: theme.hairline }]} />
 
           {allocations.map((row, i) => (
             <View key={row.ticker}>
-              {i > 0 && <View style={[styles.rowDivider, { backgroundColor: theme.border }]} />}
+              {i > 0 && <View style={[styles.rowDivider, { backgroundColor: theme.hairline }]} />}
               <View style={styles.tableRow}>
-                <View style={styles.thTicker}>
+                <View style={styles.tickerCell}>
                   <View style={[styles.colorDot, { backgroundColor: getColor(i) }]} />
                   <Text style={[styles.rowTicker, { color: theme.text }]}>{row.ticker}</Text>
                 </View>
@@ -271,47 +270,47 @@ export default function RebalanceScreen() {
           )}
         </View>
 
-        <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Rebalancing Calculator</Text>
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>REBALANCING CALCULATOR</Text>
 
           <View style={styles.modeToggle}>
             <TouchableOpacity
-              style={[styles.modeBtn, { backgroundColor: mode === "dca" ? theme.tint + "22" : theme.backgroundElevated, borderColor: mode === "dca" ? theme.tint : theme.border }]}
+              style={[styles.modeBtn, { backgroundColor: mode === "dca" ? theme.accent + "18" : theme.background, borderColor: mode === "dca" ? theme.accent : theme.hairline }]}
               onPress={() => { setMode("dca"); setResult(null); }}
             >
-              <Text style={[styles.modeBtnText, { color: mode === "dca" ? theme.tint : theme.textSecondary }]}>
+              <Text style={[styles.modeBtnText, { color: mode === "dca" ? theme.accent : theme.textSecondary }]}>
                 DCA Mode
               </Text>
-              <Text style={[styles.modeSubText, { color: mode === "dca" ? theme.tint + "99" : theme.textTertiary }]}>
+              <Text style={[styles.modeSubText, { color: mode === "dca" ? theme.accent + "99" : theme.textMuted }]}>
                 Add new capital
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modeBtn, { backgroundColor: mode === "full" ? theme.tint + "22" : theme.backgroundElevated, borderColor: mode === "full" ? theme.tint : theme.border }]}
+              style={[styles.modeBtn, { backgroundColor: mode === "full" ? theme.accent + "18" : theme.background, borderColor: mode === "full" ? theme.accent : theme.hairline }]}
               onPress={() => {
                 if (!canUseFullRebalance) { showPaywall("rebalance"); return; }
                 setMode("full"); setResult(null);
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Text style={[styles.modeBtnText, { color: mode === "full" ? theme.tint : theme.textSecondary }]}>
+                <Text style={[styles.modeBtnText, { color: mode === "full" ? theme.accent : theme.textSecondary }]}>
                   Full Rebalance
                 </Text>
-                {!canUseFullRebalance && <Feather name="lock" size={12} color={theme.textTertiary} />}
+                {!canUseFullRebalance && <Feather name="lock" size={12} color={theme.textMuted} />}
               </View>
-              <Text style={[styles.modeSubText, { color: mode === "full" ? theme.tint + "99" : theme.textTertiary }]}>
+              <Text style={[styles.modeSubText, { color: mode === "full" ? theme.accent + "99" : theme.textMuted }]}>
                 {canUseFullRebalance ? "Buy & sell" : "Investor+"}
               </Text>
             </TouchableOpacity>
           </View>
 
           {mode === "dca" && (
-            <View style={[styles.inputRow, { borderColor: theme.border, backgroundColor: theme.backgroundElevated }]}>
+            <View style={[styles.inputRow, { borderColor: theme.hairline, backgroundColor: theme.background }]}>
               <Text style={[styles.inputPrefix, { color: theme.textSecondary }]}>€</Text>
               <TextInput
                 style={[styles.cashInput, { color: theme.text }]}
                 placeholder="Amount to invest"
-                placeholderTextColor={theme.textTertiary}
+                placeholderTextColor={theme.textMuted}
                 keyboardType="decimal-pad"
                 value={cashInput}
                 onChangeText={(t) => { setCashInput(t); setResult(null); }}
@@ -339,21 +338,21 @@ export default function RebalanceScreen() {
           )}
 
           <TouchableOpacity
-            style={[styles.calcBtn, { backgroundColor: theme.tint, opacity: !validation.valid ? 0.5 : 1 }]}
+            style={[styles.calcBtn, { backgroundColor: theme.accent, opacity: !validation.valid ? 0.5 : 1 }]}
             onPress={handleCalculate}
             disabled={!validation.valid || calculating}
           >
             {calculating ? (
-              <ActivityIndicator color="#0A0F1A" />
+              <ActivityIndicator color={theme.background} />
             ) : (
-              <Text style={styles.calcBtnText}>Calculate</Text>
+              <Text style={[styles.calcBtnText, { color: theme.background }]}>Calculate</Text>
             )}
           </TouchableOpacity>
         </View>
 
         {result && (
-          <View style={[styles.card, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Suggestions</Text>
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>SUGGESTIONS</Text>
 
             {result.warnings.map((w, i) => (
               <View key={i} style={[styles.warningRow, { borderColor: "#FBBF2444" }]}>
@@ -369,7 +368,7 @@ export default function RebalanceScreen() {
               const isSkip = s.action === "skip";
               return (
                 <View key={i}>
-                  {i > 0 && <View style={[styles.rowDivider, { backgroundColor: theme.border }]} />}
+                  {i > 0 && <View style={[styles.rowDivider, { backgroundColor: theme.hairline }]} />}
                   <View style={styles.suggestionRow}>
                     <View
                       style={[
@@ -379,7 +378,7 @@ export default function RebalanceScreen() {
                             ? "#34D39922"
                             : isSell
                             ? "#F8717122"
-                            : theme.backgroundElevated,
+                            : theme.background,
                         },
                       ]}
                     >
@@ -421,22 +420,22 @@ export default function RebalanceScreen() {
         )}
 
         {result && (
-          <View style={[styles.summaryCard, { backgroundColor: theme.deepBlue }]}>
-            <Text style={styles.summaryTitle}>Summary</Text>
+          <View style={[styles.summaryCard, { backgroundColor: theme.surface, borderColor: theme.hairline, borderTopWidth: 2, borderTopColor: theme.text }]}>
+            <Text style={[styles.summaryTitle, { color: theme.textSecondary }]}>SUMMARY</Text>
             <View style={styles.summaryGrid}>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Capital to Deploy</Text>
-                <Text style={styles.summaryValue}>{formatEUR(result.totalToDeploy)}</Text>
+                <Text style={[styles.summaryLabel, { color: theme.textMuted }]}>Capital to Deploy</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>{formatEUR(result.totalToDeploy)}</Text>
               </View>
-              <View style={styles.summaryDivider} />
+              <View style={[styles.summaryDivider, { backgroundColor: theme.hairline }]} />
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Transactions</Text>
-                <Text style={styles.summaryValue}>{result.transactionCount}</Text>
+                <Text style={[styles.summaryLabel, { color: theme.textMuted }]}>Transactions</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>{result.transactionCount}</Text>
               </View>
-              <View style={styles.summaryDivider} />
+              <View style={[styles.summaryDivider, { backgroundColor: theme.hairline }]} />
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Mode</Text>
-                <Text style={styles.summaryValue}>
+                <Text style={[styles.summaryLabel, { color: theme.textMuted }]}>Mode</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>
                   {result.mode === "dca" ? "DCA" : "Full"}
                 </Text>
               </View>
@@ -455,14 +454,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomWidth: 1,
   },
   backBtn: { padding: 4, marginRight: 8 },
-  navTitle: { flex: 1, fontSize: 18, fontFamily: "Archivo_800ExtraBold" },
+  navTitle: { flex: 1, fontSize: 18, fontFamily: "Archivo_800ExtraBold", letterSpacing: 1 },
   navAction: { padding: 8 },
   content: { paddingHorizontal: 16, paddingTop: 16, gap: 14 },
   emptyCard: {
-    borderRadius: 16,
+    borderRadius: 0,
     padding: 24,
     alignItems: "center",
     gap: 8,
@@ -475,40 +473,40 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 8,
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
   },
   warningText: { flex: 1, fontSize: 13, color: "#FBBF24", fontFamily: "Archivo_400Regular", lineHeight: 18 },
-  card: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 12 },
-  sectionTitle: { fontSize: 15, fontFamily: "Archivo_600SemiBold" },
+  card: { borderRadius: 0, padding: 16, borderWidth: 1, gap: 12 },
+  sectionTitle: { fontSize: 11, fontFamily: "Archivo_800ExtraBold", letterSpacing: 1 },
   barContainer: {
     flexDirection: "row",
     height: 20,
-    borderRadius: 6,
+    borderRadius: 0,
     overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.06)",
   },
   barSegment: { height: "100%" },
   legendGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: 11, color: "#94A3B8", fontFamily: "Archivo_600SemiBold" },
+  legendDot: { width: 8, height: 8, borderRadius: 0 },
+  legendText: { fontSize: 11, fontFamily: "Archivo_600SemiBold" },
   tableHeader: { flexDirection: "row", alignItems: "center", marginTop: 4 },
   tableDivider: { height: 1, marginBottom: 2 },
   rowDivider: { height: 1 },
-  thTicker: { flex: 2, flexDirection: "row", alignItems: "center", gap: 6 },
+  tickerCell: { flex: 2, flexDirection: "row", alignItems: "center", gap: 6 },
+  thTicker: { flex: 2, fontSize: 10, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.3 },
   thNum: { flex: 1, fontSize: 10, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.3, textAlign: "center" },
   thStatus: { flex: 1.5, alignItems: "flex-end" },
   tableRow: { flexDirection: "row", alignItems: "center", paddingVertical: 9 },
-  colorDot: { width: 8, height: 8, borderRadius: 4 },
+  colorDot: { width: 8, height: 8, borderRadius: 0 },
   rowTicker: { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
-  badge: { flexDirection: "row", alignItems: "center", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, gap: 4 },
-  badgeDot: { width: 5, height: 5, borderRadius: 3 },
+  badge: { flexDirection: "row", alignItems: "center", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 0, gap: 4 },
+  badgeDot: { width: 5, height: 5, borderRadius: 0 },
   badgeText: { fontSize: 10, fontFamily: "Archivo_600SemiBold" },
   modeToggle: { flexDirection: "row", gap: 10 },
   modeBtn: {
     flex: 1,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
     padding: 12,
     gap: 2,
@@ -518,7 +516,7 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 0,
@@ -531,7 +529,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 8,
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
   },
   fullRebalanceNoteText: { flex: 1, fontSize: 12, color: "#F87171", fontFamily: "Archivo_400Regular", lineHeight: 17 },
@@ -540,17 +538,17 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 8,
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
   },
   overweightBannerText: { flex: 1, fontSize: 12, color: "#F39C12", fontFamily: "Archivo_400Regular", lineHeight: 17 },
   calcBtn: {
-    borderRadius: 12,
+    borderRadius: 0,
     height: 48,
     alignItems: "center",
     justifyContent: "center",
   },
-  calcBtnText: { fontSize: 15, fontFamily: "Archivo_800ExtraBold", color: "#0A0F1A" },
+  calcBtnText: { fontSize: 15, fontFamily: "Archivo_800ExtraBold" },
   warningRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -569,18 +567,18 @@ const styles = StyleSheet.create({
   actionBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 7,
+    borderRadius: 0,
     minWidth: 46,
     alignItems: "center",
   },
   actionText: { fontSize: 11, fontFamily: "Archivo_800ExtraBold", letterSpacing: 0.5 },
   suggestionMain: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
   suggestionValue: { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
-  summaryCard: { borderRadius: 20, padding: 24 },
-  summaryTitle: { color: "rgba(255,255,255,0.6)", fontSize: 11, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.5, marginBottom: 12 },
+  summaryCard: { borderRadius: 0, padding: 24, borderWidth: 1 },
+  summaryTitle: { fontSize: 11, fontFamily: "Archivo_800ExtraBold", letterSpacing: 1, marginBottom: 12 },
   summaryGrid: { flexDirection: "row", alignItems: "center" },
   summaryItem: { flex: 1, alignItems: "center", gap: 4 },
-  summaryDivider: { width: 1, height: 40, backgroundColor: "rgba(255,255,255,0.15)", marginHorizontal: 8 },
-  summaryLabel: { color: "rgba(255,255,255,0.55)", fontSize: 11, fontFamily: "Archivo_400Regular" },
-  summaryValue: { color: "#FFFFFF", fontSize: 18, fontFamily: "Archivo_800ExtraBold" },
+  summaryDivider: { width: 1, height: 40, marginHorizontal: 8 },
+  summaryLabel: { fontSize: 11, fontFamily: "Archivo_400Regular" },
+  summaryValue: { fontSize: 18, fontFamily: "Archivo_800ExtraBold" },
 });

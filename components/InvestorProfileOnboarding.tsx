@@ -18,14 +18,14 @@ const { width: SCREEN_W } = Dimensions.get("window");
 export const INVESTOR_PROFILE_KEY = "investor_profile_completed";
 
 // ── Theme ────────────────────────────────────────────────────────────────────
-const DARK_BG    = "#0A0F1E";
-const CARD_BG    = "#111827";
-const ELEVATED   = "#1C2333";
-const BORDER     = "#1E2D45";
-const GOLD       = "#F59E0B";
-const TEXT       = "#F1F5F9";
-const TEXT_SEC   = "#94A3B8";
-const TEXT_TERT  = "#475569";
+const DARK_BG    = "#f3f2f2";
+const CARD_BG    = "#eae9e9";
+const ELEVATED   = "#eae9e9";
+const BORDER     = "#d7d3d3";
+const GOLD       = "#ec3013";
+const TEXT       = "#201e1d";
+const TEXT_SEC   = "#7d7979";
+const TEXT_TERT  = "#9b9797";
 
 // ── Questions ────────────────────────────────────────────────────────────────
 interface Question {
@@ -205,7 +205,7 @@ const cardStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1.5,
     paddingVertical: 17,
     paddingHorizontal: 18,
@@ -219,7 +219,7 @@ const cardStyles = StyleSheet.create({
   check: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 10,
@@ -296,7 +296,7 @@ const resultStyles = StyleSheet.create({
   iconWrap: {
     width: 96,
     height: 96,
-    borderRadius: 32,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 28,
@@ -329,7 +329,7 @@ const resultStyles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 24,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
   },
   scoreKey:  { fontSize: 13, fontFamily: "Archivo_400Regular", color: TEXT_SEC },
@@ -338,7 +338,7 @@ const resultStyles = StyleSheet.create({
   buttons: { gap: 12, paddingHorizontal: 4 },
   primaryBtn: {
     width: "100%",
-    borderRadius: 14,
+    borderRadius: 0,
     paddingVertical: 17,
     alignItems: "center",
   },
@@ -349,7 +349,7 @@ const resultStyles = StyleSheet.create({
   },
   secondaryBtn: {
     width: "100%",
-    borderRadius: 14,
+    borderRadius: 0,
     paddingVertical: 16,
     alignItems: "center",
     borderWidth: 1,
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     height: 4,
-    borderRadius: 2,
+    borderRadius: 0,
   },
   skipText: {
     fontSize: 15,
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 14,
+    borderRadius: 0,
   },
   nextBtnText: {
     fontSize: 16,

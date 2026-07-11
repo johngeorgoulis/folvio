@@ -10,7 +10,7 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from "react-native-svg";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import type { ChartPoint } from "@/services/priceService";
 
 interface PriceChartProps {
@@ -57,7 +57,7 @@ function buildSmoothPath(pts: { x: number; y: number }[]): string {
 const PAD = { top: 24, bottom: 32, left: 8, right: 8 };
 
 export default function PriceChart({ data, width, height = 200, range, avgCostEUR }: PriceChartProps) {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
   const [touchIdx, setTouchIdx] = useState<number | null>(null);
 
   const cW = width - PAD.left - PAD.right;
@@ -65,7 +65,7 @@ export default function PriceChart({ data, width, height = 200, range, avgCostEU
 
   if (data.length < 2) {
     return (
-      <View style={[styles.empty, { width, height, backgroundColor: theme.backgroundCard }]}>
+      <View style={[styles.empty, { width, height, backgroundColor: theme.surface }]}>
         <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: "Archivo_400Regular" }}>
           Chart unavailable
         </Text>
@@ -89,7 +89,7 @@ export default function PriceChart({ data, width, height = 200, range, avgCostEU
   const areaPath = `${linePath} L ${lastPt.x} ${PAD.top + cH} L ${PAD.left} ${PAD.top + cH} Z`;
 
   const isPositive = prices[prices.length - 1] >= prices[0];
-  const lineColor = isPositive ? theme.tint : theme.negative;
+  const lineColor = isPositive ? theme.accent : theme.negative;
 
   const labelIndices = [0, Math.floor((data.length - 1) / 2), data.length - 1];
 
@@ -156,7 +156,7 @@ export default function PriceChart({ data, width, height = 200, range, avgCostEU
                 width={58}
                 height={14}
                 rx={4}
-                fill={theme.backgroundElevated}
+                fill={theme.surface}
                 opacity={0.85}
               />
               <SvgText
@@ -218,7 +218,7 @@ export default function PriceChart({ data, width, height = 200, range, avgCostEU
               width={72}
               height={20}
               rx={6}
-              fill={theme.backgroundElevated}
+              fill={theme.surface}
               opacity={0.95}
             />
             <SvgText
@@ -240,7 +240,7 @@ export default function PriceChart({ data, width, height = 200, range, avgCostEU
 
 const styles = StyleSheet.create({
   empty: {
-    borderRadius: 12,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
   },

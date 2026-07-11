@@ -9,9 +9,9 @@ import {
   StyleSheet,
   Text,
   View,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "@/context/ThemeContext";
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -19,18 +19,8 @@ export type ErrorFallbackProps = {
 };
 
 export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-
-  const theme = {
-    background: isDark ? "#000000" : "#FFFFFF",
-    backgroundSecondary: isDark ? "#1C1C1E" : "#F2F2F7",
-    text: isDark ? "#FFFFFF" : "#000000",
-    textSecondary: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
-    link: "#007AFF",
-    buttonText: "#FFFFFF",
-  };
 
   const [isModalVisible, setIsModalVisible] = useState(false);
 
@@ -58,7 +48,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       {__DEV__ ? (
         <Pressable
           onPress={() => setIsModalVisible(true)}
@@ -68,7 +58,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             styles.topButton,
             {
               top: insets.top + 16,
-              backgroundColor: theme.backgroundSecondary,
+              backgroundColor: theme.surface,
               opacity: pressed ? 0.8 : 1,
             },
           ]}
@@ -91,13 +81,13 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           style={({ pressed }) => [
             styles.button,
             {
-              backgroundColor: theme.link,
+              backgroundColor: theme.accent,
               opacity: pressed ? 0.9 : 1,
               transform: [{ scale: pressed ? 0.98 : 1 }],
             },
           ]}
         >
-          <Text style={[styles.buttonText, { color: theme.buttonText }]}>
+          <Text style={[styles.buttonText, { color: theme.background }]}>
             Try Again
           </Text>
         </Pressable>
@@ -121,9 +111,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
                 style={[
                   styles.modalHeader,
                   {
-                    borderBottomColor: isDark
-                      ? "rgba(255, 255, 255, 0.1)"
-                      : "rgba(0, 0, 0, 0.1)",
+                    borderBottomColor: theme.hairline,
                   },
                 ]}
               >
@@ -154,7 +142,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
                 <View
                   style={[
                     styles.errorContainer,
-                    { backgroundColor: theme.backgroundSecondary },
+                    { backgroundColor: theme.surface },
                   ]}
                 >
                   <Text
@@ -211,7 +199,7 @@ const styles = StyleSheet.create({
     right: 16,
     width: 44,
     height: 44,
-    borderRadius: 8,
+    borderRadius: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -219,7 +207,7 @@ const styles = StyleSheet.create({
   },
   button: {
     paddingVertical: 16,
-    borderRadius: 8,
+    borderRadius: 0,
     paddingHorizontal: 24,
     minWidth: 200,
     shadowColor: "#000",
@@ -244,8 +232,8 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: "100%",
     height: "90%",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
   modalHeader: {
     flexDirection: "row",
@@ -274,7 +262,7 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     width: "100%",
-    borderRadius: 8,
+    borderRadius: 0,
     overflow: "hidden",
     padding: 16,
   },

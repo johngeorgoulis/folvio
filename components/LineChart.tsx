@@ -1,7 +1,7 @@
 import React from "react";
 import { View } from "react-native";
-import Svg, { Defs, LinearGradient, Path, Polyline, Stop } from "react-native-svg";
-import Colors from "@/constants/colors";
+import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
+import { useTheme } from "@/context/ThemeContext";
 
 interface DataPoint {
   year: number;
@@ -28,7 +28,7 @@ function buildPath(points: { x: number; y: number }[]): string {
 }
 
 export function LineChart({ conservative, base, optimistic, width, height = 180 }: LineChartProps) {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
 
   const padding = { top: 12, bottom: 12, left: 8, right: 8 };
   const chartW = width - padding.left - padding.right;
@@ -69,7 +69,7 @@ export function LineChart({ conservative, base, optimistic, width, height = 180 
         />
         <Path
           d={conservativePath}
-          stroke="#1E3A5F"
+          stroke={theme.divider}
           strokeWidth={1.5}
           fill="none"
           strokeDasharray="4 4"

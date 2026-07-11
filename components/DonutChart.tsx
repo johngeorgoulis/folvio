@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G } from "react-native-svg";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 
 export interface DonutSegment {
   label: string;
@@ -38,7 +38,7 @@ export function DonutChart({
   centerLabel,
   centerSublabel,
 }: DonutChartProps) {
-  const theme  = Colors.dark;
+  const { theme } = useTheme();
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
@@ -52,7 +52,7 @@ export function DonutChart({
             cx={center}
             cy={center}
             r={radius}
-            stroke={theme.border}
+            stroke={theme.hairline}
             strokeWidth={strokeWidth}
             fill="none"
           />

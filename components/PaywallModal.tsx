@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import {
   PRICES,
   YEARLY_SAVINGS_PCT,
@@ -20,7 +20,6 @@ import {
 } from "@/context/SubscriptionContext";
 import { FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 
-const theme = Colors.dark;
 
 // ─── Plan definitions ──────────────────────────────────────────────────────────
 
@@ -137,7 +136,7 @@ function PaidPlanCard({
   const monthlyEq  = billing === "yearly"
     ? (PRICES[tier as "investor" | "pro"].yearly / 12).toFixed(2)
     : null;
-  const accentColor = badgeColor ?? theme.tint;
+  const accentColor = badgeColor ?? theme.accent;
 
   return (
     <View style={[styles.planCard, highlighted && { borderColor: accentColor, borderWidth: 1.5 }]}>
@@ -190,6 +189,7 @@ interface Props {
 }
 
 export default function PaywallModal({ visible, onClose, trigger }: Props) {
+  const { theme } = useTheme();
   const [billing, setBilling] = useState<BillingPeriod>("yearly");
   const { setSubscription, tier: currentTier } = useSubscription();
   const required = requiredTierFor(trigger);
@@ -244,7 +244,7 @@ export default function PaywallModal({ visible, onClose, trigger }: Props) {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerIcon}>
-              <Feather name="star" size={26} color={theme.tint} />
+              <Feather name="star" size={26} color={theme.accent} />
             </View>
             <Text style={styles.title}>Upgrade Folvio</Text>
             <Text style={styles.subtitle}>
@@ -307,7 +307,7 @@ export default function PaywallModal({ visible, onClose, trigger }: Props) {
             billing={billing}
             highlighted={required === "pro"}
             badge="PRO"
-            badgeColor={theme.tint}
+            badgeColor={theme.accent}
             onSubscribe={handleSubscribe}
           />
 
@@ -348,10 +348,10 @@ const styles = StyleSheet.create({
   headerIcon: {
     width: 64,
     height: 64,
-    borderRadius: 20,
-    backgroundColor: theme.backgroundElevated,
+    borderRadius: 0,
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: theme.hairline,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -361,11 +361,11 @@ const styles = StyleSheet.create({
   // Billing toggle
   billingToggle: {
     flexDirection: "row",
-    backgroundColor: theme.backgroundElevated,
-    borderRadius: 12,
+    backgroundColor: theme.surface,
+    borderRadius: 0,
     padding: 4,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: theme.hairline,
   },
   billingOption: {
     flex: 1,
@@ -374,18 +374,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
     paddingVertical: 9,
-    borderRadius: 9,
+    borderRadius: 0,
   },
   billingOptionActive: {
-    backgroundColor: theme.deepBlue,
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: theme.hairline,
   },
   billingOptionText:       { fontSize: 13, fontFamily: "Archivo_600SemiBold", color: theme.textSecondary },
   billingOptionTextActive: { color: theme.text },
   savingsBadge: {
     backgroundColor: theme.positive + "22",
-    borderRadius: 6,
+    borderRadius: 0,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
@@ -393,10 +393,10 @@ const styles = StyleSheet.create({
 
   // Plan card
   planCard: {
-    backgroundColor: theme.backgroundCard,
-    borderRadius: 16,
+    backgroundColor: theme.surface,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: theme.hairline,
     padding: 18,
     gap: 14,
   },
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   },
   planBadgeWrap: {
     alignSelf: "flex-start",
-    borderRadius: 6,
+    borderRadius: 0,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   planTagline:  { fontSize: 12, fontFamily: "Archivo_400Regular", color: theme.textSecondary, marginTop: 2 },
 
   planPriceBlock: { alignItems: "flex-end", gap: 1 },
-  planPrice:      { fontSize: 22, fontFamily: "Archivo_800ExtraBold",    color: theme.tint },
+  planPrice:      { fontSize: 22, fontFamily: "Archivo_800ExtraBold",    color: theme.accent },
   planPeriod:     { fontSize: 12, fontFamily: "Archivo_400Regular", color: theme.textSecondary },
   monthlyEq:      { fontSize: 11, fontFamily: "Archivo_400Regular", color: theme.textTertiary, marginTop: -8 },
 
@@ -425,20 +425,20 @@ const styles = StyleSheet.create({
   featureIconWrap: {
     width: 22,
     height: 22,
-    borderRadius: 6,
+    borderRadius: 0,
     backgroundColor: theme.positive + "18",
     alignItems: "center",
     justifyContent: "center",
   },
   featureIconWrapMuted: {
-    backgroundColor: theme.backgroundElevated,
+    backgroundColor: theme.surface,
   },
   featureText: { fontSize: 13, fontFamily: "Archivo_400Regular", color: theme.text, flex: 1 },
 
   // CTA
   cta: {
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 0,
     alignItems: "center",
   },
   ctaText: { fontSize: 15, fontFamily: "Archivo_800ExtraBold", color: "#0A0F1E" },

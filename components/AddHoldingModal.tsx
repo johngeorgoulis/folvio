@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { todayISO } from "@/utils/format";
 import ExchangePicker, { getExchangeLabel } from "@/components/ExchangePicker";
@@ -32,9 +32,9 @@ interface Props {
   initialValues?: AddHoldingInitialValues;
 }
 
-const theme = Colors.dark;
 
 export default function AddHoldingModal({ visible, onClose, initialValues }: Props) {
+  const { theme } = useTheme();
   const { addHolding } = usePortfolio();
   const router = useRouter();
 
@@ -165,7 +165,7 @@ export default function AddHoldingModal({ visible, onClose, initialValues }: Pro
   const priceIsEmpty = !currentPrice.trim();
   const inputStyle = [
     styles.input,
-    { backgroundColor: theme.backgroundElevated, borderColor: theme.border, color: theme.text },
+    { backgroundColor: theme.surface, borderColor: theme.hairline, color: theme.text },
   ];
   const labelStyle = [styles.label, { color: theme.textSecondary }];
 
@@ -175,7 +175,7 @@ export default function AddHoldingModal({ visible, onClose, initialValues }: Pro
         <View style={[styles.container, { backgroundColor: theme.background }]}>
 
           {/* ── Header ───────────────────────────────────────────────── */}
-          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <View style={[styles.header, { borderBottomColor: theme.hairline }]}>
             <TouchableOpacity onPress={() => { reset(); onClose(); }} style={styles.cancelBtn}>
               <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
@@ -183,7 +183,7 @@ export default function AddHoldingModal({ visible, onClose, initialValues }: Pro
             <TouchableOpacity
               onPress={handleSave}
               disabled={saving}
-              style={[styles.saveBtn, { backgroundColor: saving ? theme.tint + "BB" : theme.tint }]}
+              style={[styles.saveBtn, { backgroundColor: saving ? theme.accent + "BB" : theme.accent }]}
             >
               {saving && <ActivityIndicator size="small" color="#0A0F1A" style={{ marginRight: 4 }} />}
               <Text style={styles.saveBtnText}>
@@ -194,11 +194,11 @@ export default function AddHoldingModal({ visible, onClose, initialValues }: Pro
 
           {/* ── CSV Import shortcut ───────────────────────────────────── */}
           <TouchableOpacity
-            style={[styles.csvBanner, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}
+            style={[styles.csvBanner, { backgroundColor: theme.surface, borderColor: theme.hairline }]}
             onPress={() => { reset(); onClose(); router.push("/import"); }}
             activeOpacity={0.7}
           >
-            <View style={[styles.csvIconWrap, { backgroundColor: theme.backgroundElevated }]}>
+            <View style={[styles.csvIconWrap, { backgroundColor: theme.surface }]}>
               <Feather name="upload" size={18} color={theme.textSecondary} />
             </View>
             <View style={styles.csvText}>
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 0,
   },
   saveBtnText: { color: "#0A0F1A", fontSize: 14, fontFamily: "Archivo_800ExtraBold" },
   csvBanner: {
@@ -373,14 +373,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     gap: 12,
   },
   csvIconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 12 },
   label: { fontSize: 11, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.6 },
   input: {
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 11,
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
   },
   msgText: { fontSize: 13, fontFamily: "Archivo_400Regular", flex: 1 },

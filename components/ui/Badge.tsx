@@ -1,15 +1,15 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 
 interface BadgeProps {
   label: string;
   variant?: "acc" | "dist" | "etf" | "stock" | "default" | "positive" | "negative";
 }
 
-const theme = Colors.dark;
-
 export function Badge({ label, variant = "default" }: BadgeProps) {
+  const { theme } = useTheme();
+
   const getColors = () => {
     switch (variant) {
       case "acc":
@@ -19,13 +19,13 @@ export function Badge({ label, variant = "default" }: BadgeProps) {
       case "etf":
         return { bg: "rgba(0, 208, 132, 0.12)", text: theme.positive };
       case "stock":
-        return { bg: "rgba(255, 159, 10, 0.15)", text: theme.warning };
+        return { bg: theme.surface, text: theme.textSecondary };
       case "positive":
         return { bg: "rgba(0, 208, 132, 0.15)", text: theme.positive };
       case "negative":
         return { bg: "rgba(255, 59, 48, 0.15)", text: theme.negative };
       default:
-        return { bg: theme.backgroundElevated, text: theme.textSecondary };
+        return { bg: theme.surface, text: theme.textSecondary };
     }
   };
 
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 0,
     alignSelf: "flex-start",
   },
   label: {

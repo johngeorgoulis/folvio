@@ -17,7 +17,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import {
   BROKER_CONFIGS,
@@ -51,7 +51,6 @@ interface TRImportItem {
   action: DuplicateAction; // only used when !isNew; default "merge"
 }
 
-const theme = Colors.dark;
 
 // ─── Progress Indicator ────────────────────────────────────────────────────────
 
@@ -63,14 +62,14 @@ function StepProgress({ step }: { step: 1 | 2 | 3 }) {
           <View
             style={[
               prog.dot,
-              { backgroundColor: step >= s ? theme.tint : theme.border },
+              { backgroundColor: step >= s ? theme.accent : theme.hairline },
             ]}
           />
           {s < 3 && (
             <View
               style={[
                 prog.line,
-                { backgroundColor: step > s ? theme.tint : theme.border },
+                { backgroundColor: step > s ? theme.accent : theme.hairline },
               ]}
             />
           )}
@@ -106,8 +105,8 @@ function BrokerCard({
       style={[
         styles.brokerCard,
         {
-          borderColor: selected ? theme.tint : theme.border,
-          backgroundColor: selected ? theme.deepBlue : theme.backgroundCard,
+          borderColor: selected ? theme.accent : theme.hairline,
+          backgroundColor: selected ? theme.surface : theme.surface,
         },
       ]}
       onPress={onPress}
@@ -122,7 +121,7 @@ function BrokerCard({
       <Text
         style={[
           styles.brokerName,
-          { color: selected ? theme.tint : theme.text },
+          { color: selected ? theme.accent : theme.text },
         ]}
       >
         {broker.name}
@@ -185,7 +184,7 @@ function DuplicateToggle({
             styles.segBtn,
             {
               backgroundColor:
-                value === o.key ? theme.tint : theme.backgroundElevated,
+                value === o.key ? theme.accent : theme.surface,
             },
           ]}
           onPress={() => onChange(o.key)}
@@ -219,7 +218,7 @@ function PreviewRow({
       style={[
         styles.previewRow,
         {
-          borderBottomColor: theme.border,
+          borderBottomColor: theme.hairline,
           opacity: !willImport && item.isDuplicate ? 0.5 : 1,
         },
       ]}
@@ -237,7 +236,7 @@ function PreviewRow({
             <TextInput
               style={[
                 styles.tickerInput,
-                { color: theme.text, borderColor: theme.tint },
+                { color: theme.text, borderColor: theme.accent },
               ]}
               value={item.editedTicker}
               onChangeText={(t) => onTickerChange(t.toUpperCase())}
@@ -337,7 +336,7 @@ function TRPreviewRow({
     <View
       style={[
         styles.previewRow,
-        { borderBottomColor: theme.border, opacity: willImport ? 1 : 0.45 },
+        { borderBottomColor: theme.hairline, opacity: willImport ? 1 : 0.45 },
       ]}
     >
       {/* Name + ticker */}
@@ -373,7 +372,7 @@ function TRPreviewRow({
       {/* Badge + segmented control */}
       <View style={styles.previewRight}>
         {isSellNoHolding ? (
-          <View style={[styles.statusBadge, { backgroundColor: theme.border }]}>
+          <View style={[styles.statusBadge, { backgroundColor: theme.hairline }]}>
             <Text style={[styles.statusText, { color: theme.textTertiary }]}>SKIP</Text>
           </View>
         ) : item.isNew ? (
@@ -442,6 +441,7 @@ function guessExchangeFromISIN(isin: string, ticker?: string): string {
 }
 
 export default function ImportScreen() {
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { holdings, holdingCount, addHolding, updateHolding, deleteHolding } =
     usePortfolio();
@@ -918,7 +918,7 @@ export default function ImportScreen() {
       <Stack.Screen
         options={{
           title: "Import Portfolio",
-          headerStyle: { backgroundColor: theme.backgroundCard },
+          headerStyle: { backgroundColor: theme.surface },
           headerTintColor: theme.text,
           headerTitleStyle: { fontFamily: "Archivo_600SemiBold", fontSize: 17 },
           headerLeft: () => (
@@ -970,13 +970,13 @@ export default function ImportScreen() {
           <View
             style={[
               styles.bottomBar,
-              { paddingBottom: bottomPad, borderTopColor: theme.border },
+              { paddingBottom: bottomPad, borderTopColor: theme.hairline },
             ]}
           >
             <TouchableOpacity
               style={[
                 styles.primaryBtn,
-                { backgroundColor: selectedBroker ? theme.tint : theme.border },
+                { backgroundColor: selectedBroker ? theme.accent : theme.hairline },
               ]}
               onPress={() => selectedBroker && setStep(2)}
               disabled={!selectedBroker}
@@ -1019,8 +1019,8 @@ export default function ImportScreen() {
               style={[
                 styles.instructionsCard,
                 {
-                  backgroundColor: theme.backgroundCard,
-                  borderColor: theme.border,
+                  backgroundColor: theme.surface,
+                  borderColor: theme.hairline,
                 },
               ]}
             >
@@ -1037,11 +1037,11 @@ export default function ImportScreen() {
                       <View
                         style={[
                           styles.instrNum,
-                          { backgroundColor: theme.tint + "22" },
+                          { backgroundColor: theme.accent + "22" },
                         ]}
                       >
                         <Text
-                          style={[styles.instrNumText, { color: theme.tint }]}
+                          style={[styles.instrNumText, { color: theme.accent }]}
                         >
                           {i + 1}
                         </Text>
@@ -1060,10 +1060,10 @@ export default function ImportScreen() {
               style={[
                 styles.uploadBox,
                 {
-                  borderColor: fileName ? theme.positive : theme.tint,
+                  borderColor: fileName ? theme.positive : theme.accent,
                   backgroundColor: fileName
                     ? theme.positive + "11"
-                    : theme.backgroundCard,
+                    : theme.surface,
                 },
               ]}
               onPress={handlePickFile}
@@ -1071,7 +1071,7 @@ export default function ImportScreen() {
               activeOpacity={0.75}
             >
               {pickingFile ? (
-                <ActivityIndicator size="small" color={theme.tint} />
+                <ActivityIndicator size="small" color={theme.accent} />
               ) : fileName ? (
                 <>
                   <Feather
@@ -1095,7 +1095,7 @@ export default function ImportScreen() {
                 </>
               ) : (
                 <>
-                  <Feather name="paperclip" size={32} color={theme.tint} />
+                  <Feather name="paperclip" size={32} color={theme.accent} />
                   <Text style={[styles.uploadTitle, { color: theme.text }]}>
                     Tap to select CSV file
                   </Text>
@@ -1112,7 +1112,7 @@ export default function ImportScreen() {
           <View
             style={[
               styles.bottomBar,
-              { paddingBottom: bottomPad, borderTopColor: theme.border },
+              { paddingBottom: bottomPad, borderTopColor: theme.hairline },
             ]}
           >
             <TouchableOpacity
@@ -1120,7 +1120,7 @@ export default function ImportScreen() {
                 styles.primaryBtn,
                 {
                   backgroundColor:
-                    fileName && !parsing ? theme.tint : theme.border,
+                    fileName && !parsing ? theme.accent : theme.hairline,
                 },
               ]}
               onPress={handlePreview}
@@ -1167,11 +1167,11 @@ export default function ImportScreen() {
                 <View
                   style={[
                     styles.detectionBanner,
-                    { backgroundColor: theme.tint + "18", borderColor: theme.tint + "33" },
+                    { backgroundColor: theme.accent + "18", borderColor: theme.accent + "33" },
                   ]}
                 >
-                  <Feather name="check-circle" size={14} color={theme.tint} />
-                  <Text style={[styles.detectionBannerText, { color: theme.tint }]}>
+                  <Feather name="check-circle" size={14} color={theme.accent} />
+                  <Text style={[styles.detectionBannerText, { color: theme.accent }]}>
                     Detected: {detectedBroker.name}
                   </Text>
                   <Text style={[styles.detectionBannerSub, { color: theme.textSecondary }]}>
@@ -1184,7 +1184,7 @@ export default function ImportScreen() {
                       setStep(1);
                     }}
                   >
-                    <Text style={[styles.detectionBannerLink, { color: theme.tint }]}>
+                    <Text style={[styles.detectionBannerLink, { color: theme.accent }]}>
                       Change broker
                     </Text>
                   </TouchableOpacity>
@@ -1218,11 +1218,11 @@ export default function ImportScreen() {
                 <View
                   style={[
                     styles.detectionBanner,
-                    { backgroundColor: theme.tint + "18", borderColor: theme.tint + "33" },
+                    { backgroundColor: theme.accent + "18", borderColor: theme.accent + "33" },
                   ]}
                 >
-                  <Feather name="check-circle" size={14} color={theme.tint} />
-                  <Text style={[styles.detectionBannerText, { color: theme.tint }]}>
+                  <Feather name="check-circle" size={14} color={theme.accent} />
+                  <Text style={[styles.detectionBannerText, { color: theme.accent }]}>
                     {trDupesSkipped} already-imported trade{trDupesSkipped !== 1 ? "s" : ""} skipped
                   </Text>
                 </View>
@@ -1261,13 +1261,13 @@ export default function ImportScreen() {
                 styles.actionBar,
                 {
                   paddingBottom: bottomPad,
-                  borderTopColor: theme.border,
-                  backgroundColor: theme.backgroundCard,
+                  borderTopColor: theme.hairline,
+                  backgroundColor: theme.surface,
                 },
               ]}
             >
               <TouchableOpacity
-                style={[styles.cancelBtn, { borderColor: theme.border }]}
+                style={[styles.cancelBtn, { borderColor: theme.hairline }]}
                 onPress={() => router.back()}
               >
                 <Text style={[styles.cancelBtnText, { color: theme.text }]}>
@@ -1279,7 +1279,7 @@ export default function ImportScreen() {
                   styles.importBtn,
                   {
                     backgroundColor:
-                      importableCount > 0 ? theme.tint : theme.border,
+                      importableCount > 0 ? theme.accent : theme.hairline,
                   },
                 ]}
                 onPress={handleImport}
@@ -1336,7 +1336,7 @@ const styles = StyleSheet.create({
   brokerGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   brokerCard: {
     width: "47%",
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1.5,
     padding: 14,
     alignItems: "center",
@@ -1348,8 +1348,8 @@ const styles = StyleSheet.create({
     right: 8,
     width: 18,
     height: 18,
-    borderRadius: 9,
-    backgroundColor: "#C9A84C",
+    borderRadius: 0,
+    backgroundColor: "#ec3013",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1368,7 +1368,7 @@ const styles = StyleSheet.create({
 
   // Instructions
   instructionsCard: {
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     padding: 16,
     gap: 14,
@@ -1378,7 +1378,7 @@ const styles = StyleSheet.create({
   instrNum: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -1399,7 +1399,7 @@ const styles = StyleSheet.create({
 
   // Upload box
   uploadBox: {
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: 1.5,
     borderStyle: "dashed",
     padding: 32,
@@ -1434,7 +1434,7 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     height: 52,
-    borderRadius: 14,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1465,7 +1465,7 @@ const styles = StyleSheet.create({
   tickerEditRow: { flexDirection: "row", alignItems: "center" },
   tickerInput: {
     borderWidth: 1,
-    borderRadius: 6,
+    borderRadius: 0,
     paddingHorizontal: 8,
     paddingVertical: 4,
     fontSize: 14,
@@ -1477,7 +1477,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 0,
     alignItems: "center",
   },
   statusText: { fontSize: 11, fontFamily: "Archivo_600SemiBold" },
@@ -1485,7 +1485,7 @@ const styles = StyleSheet.create({
   // Duplicate segmented control
   segmented: {
     flexDirection: "row",
-    borderRadius: 6,
+    borderRadius: 0,
     overflow: "hidden",
     marginTop: 6,
   },
@@ -1499,7 +1499,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
     marginBottom: 8,
   },
@@ -1513,7 +1513,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
     marginBottom: 8,
   },
@@ -1534,7 +1534,7 @@ const styles = StyleSheet.create({
   cancelBtn: {
     flex: 1,
     height: 52,
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -1543,7 +1543,7 @@ const styles = StyleSheet.create({
   importBtn: {
     flex: 2,
     height: 52,
-    borderRadius: 14,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
   },

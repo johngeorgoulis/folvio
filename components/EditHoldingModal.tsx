@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { usePortfolio, type Holding } from "@/context/PortfolioContext";
 import ExchangePicker, { getExchangeLabel } from "@/components/ExchangePicker";
 import TickerSearchInput, { type TickerSelection } from "@/components/TickerSearchInput";
@@ -24,9 +24,9 @@ interface Props {
   onClose: () => void;
 }
 
-const theme = Colors.dark;
 
 export default function EditHoldingModal({ visible, holding, onClose }: Props) {
+  const { theme } = useTheme();
   const { updateHolding } = usePortfolio();
 
   const [ticker, setTicker] = useState(holding.ticker);
@@ -153,7 +153,7 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
   const priceIsEmpty = !currentPrice.trim();
   const inputStyle = [
     styles.input,
-    { backgroundColor: theme.backgroundElevated, borderColor: theme.border, color: theme.text },
+    { backgroundColor: theme.surface, borderColor: theme.hairline, color: theme.text },
   ];
   const labelStyle = [styles.label, { color: theme.textSecondary }];
 
@@ -163,7 +163,7 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
         <View style={[styles.container, { backgroundColor: theme.background }]}>
 
           {/* ── Header ───────────────────────────────────────────────── */}
-          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <View style={[styles.header, { borderBottomColor: theme.hairline }]}>
             <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
               <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
@@ -171,7 +171,7 @@ export default function EditHoldingModal({ visible, holding, onClose }: Props) {
             <TouchableOpacity
               onPress={handleSave}
               disabled={saving}
-              style={[styles.saveBtn, { backgroundColor: saving ? theme.tint + "BB" : theme.tint }]}
+              style={[styles.saveBtn, { backgroundColor: saving ? theme.accent + "BB" : theme.accent }]}
             >
               {saving && <ActivityIndicator size="small" color="#0A0F1A" style={{ marginRight: 4 }} />}
               <Text style={styles.saveBtnText}>
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 0,
   },
   saveBtnText: { color: "#0A0F1A", fontSize: 14, fontFamily: "Archivo_800ExtraBold" },
   tickerOuter: {
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 12 },
   label: { fontSize: 11, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.6 },
   input: {
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 11,
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
   },
   msgText: { fontSize: 13, fontFamily: "Archivo_400Regular", flex: 1 },

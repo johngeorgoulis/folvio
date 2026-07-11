@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { getPriceStatusLabel, isExchangeOpen } from "@/utils/marketHours";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useAllocation } from "@/context/AllocationContext";
@@ -30,8 +30,6 @@ import {
 } from "@/services/assetClassService";
 import { upsertPrice, getAllContributionSummaries } from "@/services/db";
 
-const theme = Colors.dark;
-
 function formatDate(iso: string): string {
   if (!iso) return "—";
   try {
@@ -46,15 +44,17 @@ function MetricCell({
   label,
   value,
   valueColor,
+  theme,
 }: {
   label: string;
   value: string;
   valueColor?: string;
+  theme: any;
 }) {
   return (
     <View style={styles.metricCell}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={[styles.metricValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>
+      <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>{label}</Text>
+      <Text style={[styles.metricValue, { color: valueColor ?? theme.text }]}>{value}</Text>
     </View>
   );
 }
@@ -64,6 +64,7 @@ export default function HoldingDetailScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 24 : insets.top;
   const bottomPad = Platform.OS === "web" ? 16 : insets.bottom + 16;
+  const { theme } = useTheme();
 
   const { holdings, deleteHolding, refreshPrices, totalPortfolioValue } = usePortfolio();
   const { targets } = useAllocation();
@@ -87,12 +88,12 @@ export default function HoldingDetailScreen() {
 
   if (!holding) {
     return (
-      <View style={[styles.container, { paddingTop: topPad + 20 }]}>
+      <View style={[styles.container, { backgroundColor: theme.background, paddingTop: topPad + 20 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtnStandalone}>
           <Feather name="arrow-left" size={22} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.notFoundWrap}>
-          <Text style={styles.notFoundText}>Holding not found.</Text>
+          <Text style={[styles.notFoundText, { color: theme.textSecondary }]}>Holding not found.</Text>
         </View>
       </View>
     );
@@ -119,7 +120,6 @@ export default function HoldingDetailScreen() {
   const exchangeLabel = getExchangeLabel(holding.exchange);
   const ter = getTER(holding.ticker);
 
-  // Target allocation
   const targetAlloc = targets.find(t => t.ticker.toUpperCase() === holding.ticker.toUpperCase());
   const targetPct   = targetAlloc?.target_pct ?? null;
   const driftPct    = targetPct != null ? weight - targetPct : null;
@@ -127,7 +127,7 @@ export default function HoldingDetailScreen() {
   const driftColor  = driftPct == null
     ? theme.textSecondary
     : driftAbs <= 2  ? theme.positive
-    : driftAbs <= 5  ? theme.tint
+    : driftAbs <= 5  ? theme.accent
     : theme.negative;
 
   function handleEditAssetClass() {
@@ -181,37 +181,37 @@ export default function HoldingDetailScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <View style={[styles.headerWrap, { paddingTop: topPad + 12 }]}>
+      <View style={[styles.headerWrap, { paddingTop: topPad + 12, backgroundColor: theme.surface, borderBottomWidth: 2, borderBottomColor: theme.text }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Feather name="arrow-left" size={22} color="rgba(255,255,255,0.8)" />
+          <Feather name="arrow-left" size={22} color={theme.text} />
         </TouchableOpacity>
 
         <View style={styles.headerContent}>
           <View style={styles.headerTop}>
-            <Text style={styles.tickerText}>{holding.ticker}</Text>
-            <View style={styles.exchangeBadge}>
-              <Text style={styles.exchangeText}>{exchangeLabel.split(" (")[0]}</Text>
+            <Text style={[styles.tickerText, { color: theme.text }]}>{holding.ticker}</Text>
+            <View style={[styles.exchangeBadge, { borderColor: theme.hairline }]}>
+              <Text style={[styles.exchangeText, { color: theme.textSecondary }]}>{exchangeLabel.split(" (")[0]}</Text>
             </View>
             <TouchableOpacity
-              style={[styles.exchangeBadge, { backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.15)" }]}
+              style={[styles.exchangeBadge, { borderColor: theme.hairline }]}
               onPress={handleEditAssetClass}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <Text style={[styles.exchangeText, { color: "rgba(255,255,255,0.7)" }]}>{localAssetClass}</Text>
-              <Feather name="edit-2" size={9} color="rgba(255,255,255,0.45)" style={{ marginLeft: 4 }} />
+              <Text style={[styles.exchangeText, { color: theme.textMuted }]}>{localAssetClass}</Text>
+              <Feather name="edit-2" size={9} color={theme.textMuted} style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           </View>
           {!!holding.name && (
-            <Text style={styles.nameText} numberOfLines={1}>{holding.name}</Text>
+            <Text style={[styles.nameText, { color: theme.textSecondary }]} numberOfLines={1}>{holding.name}</Text>
           )}
           <View style={styles.priceRow}>
-            <Text style={styles.priceText}>
+            <Text style={[styles.priceText, { color: theme.text }]}>
               {holding.hasPrice ? formatEUR(holding.currentPrice) : "No price"}
             </Text>
             {holding.hasPrice && (
@@ -231,24 +231,22 @@ export default function HoldingDetailScreen() {
                 holding.priceIsStale,
               );
               if (!holding.hasPrice) {
-                return <Text style={styles.noPriceLabel}>{label}</Text>;
+                return <Text style={[styles.noPriceLabel, { color: theme.textMuted }]}>{label}</Text>;
               }
               if (!label) {
-                // Market open — show live dot, no label text
-                return <Text style={styles.liveLabel}>● Live</Text>;
+                return <Text style={[styles.liveLabel, { color: theme.positive }]}>● Live</Text>;
               }
-              // Market closed or unavailable — show subtly in grey, never ⚠
-              return <Text style={styles.noPriceLabel}>{label}</Text>;
+              return <Text style={[styles.noPriceLabel, { color: theme.textMuted }]}>{label}</Text>;
             })()}
             <TouchableOpacity
-              style={styles.refreshBtn}
+              style={[styles.refreshBtn, { backgroundColor: theme.surface }]}
               onPress={handleRefreshPrice}
               disabled={refreshing}
             >
               {refreshing ? (
-                <ActivityIndicator size="small" color={theme.tint} />
+                <ActivityIndicator size="small" color={theme.accent} />
               ) : (
-                <Feather name="refresh-cw" size={13} color={theme.tint} />
+                <Feather name="refresh-cw" size={13} color={theme.accent} />
               )}
             </TouchableOpacity>
           </View>
@@ -260,66 +258,59 @@ export default function HoldingDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── 2×3 Metrics Grid ─────────────────────────────────────────── */}
-        <View style={[styles.card, styles.metricsCard]}>
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
           <View style={styles.metricRow}>
-            <MetricCell label="Quantity" value={`${formatQuantity(holding.quantity)} units`} />
-            <View style={styles.metricVDivider} />
-            <MetricCell label="Avg Cost" value={formatEUR(holding.avg_cost_eur)} />
+            <MetricCell label="Quantity" value={`${formatQuantity(holding.quantity)} units`} theme={theme} />
+            <View style={[styles.metricVDivider, { backgroundColor: theme.hairline }]} />
+            <MetricCell label="Avg Cost" value={formatEUR(holding.avg_cost_eur)} theme={theme} />
           </View>
-          <View style={styles.metricHDivider} />
+          <View style={[styles.metricHDivider, { backgroundColor: theme.hairline }]} />
           <View style={styles.metricRow}>
-            <MetricCell label="Total Invested" value={formatEUR(invested)} />
-            <View style={styles.metricVDivider} />
+            <MetricCell label="Total Invested" value={formatEUR(invested)} theme={theme} />
+            <View style={[styles.metricVDivider, { backgroundColor: theme.hairline }]} />
             <MetricCell
               label="Current Value"
               value={holding.hasPrice ? formatEUR(marketValue) : "—"}
+              theme={theme}
             />
           </View>
-          <View style={styles.metricHDivider} />
+          <View style={[styles.metricHDivider, { backgroundColor: theme.hairline }]} />
           <View style={styles.metricRow}>
             <MetricCell
               label="Return (€)"
-              value={
-                holding.hasPrice
-                  ? `${isPositive ? "+" : ""}${formatEUR(gain, true)}`
-                  : "—"
-              }
+              value={holding.hasPrice ? `${isPositive ? "+" : ""}${formatEUR(gain, true)}` : "—"}
               valueColor={holding.hasPrice ? gainColor : undefined}
+              theme={theme}
             />
-            <View style={styles.metricVDivider} />
+            <View style={[styles.metricVDivider, { backgroundColor: theme.hairline }]} />
             <MetricCell
               label="Return (%)"
-              value={
-                holding.hasPrice
-                  ? `${isPositive ? "+" : ""}${gainPct.toFixed(2)}%`
-                  : "—"
-              }
+              value={holding.hasPrice ? `${isPositive ? "+" : ""}${gainPct.toFixed(2)}%` : "—"}
               valueColor={holding.hasPrice ? gainColor : undefined}
+              theme={theme}
             />
           </View>
         </View>
 
         {/* ── Target Allocation ────────────────────────────────────────── */}
         {targetPct != null && (
-          <View style={styles.card}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Current</Text>
-              <Text style={styles.infoValue}>{weight.toFixed(1)}%</Text>
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
+            <View style={[styles.infoRow, { borderBottomColor: theme.hairline }]}>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Current</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>{weight.toFixed(1)}%</Text>
             </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Target</Text>
-              <Text style={styles.infoValue}>{targetPct.toFixed(1)}%</Text>
+            <View style={[styles.infoRow, { borderBottomColor: theme.hairline }]}>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Target</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>{targetPct.toFixed(1)}%</Text>
             </View>
             <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-              <Text style={styles.infoLabel}>Drift</Text>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Drift</Text>
               <Text style={[styles.infoValue, { color: driftColor }]}>
                 {driftPct != null ? `${driftPct >= 0 ? "+" : ""}${driftPct.toFixed(1)}%` : "—"}
               </Text>
             </View>
-            {/* Progress bar */}
             <View style={styles.allocBarWrap}>
-              <View style={styles.allocBarTrack}>
-                {/* Current allocation fill */}
+              <View style={[styles.allocBarTrack, { backgroundColor: theme.background }]}>
                 <View
                   style={[
                     styles.allocBarFill,
@@ -327,37 +318,36 @@ export default function HoldingDetailScreen() {
                   ]}
                 />
               </View>
-              {/* Target marker */}
               {targetPct <= 100 && (
                 <View
                   style={[
                     styles.allocTargetMarker,
-                    { left: `${Math.min(targetPct, 100)}%` },
+                    { left: `${Math.min(targetPct, 100)}%`, backgroundColor: theme.textSecondary },
                   ]}
                 />
               )}
             </View>
             <View style={styles.allocBarLabels}>
-              <Text style={styles.allocBarLabel}>0%</Text>
-              <Text style={styles.allocBarLabel}>Target: {targetPct.toFixed(0)}%</Text>
-              <Text style={styles.allocBarLabel}>100%</Text>
+              <Text style={[styles.allocBarLabel, { color: theme.textMuted }]}>0%</Text>
+              <Text style={[styles.allocBarLabel, { color: theme.textMuted }]}>Target: {targetPct.toFixed(0)}%</Text>
+              <Text style={[styles.allocBarLabel, { color: theme.textMuted }]}>100%</Text>
             </View>
           </View>
         )}
 
         {/* ── Additional Info ───────────────────────────────────────────── */}
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
           {holding.yield_pct != null && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Trailing Yield</Text>
-              <Text style={styles.infoValue}>
+            <View style={[styles.infoRow, { borderBottomColor: theme.hairline }]}>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Trailing Yield</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>
                 {holding.yield_pct === 0 && isAccumulating
                   ? "Acc. — no distributions"
                   : (
                     <>
                       {holding.yield_pct.toFixed(2)}%
                       {estimatedAnnualIncome != null && (
-                        <Text style={styles.infoSub}> → est. {formatEUR(estimatedAnnualIncome)}/yr</Text>
+                        <Text style={[styles.infoSub, { color: theme.textSecondary }]}> → est. {formatEUR(estimatedAnnualIncome)}/yr</Text>
                       )}
                     </>
                   )
@@ -366,23 +356,23 @@ export default function HoldingDetailScreen() {
             </View>
           )}
           {ter !== null && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>TER (Annual Fee)</Text>
-              <Text style={[styles.infoValue, { color: ter <= 0.10 ? theme.positive : ter <= 0.25 ? theme.tint : theme.negative }]}>
+            <View style={[styles.infoRow, { borderBottomColor: theme.hairline }]}>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>TER (Annual Fee)</Text>
+              <Text style={[styles.infoValue, { color: ter <= 0.10 ? theme.positive : ter <= 0.25 ? theme.accent : theme.negative }]}>
                 {ter.toFixed(2)}%/yr
               </Text>
             </View>
           )}
           {!!holding.purchase_date && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Purchase Date</Text>
-              <Text style={styles.infoValue}>{formatDate(holding.purchase_date)}</Text>
+            <View style={[styles.infoRow, { borderBottomColor: theme.hairline }]}>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Purchase Date</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>{formatDate(holding.purchase_date)}</Text>
             </View>
           )}
           {!!holding.isin && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>ISIN</Text>
-              <Text style={[styles.infoValue, { letterSpacing: 0.5, fontFamily: "Archivo_400Regular" }]}>
+            <View style={[styles.infoRow, { borderBottomColor: theme.hairline }]}>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>ISIN</Text>
+              <Text style={[styles.infoValue, { color: theme.text, letterSpacing: 0.5, fontFamily: "Archivo_400Regular" }]}>
                 {holding.isin}
               </Text>
             </View>
@@ -392,25 +382,25 @@ export default function HoldingDetailScreen() {
               style={[styles.infoRow, { borderBottomWidth: 0 }]}
               onPress={() => Linking.openURL(`https://www.justetf.com/en/etf-profile.html?isin=${holding.isin}`)}
             >
-              <Text style={styles.infoLabel}>View on JustETF</Text>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>View on JustETF</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Text style={[styles.infoValue, { color: theme.tint }]}>justetf.com</Text>
-                <Feather name="external-link" size={12} color={theme.tint} />
+                <Text style={[styles.infoValue, { color: theme.accent }]}>justetf.com</Text>
+                <Feather name="external-link" size={12} color={theme.accent} />
               </View>
             </TouchableOpacity>
           )}
           {holding.yield_pct == null && !holding.purchase_date && !holding.isin && (
             <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-              <Text style={styles.infoLabel}>Portfolio Weight</Text>
-              <Text style={styles.infoValue}>{weight.toFixed(1)}%</Text>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Portfolio Weight</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>{weight.toFixed(1)}%</Text>
             </View>
           )}
         </View>
 
         {/* ── Broker Breakdown ──────────────────────────────────────────── */}
         {brokerBreakdown.length >= 2 && (
-          <View style={styles.card}>
-            <View style={styles.infoRow}>
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}>
+            <View style={[styles.infoRow, { borderBottomColor: theme.hairline }]}>
               <Text style={[styles.infoLabel, { fontFamily: "Archivo_600SemiBold", color: theme.text }]}>
                 Broker Breakdown
               </Text>
@@ -418,10 +408,10 @@ export default function HoldingDetailScreen() {
             {brokerBreakdown.map((b, idx) => (
               <View
                 key={b.broker}
-                style={[styles.infoRow, { borderBottomWidth: idx === brokerBreakdown.length - 1 ? 0 : 1 }]}
+                style={[styles.infoRow, { borderBottomColor: theme.hairline, borderBottomWidth: idx === brokerBreakdown.length - 1 ? 0 : 1 }]}
               >
-                <Text style={styles.infoLabel}>{b.broker}</Text>
-                <Text style={styles.infoValue}>{formatQuantity(b.units)} units</Text>
+                <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>{b.broker}</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{formatQuantity(b.units)} units</Text>
               </View>
             ))}
           </View>
@@ -429,17 +419,17 @@ export default function HoldingDetailScreen() {
       </ScrollView>
 
       {/* ── Bottom action bar ─────────────────────────────────────────────── */}
-      <View style={[styles.actionBar, { paddingBottom: bottomPad }]}>
+      <View style={[styles.actionBar, { paddingBottom: bottomPad, backgroundColor: theme.surface, borderTopColor: theme.divider }]}>
         <TouchableOpacity
-          style={[styles.actionBtn, styles.editBtn]}
+          style={[styles.actionBtn, { borderColor: theme.accent, backgroundColor: theme.accent + "11" }]}
           onPress={() => setShowEdit(true)}
           activeOpacity={0.75}
         >
-          <Feather name="edit-2" size={16} color={theme.tint} />
-          <Text style={[styles.actionBtnText, { color: theme.tint }]}>Edit</Text>
+          <Feather name="edit-2" size={16} color={theme.accent} />
+          <Text style={[styles.actionBtnText, { color: theme.accent }]}>Edit</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionBtn, styles.deleteBtn]}
+          style={[styles.actionBtn, { borderColor: theme.negative, backgroundColor: theme.negative + "11" }]}
           onPress={handleDelete}
           activeOpacity={0.75}
         >
@@ -454,10 +444,9 @@ export default function HoldingDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1 },
 
   headerWrap: {
-    backgroundColor: theme.deepBlue,
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
@@ -469,38 +458,32 @@ const styles = StyleSheet.create({
   tickerText: {
     fontSize: 32,
     fontFamily: "Archivo_800ExtraBold",
-    color: "#FFFFFF",
     letterSpacing: -1,
   },
   exchangeBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(201,168,76,0.18)",
-    borderRadius: 8,
+    borderRadius: 0,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: "rgba(201,168,76,0.35)",
   },
   exchangeText: {
     fontSize: 11,
     fontFamily: "Archivo_600SemiBold",
-    color: "#C9A84C",
     letterSpacing: 0.5,
   },
   nameText: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.6)",
     fontFamily: "Archivo_400Regular",
   },
   priceRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
   priceText: {
     fontSize: 28,
     fontFamily: "Archivo_800ExtraBold",
-    color: "#FFFFFF",
     letterSpacing: -0.5,
   },
-  gainPill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 20 },
+  gainPill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 0 },
   gainPillText: { fontSize: 12, fontFamily: "Archivo_600SemiBold" },
 
   priceStatusRow: {
@@ -509,44 +492,37 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 6,
   },
-  liveLabel: { fontSize: 12, color: "#2ECC71", fontFamily: "Archivo_400Regular" },
-  staleLabel: { fontSize: 12, color: "#F39C12", fontFamily: "Archivo_400Regular" },
-  noPriceLabel: { fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "Archivo_400Regular" },
+  liveLabel: { fontSize: 12, fontFamily: "Archivo_400Regular" },
+  noPriceLabel: { fontSize: 12, fontFamily: "Archivo_400Regular" },
   refreshBtn: {
     padding: 6,
-    borderRadius: 8,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 0,
   },
 
   content: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
 
   card: {
-    backgroundColor: theme.backgroundCard,
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: theme.border,
     overflow: "hidden",
   },
-  metricsCard: {},
 
   metricRow: {
     flexDirection: "row",
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
-  metricHDivider: { height: 1, backgroundColor: theme.border },
-  metricVDivider: { width: 1, backgroundColor: theme.border, marginHorizontal: 16 },
+  metricHDivider: { height: 1 },
+  metricVDivider: { width: 1, marginHorizontal: 16 },
   metricCell: { flex: 1, gap: 5 },
   metricLabel: {
     fontSize: 11,
     fontFamily: "Archivo_600SemiBold",
-    color: theme.textSecondary,
     letterSpacing: 0.2,
   },
   metricValue: {
     fontSize: 16,
     fontFamily: "Archivo_800ExtraBold",
-    color: theme.text,
   },
 
   infoRow: {
@@ -556,22 +532,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
   },
   infoLabel: {
     fontSize: 13,
     fontFamily: "Archivo_400Regular",
-    color: theme.textSecondary,
   },
   infoValue: {
     fontSize: 13,
     fontFamily: "Archivo_600SemiBold",
-    color: theme.text,
   },
   infoSub: {
     fontSize: 12,
     fontFamily: "Archivo_400Regular",
-    color: theme.textSecondary,
   },
 
   actionBar: {
@@ -582,9 +554,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     padding: 16,
-    backgroundColor: theme.backgroundCard,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
+    borderTopWidth: 2,
   },
   actionBtn: {
     flex: 1,
@@ -593,15 +563,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1.5,
   },
-  editBtn: { borderColor: theme.tint, backgroundColor: theme.tint + "11" },
-  deleteBtn: { borderColor: theme.negative, backgroundColor: theme.negative + "11" },
   actionBtnText: { fontSize: 15, fontFamily: "Archivo_600SemiBold" },
 
   notFoundWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
-  notFoundText: { fontSize: 14, fontFamily: "Archivo_400Regular", color: theme.textSecondary },
+  notFoundText: { fontSize: 14, fontFamily: "Archivo_400Regular" },
 
   allocBarWrap: {
     position: "relative",
@@ -612,21 +580,19 @@ const styles = StyleSheet.create({
   },
   allocBarTrack: {
     height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.backgroundElevated,
+    borderRadius: 0,
     overflow: "hidden",
   },
   allocBarFill: {
     height: 8,
-    borderRadius: 4,
+    borderRadius: 0,
   },
   allocTargetMarker: {
     position: "absolute",
     top: -3,
     width: 2,
     height: 14,
-    borderRadius: 1,
-    backgroundColor: theme.textSecondary,
+    borderRadius: 0,
     marginLeft: -1,
   },
   allocBarLabels: {
@@ -638,6 +604,5 @@ const styles = StyleSheet.create({
   allocBarLabel: {
     fontSize: 10,
     fontFamily: "Archivo_400Regular",
-    color: theme.textTertiary,
   },
 });

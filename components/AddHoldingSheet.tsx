@@ -11,17 +11,16 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  useColorScheme,
+  View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import {
   BROKERS,
   Broker,
   HoldingType,
   ShareClass,
-  usePortfolio,
+  usePortfolio
 } from "@/context/PortfolioContext";
 
 interface AddHoldingSheetProps {
@@ -32,15 +31,12 @@ interface AddHoldingSheetProps {
 function SegmentControl<T extends string>({
   options,
   value,
-  onChange,
+  onChange
 }: {
   options: T[];
   value: T;
   onChange: (v: T) => void;
 }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
   return (
     <View
       style={[
@@ -59,8 +55,8 @@ function SegmentControl<T extends string>({
               shadowOpacity: 0.08,
               shadowRadius: 4,
               shadowOffset: { width: 0, height: 1 },
-              elevation: 1,
-            },
+              elevation: 1
+},
           ]}
           onPress={() => onChange(opt)}
           activeOpacity={0.8}
@@ -70,8 +66,8 @@ function SegmentControl<T extends string>({
               segStyles.label,
               {
                 color:
-                  value === opt ? theme.tint : theme.textSecondary,
-              },
+                  value === opt ? theme.accent : theme.textSecondary
+},
             ]}
           >
             {opt}
@@ -85,25 +81,23 @@ function SegmentControl<T extends string>({
 const segStyles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    borderRadius: 10,
-    padding: 3,
-  },
+    borderRadius: 0,
+    padding: 3
+},
   option: {
     flex: 1,
     paddingVertical: 7,
-    borderRadius: 8,
-    alignItems: "center",
-  },
+    borderRadius: 0,
+    alignItems: "center"
+},
   label: {
     fontSize: 13,
-    fontFamily: "Archivo_600SemiBold",
-  },
+    fontFamily: "Archivo_600SemiBold"
+}
 });
 
 export function AddHoldingSheet({ visible, onClose }: AddHoldingSheetProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? Colors.dark : Colors.light;
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { addHolding } = usePortfolio();
 
@@ -124,9 +118,9 @@ export function AddHoldingSheet({ visible, onClose }: AddHoldingSheetProps) {
     styles.input,
     {
       backgroundColor: isDark ? "#1E1E1E" : "#F8F9FA",
-      borderColor: theme.border,
-      color: theme.text,
-    },
+      borderColor: theme.hairline,
+      color: theme.text
+},
   ];
 
   const reset = () => {
@@ -168,8 +162,8 @@ export function AddHoldingSheet({ visible, onClose }: AddHoldingSheetProps) {
       currentPrice: currentPrice ? Number(currentPrice) : Number(avgPrice),
       currency,
       targetAllocationPct: targetAlloc ? Number(targetAlloc) : 0,
-      shareClass,
-    });
+      shareClass
+});
     reset();
     onClose();
   };
@@ -193,7 +187,7 @@ export function AddHoldingSheet({ visible, onClose }: AddHoldingSheetProps) {
             { backgroundColor: theme.background, paddingBottom: insets.bottom + 16 },
           ]}
         >
-          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <View style={[styles.header, { borderBottomColor: theme.hairline }]}>
             <TouchableOpacity onPress={() => { reset(); onClose(); }}>
               <Feather name="x" size={22} color={theme.textSecondary} />
             </TouchableOpacity>
@@ -201,7 +195,7 @@ export function AddHoldingSheet({ visible, onClose }: AddHoldingSheetProps) {
               Add Holding
             </Text>
             <TouchableOpacity onPress={handleSave}>
-              <Text style={[styles.saveBtn, { color: theme.tint }]}>Save</Text>
+              <Text style={[styles.saveBtn, { color: theme.accent }]}>Save</Text>
             </TouchableOpacity>
           </View>
 
@@ -278,7 +272,7 @@ export function AddHoldingSheet({ visible, onClose }: AddHoldingSheetProps) {
               <View
                 style={[
                   styles.brokerList,
-                  { backgroundColor: theme.backgroundElevated, borderColor: theme.border },
+                  { backgroundColor: theme.surface, borderColor: theme.hairline },
                 ]}
               >
                 {BROKERS.map((b) => (
@@ -286,7 +280,7 @@ export function AddHoldingSheet({ visible, onClose }: AddHoldingSheetProps) {
                     key={b}
                     style={[
                       styles.brokerItem,
-                      { borderBottomColor: theme.borderLight },
+                      { borderBottomColor: theme.hairline },
                       broker === b && { backgroundColor: isDark ? "#1E1E1E" : "#F0FDF8" },
                     ]}
                     onPress={() => {
@@ -298,15 +292,15 @@ export function AddHoldingSheet({ visible, onClose }: AddHoldingSheetProps) {
                       style={[
                         styles.brokerText,
                         {
-                          color: broker === b ? theme.tint : theme.text,
-                          fontFamily: broker === b ? "Archivo_600SemiBold" : "Archivo_400Regular",
-                        },
+                          color: broker === b ? theme.accent : theme.text,
+                          fontFamily: broker === b ? "Archivo_600SemiBold" : "Archivo_400Regular"
+},
                       ]}
                     >
                       {b}
                     </Text>
                     {broker === b && (
-                      <Feather name="check" size={16} color={theme.tint} />
+                      <Feather name="check" size={16} color={theme.accent} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -381,67 +375,67 @@ export function AddHoldingSheet({ visible, onClose }: AddHoldingSheetProps) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
+    flex: 1
+},
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
+    borderBottomWidth: 1
+},
   headerTitle: {
     fontSize: 16,
-    fontFamily: "Archivo_600SemiBold",
-  },
+    fontFamily: "Archivo_600SemiBold"
+},
   saveBtn: {
     fontSize: 16,
-    fontFamily: "Archivo_600SemiBold",
-  },
+    fontFamily: "Archivo_600SemiBold"
+},
   scrollContent: {
     padding: 20,
-    gap: 6,
-  },
+    gap: 6
+},
   label: {
     fontSize: 11,
     fontFamily: "Archivo_600SemiBold",
     letterSpacing: 0.8,
-    marginBottom: 6,
-  },
+    marginBottom: 6
+},
   input: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    fontFamily: "Archivo_400Regular",
-  },
+    fontFamily: "Archivo_400Regular"
+},
   pickerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-  },
+    alignItems: "center"
+},
   brokerList: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     overflow: "hidden",
-    marginTop: 4,
-  },
+    marginTop: 4
+},
   brokerItem: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
+    borderBottomWidth: 1
+},
   brokerText: {
-    fontSize: 14,
-  },
+    fontSize: 14
+},
   row: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 16,
-  },
+    marginTop: 16
+}
 });

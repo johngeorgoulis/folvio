@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { usePortfolio } from "@/context/PortfolioContext";
 import PriceChart from "@/components/PriceChart";
 import {
@@ -37,7 +37,6 @@ import {
   type ETFEntry,
 } from "@/services/etfDatabaseService";
 
-const theme = Colors.dark;
 
 const KNOWN_YIELDS_MAP: Record<string, number> = {
   "VHYL": 3.4, "TDIV": 3.8, "VWRL": 1.6, "VWCE": 0.0,
@@ -155,6 +154,7 @@ function PerfCard({ label, changePct }: { label: string; changePct: number | nul
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function TickerDetailScreen() {
+  const { theme } = useTheme();
   const { symbol } = useLocalSearchParams<{ symbol: string }>();
   const insets = useSafeAreaInsets();
   const { holdings } = usePortfolio();
@@ -370,7 +370,7 @@ export default function TickerDetailScreen() {
         <TouchableOpacity style={[styles.backBtn, { top: topPad + 4 }]} onPress={() => router.back()}>
           <Feather name="arrow-left" size={22} color={theme.text} />
         </TouchableOpacity>
-        <ActivityIndicator color={theme.tint} size="large" />
+        <ActivityIndicator color={theme.accent} size="large" />
         <Text style={{ color: theme.textSecondary, marginTop: 16, fontSize: 14 }}>
           Loading {safeSymbol}…
         </Text>
@@ -397,7 +397,7 @@ export default function TickerDetailScreen() {
                 <Feather name="arrow-left" size={22} color={theme.text} />
               </TouchableOpacity>
               <TouchableOpacity onPress={loadMeta} style={styles.refreshBtnInline}>
-                <Feather name="refresh-cw" size={18} color={theme.tint} />
+                <Feather name="refresh-cw" size={18} color={theme.accent} />
               </TouchableOpacity>
             </View>
             {/* Stale header card */}
@@ -407,7 +407,7 @@ export default function TickerDetailScreen() {
                   <Text style={styles.symbolText}>{ticker}</Text>
                   <Text style={styles.nameText} numberOfLines={1}>{existingHolding.name || ticker}</Text>
                 </View>
-                <View style={[styles.exchBadge, { backgroundColor: theme.backgroundElevated }]}>
+                <View style={[styles.exchBadge, { backgroundColor: theme.surface }]}>
                   <Text style={[styles.exchBadgeText, { color: theme.textTertiary }]}>Last close price unavailable</Text>
                 </View>
               </View>
@@ -437,7 +437,7 @@ export default function TickerDetailScreen() {
               </View>
             </View>
             <TouchableOpacity style={styles.retryBtn} onPress={loadMeta}>
-              <Feather name="refresh-cw" size={14} color={theme.tint} />
+              <Feather name="refresh-cw" size={14} color={theme.accent} />
               <Text style={styles.retryText}>Retry loading live data</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -457,7 +457,7 @@ export default function TickerDetailScreen() {
           Could not load data for {safeSymbol}. Check your connection and try again.
         </Text>
         <TouchableOpacity style={styles.retryBtn} onPress={loadMeta}>
-          <Feather name="refresh-cw" size={14} color={theme.tint} />
+          <Feather name="refresh-cw" size={14} color={theme.accent} />
           <Text style={styles.retryText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -479,7 +479,7 @@ export default function TickerDetailScreen() {
             <Feather name="arrow-left" size={22} color={theme.text} />
           </TouchableOpacity>
           <TouchableOpacity onPress={loadMeta} style={styles.refreshBtnInline}>
-            <Feather name="refresh-cw" size={18} color={theme.tint} />
+            <Feather name="refresh-cw" size={18} color={theme.accent} />
           </TouchableOpacity>
         </View>
 
@@ -523,7 +523,7 @@ export default function TickerDetailScreen() {
           </View>
 
           <View style={styles.liveRow}>
-            <View style={[styles.liveDot, { backgroundColor: ageMs != null && ageMs < 60_000 ? theme.positive : "#F59E0B" }]} />
+            <View style={[styles.liveDot, { backgroundColor: ageMs != null && ageMs < 60_000 ? theme.positive : theme.accent }]} />
             <Text style={styles.liveText}>
               {ageMs != null ? `Updated ${staleBadge(ageMs)}` : "Live"}
             </Text>
@@ -544,7 +544,7 @@ export default function TickerDetailScreen() {
                 key={r}
                 style={[
                   styles.rangeBtn,
-                  range === r && { backgroundColor: theme.tint },
+                  range === r && { backgroundColor: theme.accent },
                 ]}
                 onPress={() => handleRangeChange(r)}
               >
@@ -567,7 +567,7 @@ export default function TickerDetailScreen() {
             </View>
           ) : loadingChart ? (
             <View style={{ height: 200, alignItems: "center", justifyContent: "center" }}>
-              <ActivityIndicator color={theme.tint} />
+              <ActivityIndicator color={theme.accent} />
             </View>
           ) : (
             <PriceChart
@@ -679,7 +679,7 @@ export default function TickerDetailScreen() {
           const drift      = currentPct - targetPct;
           const absDrift   = Math.abs(drift);
           const beyondThreshold = absDrift > rebalanceThreshold;
-          const driftColor = beyondThreshold ? "#F59E0B" : theme.positive;
+          const driftColor = beyondThreshold ? theme.accent : theme.positive;
           const barFill = Math.min(currentPct / Math.max(targetPct * 1.5, 1), 1);
           const targetFill = Math.min(targetPct / Math.max(targetPct * 1.5, 1), 1);
 
@@ -704,7 +704,7 @@ export default function TickerDetailScreen() {
                   </View>
                 </View>
                 {/* Progress bar */}
-                <View style={{ height: 6, backgroundColor: theme.backgroundElevated, borderRadius: 3, overflow: "hidden" }}>
+                <View style={{ height: 6, backgroundColor: theme.surface, borderRadius: 0, overflow: "hidden" }}>
                   {/* Target marker */}
                   <View style={{
                     position: "absolute", left: `${targetFill * 100}%`,
@@ -713,11 +713,11 @@ export default function TickerDetailScreen() {
                   {/* Current fill */}
                   <View style={{
                     width: `${barFill * 100}%`, height: "100%",
-                    backgroundColor: driftColor, borderRadius: 3,
+                    backgroundColor: driftColor, borderRadius: 0,
                   }} />
                 </View>
                 {beyondThreshold && (
-                  <Text style={{ fontSize: 11, fontFamily: "Archivo_400Regular", color: "#F59E0B" }}>
+                  <Text style={{ fontSize: 11, fontFamily: "Archivo_400Regular", color: theme.accent }}>
                     {absDrift.toFixed(1)}% outside {rebalanceThreshold}% threshold — consider rebalancing
                   </Text>
                 )}
@@ -742,8 +742,8 @@ export default function TickerDetailScreen() {
           >
             <Text style={{ fontSize: 13, fontFamily: "Archivo_400Regular", color: theme.textSecondary }}>View on JustETF</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Text style={{ fontSize: 13, fontFamily: "Archivo_600SemiBold", color: theme.tint }}>justetf.com</Text>
-              <Feather name="external-link" size={12} color={theme.tint} />
+              <Text style={{ fontSize: 13, fontFamily: "Archivo_600SemiBold", color: theme.accent }}>justetf.com</Text>
+              <Feather name="external-link" size={12} color={theme.accent} />
             </View>
           </TouchableOpacity>
         )}
@@ -756,24 +756,24 @@ export default function TickerDetailScreen() {
           {
             paddingBottom: Platform.OS === "web" ? 16 : insets.bottom + 16,
             backgroundColor: theme.background,
-            borderTopColor: theme.border,
+            borderTopColor: theme.hairline,
           },
         ]}
       >
         {inPortfolio ? (
           <TouchableOpacity
-            style={[styles.actionBtnOutlined, { borderColor: theme.tint }]}
+            style={[styles.actionBtnOutlined, { borderColor: theme.accent }]}
             onPress={handleViewHolding}
             activeOpacity={0.8}
           >
-            <Feather name="check-circle" size={18} color={theme.tint} />
-            <Text style={[styles.actionBtnOutlinedText, { color: theme.tint }]}>
+            <Feather name="check-circle" size={18} color={theme.accent} />
+            <Text style={[styles.actionBtnOutlinedText, { color: theme.accent }]}>
               In Portfolio — View Holding
             </Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: theme.tint }]}
+            style={[styles.actionBtn, { backgroundColor: theme.accent }]}
             onPress={handleAddToPortfolio}
             activeOpacity={0.8}
           >
@@ -815,20 +815,20 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
-    backgroundColor: theme.backgroundCard,
+    borderRadius: 0,
+    backgroundColor: theme.surface,
   },
   refreshBtnInline: {
     width: 40,
     height: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
-    backgroundColor: theme.backgroundCard,
+    borderRadius: 0,
+    backgroundColor: theme.surface,
   },
   headerCard: {
-    backgroundColor: theme.deepBlue,
-    borderRadius: 16,
+    backgroundColor: theme.surface,
+    borderRadius: 0,
     padding: 20,
     gap: 6,
   },
@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
   badgeGroup: { gap: 6, alignItems: "flex-end" },
   exchBadge: {
     backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 8,
+    borderRadius: 0,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
@@ -865,17 +865,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   currBadge: {
-    backgroundColor: theme.tint + "33",
-    borderRadius: 8,
+    backgroundColor: theme.accent + "33",
+    borderRadius: 0,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: theme.tint + "66",
+    borderColor: theme.accent + "66",
   },
   currBadgeText: {
     fontSize: 11,
     fontFamily: "Archivo_600SemiBold",
-    color: theme.tint,
+    color: theme.accent,
     letterSpacing: 0.3,
   },
   priceText: {
@@ -902,7 +902,7 @@ const styles = StyleSheet.create({
   liveDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: 0,
   },
   liveText: {
     fontSize: 12,
@@ -910,11 +910,11 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.55)",
   },
   chartCard: {
-    backgroundColor: theme.backgroundCard,
-    borderRadius: 16,
+    backgroundColor: theme.surface,
+    borderRadius: 0,
     padding: 16,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: theme.hairline,
   },
   rangeRow: {
     flexDirection: "row",
@@ -924,18 +924,18 @@ const styles = StyleSheet.create({
   rangeBtn: {
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 0,
   },
   rangeBtnText: {
     fontSize: 12,
     fontFamily: "Archivo_600SemiBold",
   },
   sectionCard: {
-    backgroundColor: theme.backgroundCard,
-    borderRadius: 16,
+    backgroundColor: theme.surface,
+    borderRadius: 0,
     padding: 16,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: theme.hairline,
     gap: 12,
   },
   sectionTitle: {
@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingRight: 8,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: theme.hairline,
   },
   statLabel: {
     fontSize: 11,
@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
   },
   perfLabel: {
@@ -1005,7 +1005,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 0,
   },
   actionBtnText: {
     fontSize: 16,
@@ -1018,7 +1018,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: 2,
   },
   actionBtnOutlinedText: {
@@ -1032,12 +1032,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: theme.tint + "55",
+    borderColor: theme.accent + "55",
   },
   retryText: {
-    color: theme.tint,
+    color: theme.accent,
     fontSize: 14,
     fontFamily: "Archivo_600SemiBold",
   },
