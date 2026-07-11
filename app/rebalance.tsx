@@ -28,7 +28,7 @@ import {
   type AllocationRow,
   type RebalanceResult,
 } from "@/services/allocationService";
-import { buildYahooSymbol } from "@/services/priceService";
+import { buildEodhdSymbol } from "@/services/priceService";
 import { formatEUR, formatQuantity } from "@/utils/format";
 
 const ETF_COLORS = [
@@ -362,7 +362,7 @@ export default function RebalanceScreen() {
             ))}
 
             {result.suggestions.map((s, i) => {
-              const symbol = buildYahooSymbol(s.ticker, s.exchange);
+              const symbol = buildEodhdSymbol(s.ticker, s.exchange);
               const isBuy = s.action === "buy";
               const isSell = s.action === "sell";
               const isSkip = s.action === "skip";

@@ -3,21 +3,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { upsertPrice, getPrice as dbGetPrice } from "@/services/db";
 import type { HoldingRow } from "@/services/db";
 
-function yahooChartUrl(symbol: string, interval: string, range: string): string {
-  if (Platform.OS === "web") {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-    return `https://${domain}/api/yahoo/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`;
-  }
-  return `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`;
-}
-
-function yahooSearchUrl(q: string): string {
-  if (Platform.OS === "web") {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-    return `https://${domain}/api/yahoo/search?q=${encodeURIComponent(q)}`;
-  }
-  return `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=15&newsCount=0`;
-}
 
 export const EXCHANGE_SUFFIXES: Record<string, string> = {
   // Internal exchange codes
@@ -111,7 +96,7 @@ function symbolCurrency(symbol: string): string {
 // endpoint returns close > 0.  The winning suffix is cached in AsyncStorage as
 // "eodhd_symbol_cache_{TICKER}" so subsequent fetches skip the waterfall.
 //
-// Xetra gets both .XETRA (native EODHD) and .DE (Yahoo-compatible alias).
+// Xetra gets both .XETRA (native EODHD) and .DE (common alias).
 
 const EXCHANGE_EODHD_SUFFIXES: Record<string, string[]> = {
   "XETRA":        [".XETRA", ".DE"],
@@ -301,10 +286,14 @@ export interface PricePoint {
   priceEUR: number;
 }
 
-export function buildYahooSymbol(ticker: string, exchange: string): string {
+/** Build an exchange-suffixed symbol (e.g. "VWCE" + "XETRA" → "VWCE.DE"). */
+export function buildEodhdSymbol(ticker: string, exchange: string): string {
   const suffix = EXCHANGE_SUFFIXES[exchange] ?? "";
   return `${ticker}${suffix}`;
 }
+
+/** @deprecated Use buildEodhdSymbol */
+export const buildYahooSymbol = buildEodhdSymbol;
 
 const fxMemCache: Record<string, { rate: number; fetchedAt: number }> = {};
 
@@ -478,64 +467,31 @@ export async function refreshAllPrices(
   }
 }
 
-const YAHOO_RANGES: Record<string, string> = {
-  "1W": "5d",
-  "1M": "1mo",
-  "3M": "3mo",
-  "1Y": "1y",
-  "All": "5y",
-};
-
 export async function fetchHistoricalPrices(
   symbol: string,
   range: string
 ): Promise<PricePoint[]> {
-  const yahooRange = YAHOO_RANGES[range] ?? "1mo";
-  const url = yahooChartUrl(symbol, "1d", yahooRange);
+  const rangeDays: Record<string, number> = {
+    "1W": 7, "1M": 31, "3M": 92, "1Y": 366, "All": 1830,
+  };
+  const fromDate = dateStringDaysAgo(rangeDays[range] ?? 31);
+  const ticker = symbol.split(".")[0];
+  const cached = await getCachedEodhdSymbol(ticker);
+  const eodhdSym = cached ?? symbol;
 
-  try {
-    const res = await fetch(url, { headers: YAHOO_HEADERS });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+  const bars = await eodhdFetchHistory(eodhdSym, fromDate);
+  if (bars.length === 0) return [];
 
-    const result = data?.chart?.result?.[0];
-    if (!result) throw new Error("No result");
-
-    const timestamps: number[] = result.timestamp ?? [];
-    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
-    const currency: string = result.meta?.currency ?? "EUR";
-
-    let fxRate = 1;
-    if (currency !== "EUR") {
-      const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-        try {
-          fxRate = await fetchFXRate(fxFrom, "EUR");
-        } catch {
-          // Use 1 as fallback
-        }
-      }
-    }
-
-    const points: PricePoint[] = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      const price = closes[i];
-      if (price == null || isNaN(price)) continue;
-
-      const date = new Date(timestamps[i] * 1000).toISOString().split("T")[0];
-      const priceEUR =
-        currency === "GBp" || currency === "GBX"
-          ? (price / 100) * fxRate
-          : price * fxRate;
-
-      points.push({ date, priceEUR });
-    }
-
-    return points;
-  } catch (err) {
-    console.warn(`[priceService] fetchHistoricalPrices failed for ${symbol}:`, err);
-    return [];
+  const currency = symbolCurrency(eodhdSym);
+  let fxRate = 1;
+  if (currency !== "EUR") {
+    const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+    try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
   }
+  const toEUR = (p: number) =>
+    currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
+
+  return bars.map(b => ({ date: b.date, priceEUR: toEUR(b.close) }));
 }
 
 // ─── Search & Detail Types ────────────────────────────────────────────────────
@@ -608,8 +564,7 @@ function ytdFromDate(): string {
  * can show an "Upgrade to Pro" lock in the UI.
  *
  * For 1D the EOD endpoint only has yesterday + today (2 daily bars) which
- * is enough to show the daily trend; the caller can fall back to Yahoo
- * for intraday resolution when more points are needed.
+ * is enough to show the daily trend.
  */
 export async function fetchEodhdChartHistory(
   symbol: string,
@@ -665,24 +620,49 @@ export async function fetchEodhdChartHistory(
 /** @deprecated Use fetchEodhdChartHistory instead */
 export const fetchFMPChartHistory = fetchEodhdChartHistory;
 
-const YAHOO_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-  Accept: "application/json",
+interface EodhdSearchResult {
+  Code: string;
+  Name: string;
+  Country: string;
+  Exchange: string;
+  Currency: string;
+  Type: string;
+  ISIN?: string;
+}
+
+const EODHD_EXCHANGE_MAP: Record<string, string> = {
+  "XETRA": "XETRA", "F": "XETRA",
+  "AS": "EURONEXT_AMS",
+  "PA": "EURONEXT_PAR",
+  "LSE": "LSE", "L": "LSE",
+  "MI": "BORSA_IT", "MIL": "BORSA_IT",
+  "SW": "SIX",
+  "BR": "EURONEXT_BRU",
+  "MC": "BME",
+  "HE": "NASDAQ_HEL",
+  "ST": "NASDAQ_STO",
+  "OL": "OSLO",
+  "CO": "NASDAQ_CPH",
 };
 
 export async function searchTickers(query: string): Promise<SearchResult[]> {
-  const url = yahooSearchUrl(query);
+  const key = eodhdApiKey();
+  if (!key) return [];
+  const url = `${EODHD_BASE}/search/${encodeURIComponent(query)}?api_token=${key}&fmt=json&limit=15`;
   try {
-    const res = await fetch(url, { headers: YAHOO_HEADERS });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6_000);
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal })
+      .finally(() => clearTimeout(timer));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return (data?.quotes ?? []).map((q: Record<string, string>) => ({
-      symbol: q.symbol ?? "",
-      shortName: q.shortname ?? q.longname ?? "",
-      quoteType: q.quoteType ?? "EQUITY",
-      exchange: q.exchange ?? "",
-      exchDisp: q.exchDisp ?? "",
-      typeDisp: q.typeDisp ?? "",
+    const data: EodhdSearchResult[] = await res.json();
+    return data.map((r) => ({
+      symbol: `${r.Code}.${r.Exchange}`,
+      shortName: r.Name ?? "",
+      quoteType: r.Type?.toUpperCase().includes("ETF") ? "ETF" : "EQUITY",
+      exchange: EODHD_EXCHANGE_MAP[r.Exchange?.toUpperCase()] ?? r.Exchange ?? "",
+      exchDisp: r.Exchange ?? "",
+      typeDisp: r.Type ?? "",
     }));
   } catch {
     return [];
@@ -690,64 +670,38 @@ export async function searchTickers(query: string): Promise<SearchResult[]> {
 }
 
 export async function resolveExchangeFromISIN(isin: string, ticker: string): Promise<string> {
-  // Static overrides — highest priority, known correct listings
   const STATIC_OVERRIDES: Record<string, string> = {
-    "VWCE": "XETRA",
-    "VWRL": "XETRA",
-    "IWDA": "EURONEXT_AMS",
-    "VHYL": "EURONEXT_AMS",
-    "TDIV": "EURONEXT_AMS",
-    "EGLN": "LSE",
-    "CSBGE7": "SIX",
-    "ERNE": "LSE",
-    "IEGE": "BORSA_IT",
-    "VUSA": "LSE",
-    "VUAA": "XETRA",
-    "EQQQ": "XETRA",
-    "VGOV": "LSE",
+    "VWCE": "XETRA", "VWRL": "XETRA", "VUAA": "XETRA", "EQQQ": "XETRA",
+    "IWDA": "EURONEXT_AMS", "VHYL": "EURONEXT_AMS", "TDIV": "EURONEXT_AMS",
+    "EGLN": "LSE", "ERNE": "LSE", "VUSA": "LSE", "VGOV": "LSE",
+    "CSBGE7": "SIX", "IEGE": "BORSA_IT",
   };
 
   const upper = ticker.toUpperCase();
   if (STATIC_OVERRIDES[upper]) return STATIC_OVERRIDES[upper];
 
-  // Try ticker-based Yahoo search (more reliable than ISIN search)
   try {
     const results = await searchTickers(ticker);
     if (results.length > 0) {
       const EXCHANGE_PRIORITY: Record<string, number> = {
-        "GER": 1, "XET": 1,
-        "AMS": 2, "PAR": 3,
-        "MIL": 4, "EBS": 5,
-        "LSE": 6, "BRU": 7,
-      };
-      const EXCHANGE_MAP: Record<string, string> = {
-        "GER": "XETRA", "XET": "XETRA",
-        "AMS": "EURONEXT_AMS", "PAR": "EURONEXT_PAR",
-        "MIL": "BORSA_IT", "EBS": "SIX",
-        "LSE": "LSE", "BRU": "EURONEXT_PAR",
+        "XETRA": 1, "EURONEXT_AMS": 2, "EURONEXT_PAR": 3,
+        "BORSA_IT": 4, "SIX": 5, "LSE": 6, "EURONEXT_BRU": 7,
       };
       const matching = results.filter(r =>
-        r.symbol.toUpperCase().startsWith(upper)
+        r.symbol.toUpperCase().startsWith(upper + ".")
       );
       const candidates = matching.length > 0 ? matching : results.slice(0, 3);
       const sorted = candidates.sort((a, b) =>
         (EXCHANGE_PRIORITY[a.exchange] ?? 99) - (EXCHANGE_PRIORITY[b.exchange] ?? 99)
       );
       const best = sorted[0];
-      if (EXCHANGE_MAP[best.exchange]) return EXCHANGE_MAP[best.exchange];
-      // Derive from symbol suffix
-      const suffix = best.symbol.split(".").pop()?.toUpperCase() ?? "";
-      const SUFFIX_MAP: Record<string, string> = {
-        "DE": "XETRA", "AS": "EURONEXT_AMS", "PA": "EURONEXT_PAR",
-        "MI": "BORSA_IT", "SW": "SIX", "L": "LSE",
-      };
-      if (SUFFIX_MAP[suffix]) return SUFFIX_MAP[suffix];
+      if (best.exchange && EODHD_EXCHANGE_MAP[best.exchDisp?.toUpperCase() ?? ""]) {
+        return EODHD_EXCHANGE_MAP[best.exchDisp.toUpperCase()];
+      }
+      if (best.exchange) return best.exchange;
     }
-  } catch {
-    // fall through to ISIN-based fallback
-  }
+  } catch { /* fall through */ }
 
-  // ISIN country fallback
   if (!isin) return "XETRA";
   const country = isin.substring(0, 2).toUpperCase();
   switch (country) {
@@ -765,7 +719,7 @@ export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null
   try {
     const ticker = symbol.split(".")[0];
     // Infer exchange from Yahoo-style suffix so the waterfall starts at the right venue
-    const inferredExchange = exchangeFromYahooSuffix(symbol);
+    const inferredExchange = exchangeFromSuffix(symbol) ?? undefined;
 
     const resolved = await resolveEodhdSymbol(ticker, inferredExchange);
     if (!resolved) {
@@ -834,7 +788,7 @@ export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null
 
 // ─── Exchange helpers used by fetchTickerMeta ─────────────────────────────────
 
-function exchangeFromYahooSuffix(symbol: string): string | undefined {
+function exchangeFromSuffix(symbol: string): string | undefined {
   if (symbol.endsWith(".DE"))  return "XETRA";
   if (symbol.endsWith(".AS"))  return "EURONEXT_AMS";
   if (symbol.endsWith(".PA"))  return "EURONEXT_PAR";
@@ -901,18 +855,26 @@ const KNOWN_YIELDS: Record<string, number> = {
   "LQDE": 3.6,   "IHYG": 5.8,   "HYLD": 5.2,
 };
 
-export async function fetchDividendYield(ticker: string, exchange: string): Promise<number | null> {
-  const symbol = buildYahooSymbol(ticker, exchange);
-  const url = yahooChartUrl(symbol, "1d", "1y");
+export async function fetchDividendYield(ticker: string, _exchange: string): Promise<number | null> {
+  // Check static known yields first
+  const knownYield = KNOWN_YIELDS[ticker.toUpperCase()];
+  if (knownYield !== undefined) return knownYield;
+
+  // Try EODHD fundamentals for ETF yield
+  const key = eodhdApiKey();
+  if (!key) return null;
   try {
-    const res = await fetch(url, { headers: YAHOO_HEADERS });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const cachedSym = await getCachedEodhdSymbol(ticker.toUpperCase());
+    if (!cachedSym) return null;
+    const url = `${EODHD_BASE}/fundamentals/${encodeURIComponent(cachedSym)}?api_token=${key}&filter=ETF_Data::Yield`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8_000);
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal })
+      .finally(() => clearTimeout(timer));
+    if (!res.ok) return null;
     const data = await res.json();
-    const meta = data?.chart?.result?.[0]?.meta;
-    if (!meta) return null;
-    // trailingAnnualDividendYield is a decimal (e.g. 0.034 = 3.4%)
-    const yld: number | undefined = meta.trailingAnnualDividendYield;
-    if (yld && yld > 0) return Math.round(yld * 10000) / 100; // convert to %
+    const yld = typeof data === "number" ? data : null;
+    if (yld && yld > 0) return Math.round(yld * 100) / 100;
     return null;
   } catch {
     return null;
@@ -920,45 +882,7 @@ export async function fetchDividendYield(ticker: string, exchange: string): Prom
 }
 
 export async function fetchChartHistory(symbol: string, range: string): Promise<ChartPoint[]> {
-  const cfg = CHART_INTERVALS[range] ?? { interval: "1d", range: "1mo" };
-  const url = yahooChartUrl(symbol, cfg.interval, cfg.range);
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10_000);
-    const res = await fetch(url, { headers: YAHOO_HEADERS, signal: controller.signal })
-      .finally(() => clearTimeout(timer));
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const result = data?.chart?.result?.[0];
-    if (!result) return [];
-
-    const timestamps: number[] = result.timestamp ?? [];
-    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
-    const currency: string = result.meta?.currency ?? "EUR";
-
-    let fxRate = 1;
-    if (currency !== "EUR") {
-      const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-        try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
-      }
-    }
-
-    const points: ChartPoint[] = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      const price = closes[i];
-      if (price == null || isNaN(price)) continue;
-      const priceEUR =
-        currency === "GBp" || currency === "GBX"
-          ? (price / 100) * fxRate
-          : price * fxRate;
-      points.push({ timestamp: timestamps[i] * 1000, priceEUR });
-    }
-    return points;
-  } catch (err) {
-    console.warn(`[fetchChartHistory] failed for ${symbol}:`, err);
-    return [];
-  }
+  return fetchEodhdChartHistory(symbol, range);
 }
 
 // ─── Period-based price change (canonical, used everywhere) ─────────────────
@@ -970,23 +894,6 @@ export interface PeriodReturn {
   endPriceEUR: number;
 }
 
-/**
- * Build a Yahoo Finance chart URL using explicit period1/period2 unix timestamps.
- * Used solely to fetch the historical start price for multi-period return calculations.
- */
-function yahooChartUrlByPeriod(
-  symbol: string,
-  interval: string,
-  period1: number,
-  period2?: number
-): string {
-  const p2 = period2 ?? Math.floor(Date.now() / 1000);
-  if (Platform.OS === "web") {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-    return `https://${domain}/api/yahoo/chart/${encodeURIComponent(symbol)}?interval=${interval}&period1=${period1}&period2=${p2}`;
-  }
-  return `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&period1=${period1}&period2=${p2}`;
-}
 
 export async function fetchPeriodReturn(
   symbol: string,
@@ -997,7 +904,7 @@ export async function fetchPeriodReturn(
   if (period === "3Y" || period === "5Y" || period === "All") return null;
 
   const ticker = symbol.split(".")[0];
-  const inferredExchange = exchangeFromYahooSuffix(symbol);
+  const inferredExchange = exchangeFromSuffix(symbol);
 
   // Resolve the EODHD symbol (uses cache after first load)
   const resolved = await resolveEodhdSymbol(ticker, inferredExchange);
@@ -1059,32 +966,13 @@ export async function fetchBenchmarkReturn(
   ticker: string,
   startDateString: string
 ): Promise<number | null> {
-  const period1 = Math.floor(new Date(startDateString).getTime() / 1000);
-  const period2 = Math.floor(Date.now() / 1000);
-
-  const url = Platform.OS === "web"
-    ? `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}/api/yahoo/chart/${encodeURIComponent(ticker)}?interval=1d&period1=${period1}&period2=${period2}`
-    : `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&period1=${period1}&period2=${period2}`;
-
   try {
-    const res = await fetch(url, { headers: YAHOO_HEADERS });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const closes: (number | null)[] =
-      data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
-
-    let firstClose: number | null = null;
-    for (const c of closes) {
-      if (c != null && c > 0) { firstClose = c; break; }
-    }
-
-    let lastClose: number | null = null;
-    for (let i = closes.length - 1; i >= 0; i--) {
-      if (closes[i] != null && closes[i]! > 0) { lastClose = closes[i]; break; }
-    }
-
-    if (firstClose == null || lastClose == null) return null;
-    return ((lastClose - firstClose) / firstClose) * 100;
+    const bars = await eodhdFetchHistory(ticker, startDateString);
+    if (bars.length < 2) return null;
+    const first = bars[0].close;
+    const last  = bars[bars.length - 1].close;
+    if (!first || first <= 0) return null;
+    return ((last - first) / first) * 100;
   } catch (err) {
     console.warn(`[fetchBenchmarkReturn] ${ticker}:`, err);
     return null;
@@ -1094,33 +982,37 @@ export async function fetchBenchmarkReturn(
 export async function fetchSymbolPrice(
   fullSymbol: string
 ): Promise<{ price: number; changePct: number } | null> {
-  const url = yahooChartUrl(fullSymbol, "1d", "2d");
   try {
-    const res = await fetch(url, { headers: YAHOO_HEADERS });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const meta = data?.chart?.result?.[0]?.meta;
-    if (!meta?.regularMarketPrice) throw new Error("No price");
-
-    const rawPrice: number = meta.regularMarketPrice;
-    const rawPrev: number = meta.previousClose ?? meta.chartPreviousClose ?? rawPrice;
-    const currency: string = meta.currency ?? "USD";
-
+    const data = await eodhdFetchRealtime(fullSymbol);
+    if (!data) {
+      // Try resolving via waterfall using ticker portion
+      const ticker = fullSymbol.split(".")[0];
+      const resolved = await resolveEodhdSymbol(ticker);
+      if (!resolved) return null;
+      const d = resolved.data;
+      const currency = symbolCurrency(resolved.symbol);
+      let fxRate = 1;
+      if (currency !== "EUR") {
+        const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
+        try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
+      }
+      const toEUR = (p: number) =>
+        currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
+      const price = toEUR(d.close);
+      const prev = d.previousClose > 0 ? toEUR(d.previousClose) : price;
+      return { price, changePct: d.change_p ?? (prev !== 0 ? ((price - prev) / prev) * 100 : 0) };
+    }
+    const currency = symbolCurrency(fullSymbol);
     let fxRate = 1;
     if (currency !== "EUR") {
       const fxFrom = currency === "GBp" || currency === "GBX" ? "GBP" : currency;
-      if (["GBP", "USD", "CHF"].includes(fxFrom)) {
-        try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
-      }
+      try { fxRate = await fetchFXRate(fxFrom, "EUR"); } catch { /* use 1 */ }
     }
-
     const toEUR = (p: number) =>
       currency === "GBp" || currency === "GBX" ? (p / 100) * fxRate : p * fxRate;
-
-    const price = toEUR(rawPrice);
-    const prev = toEUR(rawPrev);
-    const changePct = prev !== 0 ? ((price - prev) / prev) * 100 : 0;
-    return { price, changePct };
+    const price = toEUR(data.close);
+    const prev = data.previousClose > 0 ? toEUR(data.previousClose) : price;
+    return { price, changePct: data.change_p ?? (prev !== 0 ? ((price - prev) / prev) * 100 : 0) };
   } catch {
     return null;
   }

@@ -1,4 +1,3 @@
-import { Platform } from "react-native";
 import {
   upsertEtfPrices,
   getEtfPricesForTicker,
@@ -9,7 +8,7 @@ import {
   type PortfolioHistoryRow,
   type HoldingRow,
 } from "@/services/db";
-import { buildYahooSymbol, normalizeToEUR } from "@/services/priceService";
+import { normalizeToEUR } from "@/services/priceService";
 import type { PortfolioSnapshot } from "@/services/snapshotService";
 
 const RANGE_DAYS: Record<string, number> = {
@@ -20,48 +19,67 @@ const RANGE_DAYS: Record<string, number> = {
   "All": 99999,
 };
 
-// ─── Yahoo Finance historical chart ──────────────────────────────────────────
+// ─── EODHD EOD historical chart ───────────────────────────────────────────────
 
-function yahooHistUrl(symbol: string, period1: number, period2: number): string {
-  if (Platform.OS === "web") {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-    return `https://${domain}/api/yahoo/chart/${encodeURIComponent(symbol)}?interval=1d&period1=${period1}&period2=${period2}`;
-  }
-  return `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&period1=${period1}&period2=${period2}`;
+const EODHD_BASE = "https://eodhd.com/api";
+
+function eodhdApiKey(): string {
+  return process.env.EXPO_PUBLIC_EODHD_API_KEY ?? "";
 }
 
-async function fetchYahooHistory(
-  yahooSymbol: string,
+async function fetchEodhdHistory(
+  ticker: string,
+  exchange: string,
   fromDate: string,
   toDate: string
 ): Promise<{ dates: string[]; closes: number[]; currency: string }> {
-  try {
-    const period1 = Math.floor(new Date(fromDate).getTime() / 1000);
-    const period2 = Math.floor(new Date(toDate).getTime() / 1000) + 86400;
-    const url = yahooHistUrl(yahooSymbol, period1, period2);
-    const res = await fetch(url);
-    if (!res.ok) return { dates: [], closes: [], currency: "EUR" };
-    const data = await res.json();
-    const result = data?.chart?.result?.[0];
-    if (!result) return { dates: [], closes: [], currency: "EUR" };
+  const key = eodhdApiKey();
+  if (!key) return { dates: [], closes: [], currency: "EUR" };
 
-    const timestamps: number[] = result.timestamp ?? [];
-    const rawCloses: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
-    const currency: string = result.meta?.currency ?? "EUR";
+  // Map internal exchange codes to EODHD suffixes — try XETRA format first for EU exchanges
+  const SUFFIX_MAP: Record<string, string[]> = {
+    "XETRA": [".XETRA", ".DE"],
+    "LSE": [".LSE", ".L"],
+    "EURONEXT_AMS": [".AS"],
+    "EURONEXT_PAR": [".PA"],
+    "BORSA_IT": [".MI"],
+    "SIX": [".SW"],
+    "EURONEXT_BRU": [".BR"],
+    "BME": [".MC"],
+    "NASDAQ_HEL": [".HE"],
+    "NASDAQ_STO": [".ST"],
+    "OSLO": [".OL"],
+    "NASDAQ_CPH": [".CO"],
+  };
 
-    const dates: string[] = [];
-    const closes: number[] = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      const c = rawCloses[i];
-      if (c != null && c > 0) {
-        dates.push(new Date(timestamps[i] * 1000).toISOString().split("T")[0]);
-        closes.push(c);
+  const suffixes = SUFFIX_MAP[exchange] ?? [".XETRA", ".DE"];
+  const currency = exchange === "LSE" ? "GBP" : exchange === "SIX" ? "CHF" : "EUR";
+
+  for (const suffix of suffixes) {
+    const symbol = `${ticker.toUpperCase()}${suffix}`;
+    try {
+      const url = `${EODHD_BASE}/eod/${encodeURIComponent(symbol)}?api_token=${key}&fmt=json&from=${fromDate}&to=${toDate}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12_000);
+      const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal })
+        .finally(() => clearTimeout(timer));
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) continue;
+
+      const dates: string[] = [];
+      const closes: number[] = [];
+      for (const bar of data) {
+        if (bar.close > 0) {
+          dates.push(bar.date);
+          closes.push(bar.close);
+        }
       }
-    }
-    return { dates, closes, currency };
-  } catch {
-    return { dates: [], closes: [], currency: "EUR" };
+      if (dates.length > 0) return { dates, closes, currency };
+    } catch { /* try next suffix */ }
   }
+
+  return { dates: [], closes: [], currency: "EUR" };
 }
 
 // ─── Frankfurter FX history ───────────────────────────────────────────────────
@@ -180,7 +198,6 @@ export async function buildPortfolioHistory(holdings: HoldingRow[]): Promise<voi
     const fxCache = new Map<string, Record<string, number>>();
 
     for (const h of holdings) {
-      const yahooSymbol = buildYahooSymbol(h.ticker, h.exchange);
       const latestStored = await getLatestEtfPriceDate(h.ticker);
 
       const fetchFrom = latestStored
@@ -189,7 +206,7 @@ export async function buildPortfolioHistory(holdings: HoldingRow[]): Promise<voi
 
       if (fetchFrom > yesterday) continue;
 
-      const { dates, closes, currency } = await fetchYahooHistory(yahooSymbol, fetchFrom, yesterday);
+      const { dates, closes, currency } = await fetchEodhdHistory(h.ticker, h.exchange, fetchFrom, yesterday);
       if (dates.length === 0) continue;
 
       const fxBase = currency === "GBp" || currency === "GBX" ? "GBP" : currency;

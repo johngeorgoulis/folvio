@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Platform,
   ScrollView as RNScrollView,
   StyleSheet,
   Text,
@@ -14,11 +13,8 @@ import { useTheme } from "@/context/ThemeContext";
 import { EXCHANGE_OPTIONS } from "@/components/ExchangePicker";
 
 function searchUrl(q: string): string {
-  if (Platform.OS === "web") {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
-    return `https://${domain}/api/yahoo/search?q=${encodeURIComponent(q)}`;
-  }
-  return `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0&listsCount=0`;
+  const key = process.env.EXPO_PUBLIC_EODHD_API_KEY ?? "";
+  return `https://eodhd.com/api/search/${encodeURIComponent(q)}?api_token=${key}&fmt=json&limit=10`;
 }
 
 
@@ -27,20 +23,56 @@ const SUFFIX_MAP: Record<string, string> = Object.fromEntries(
 );
 
 const EXCHANGE_SHORT: Record<string, string> = {
-  XETRA: "DE",
-  EURONEXT_AMS: "AMS",
-  EURONEXT_PAR: "PAR",
-  LSE: "LSE",
-  BORSA_IT: "IT",
-  SIX: "CH",
+  XETRA: "DE", F: "DE",
+  EURONEXT_AMS: "AMS", AS: "AMS",
+  EURONEXT_PAR: "PAR", PA: "PAR",
+  LSE: "LSE", L: "LSE",
+  BORSA_IT: "IT", MI: "IT",
+  SIX: "CH", SW: "CH",
+  EURONEXT_BRU: "BRU", BR: "BRU",
+  BME: "MC",
 };
 
 interface Quote {
-  symbol: string;
+  symbol: string;   // "{CODE}.{EXCHANGE}" e.g. "VWCE.XETRA"
   shortname?: string;
   longname?: string;
   exchDisp?: string;
   typeDisp?: string;
+}
+
+interface EodhdResult {
+  Code: string;
+  Name: string;
+  Exchange: string;
+  Type: string;
+  ISIN?: string;
+}
+
+const EODHD_EXCHANGE_MAP: Record<string, string> = {
+  "XETRA": "XETRA", "F": "XETRA",
+  "AS": "EURONEXT_AMS",
+  "PA": "EURONEXT_PAR",
+  "LSE": "LSE", "L": "LSE",
+  "MI": "BORSA_IT", "MIL": "BORSA_IT",
+  "SW": "SIX",
+  "BR": "EURONEXT_BRU",
+  "MC": "BME",
+  "HE": "NASDAQ_HEL",
+  "ST": "NASDAQ_STO",
+  "OL": "OSLO",
+  "CO": "NASDAQ_CPH",
+};
+
+function normalizeEodhdResults(raw: EodhdResult[]): Quote[] {
+  return raw
+    .filter(r => r.Code && r.Exchange)
+    .map(r => ({
+      symbol: `${r.Code}.${r.Exchange}`,
+      shortname: r.Name,
+      exchDisp: r.Exchange,
+      typeDisp: r.Type,
+    }));
 }
 
 export interface TickerSelection {
@@ -57,10 +89,12 @@ interface Props {
 }
 
 function parseSymbol(symbol: string): { ticker: string; exchange: string } {
-  for (const [suffix, exchange] of Object.entries(SUFFIX_MAP)) {
-    if (symbol.endsWith(suffix)) {
-      return { ticker: symbol.slice(0, -suffix.length), exchange };
-    }
+  const dotIdx = symbol.lastIndexOf(".");
+  if (dotIdx > 0) {
+    const ticker = symbol.slice(0, dotIdx);
+    const exchCode = symbol.slice(dotIdx + 1).toUpperCase();
+    const exchange = EODHD_EXCHANGE_MAP[exchCode] ?? SUFFIX_MAP[`.${exchCode}`] ?? "XETRA";
+    return { ticker, exchange };
   }
   return { ticker: symbol, exchange: "XETRA" };
 }
@@ -89,10 +123,8 @@ export default function TickerSearchInput({ value, onChange, onSelect, inputStyl
         clearTimeout(timer);
       }
       if (!res.ok) throw new Error("HTTP " + res.status);
-      const data = await res.json();
-
-      const rawQuotes: Quote[] =
-        data?.finance?.result?.[0]?.quotes ?? data?.quotes ?? [];
+      const data: EodhdResult[] = await res.json();
+      const rawQuotes = normalizeEodhdResults(Array.isArray(data) ? data : []);
 
       const etfs = rawQuotes.filter(
         (r) =>

@@ -18,7 +18,6 @@ import { useTheme } from "@/context/ThemeContext";
 import { usePortfolio } from "@/context/PortfolioContext";
 import PriceChart from "@/components/PriceChart";
 import {
-  fetchChartHistory,
   fetchEodhdChartHistory,
   fetchETFDataBySymbol,
   fetchETFDataFromServer,
@@ -105,14 +104,7 @@ function symbolToExchange(symbol: string): string {
 }
 
 
-/**
- * Derive the absolute and percentage change for the selected range directly
- * from chart data. Used as a fallback when fetchPeriodReturn returns null
- * (e.g. Yahoo Finance rate-limited on native Expo Go).
- * For 1D the chart has intraday candles — the first point approximates market
- * open, so the result is "change since open" which is close enough. For
- * multi-day ranges the first daily close is used as the period start.
- */
+/** Derive change from chart data when fetchPeriodReturn returns null. */
 function deriveChangeFromChart(
   chart: ChartPoint[],
   currentPriceEUR: number | undefined
@@ -212,14 +204,10 @@ export default function TickerDetailScreen() {
     setMetaError(false);
     try {
       // All network calls fire in parallel to minimise total load time.
-      // Chart data uses FMP as primary source (better UCITS ETF coverage) with
-      // Yahoo as fallback. fetchPeriodReturn uses explicit period1 timestamps.
       const [m, yd, monthData, initPerf, r1w, r3m, r1y] = await Promise.all([
         fetchTickerMeta(safeSymbol),
-        fetchEodhdChartHistory(safeSymbol, "1Y")
-          .then((pts) => pts.length >= 2 ? pts : fetchChartHistory(safeSymbol, "1Y")),
-        fetchEodhdChartHistory(safeSymbol, "1M")
-          .then((pts) => pts.length >= 2 ? pts : fetchChartHistory(safeSymbol, "1M")),
+        fetchEodhdChartHistory(safeSymbol, "1Y"),
+        fetchEodhdChartHistory(safeSymbol, "1M"),
         fetchPeriodReturn(safeSymbol, "1M"),   // initial range display (1M selected by default)
         fetchPeriodReturn(safeSymbol, "1W"),   // perf card
         fetchPeriodReturn(safeSymbol, "3M"),   // perf card
@@ -230,8 +218,7 @@ export default function TickerDetailScreen() {
       setChartData(monthData);
       setFetchedAt(new Date());
 
-      // Prefer fetchPeriodReturn result; fall back to chart-derived change so the
-      // header always reflects the selected period even when Yahoo is rate-limited.
+      // Prefer fetchPeriodReturn result; fall back to chart-derived change.
       const initChange = initPerf
         ? { abs: initPerf.changeAbs, pct: initPerf.changePct }
         : deriveChangeFromChart(monthData, m?.regularMarketPrice);
@@ -272,11 +259,9 @@ export default function TickerDetailScreen() {
     setLoadingChart(true);
     try {
       // For 1Y we already have year data in state — reuse it.
-      // For all other ranges, prefer EODHD chart data with Yahoo as fallback.
       const chartPromise: Promise<ChartPoint[]> = r === "1Y"
         ? Promise.resolve(yearData)
-        : fetchEodhdChartHistory(safeSymbol, r)
-            .then((pts) => pts.length >= 2 ? pts : fetchChartHistory(safeSymbol, r));
+        : fetchEodhdChartHistory(safeSymbol, r);
 
       const returnPromise = fetchPeriodReturn(
         safeSymbol,
@@ -289,10 +274,8 @@ export default function TickerDetailScreen() {
       const [d, result] = await Promise.all([chartPromise, returnPromise]);
       setChartData(d);
 
-      // Prefer fetchPeriodReturn result; fall back so the header always reflects
-      // the active range, even when Yahoo historical is rate-limited.
-      // 1D special case: use FMP's own change fields from meta (vs prev. close)
-      // since the intraday chart first-point only approximates the open price.
+      // Prefer fetchPeriodReturn result; fall back to chart-derived change.
+      // 1D special case: use meta change fields (vs prev. close).
       const resolvedChange = result
         ? { abs: result.changeAbs, pct: result.changePct }
         : r === "1D" && meta
@@ -342,12 +325,10 @@ export default function TickerDetailScreen() {
   const displayAssetClass   = assetClass !== "Unknown" ? assetClass : (localETF?.assetClass ?? "—");
   const displayFundSizeMil  = localETF?.fundSize ?? null;  // in millions EUR
 
-  // Three-tier ISIN resolution for JustETF enrichment — runs for ALL ETFs.
-  // Waits for meta to finish loading so the Yahoo Finance ISIN (tier 2) can
-  // be used before falling back to the slower JustETF ticker search (tier 3).
+  // Three-tier ISIN resolution for ETF data enrichment.
   //   1. Portfolio ISIN  — exact, fastest
-  //   2. Yahoo Finance meta.isin — exact, fast (Yahoo returns ISIN for UCITS ETFs)
-  //   3. JustETF ticker search via /etf/by-symbol — searches by ticker name, slowest
+  //   2. meta.isin — from EODHD fundamentals
+  //   3. symbol fallback via /etf/by-symbol
   useEffect(() => {
     if (!safeSymbol || loadingMeta) return;
     if (portfolioISIN) {

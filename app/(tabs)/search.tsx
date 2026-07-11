@@ -155,7 +155,7 @@ function LocalETFRow({ item }: { item: ETFSearchResult }) {
   );
 }
 
-function YahooResultRow({ item }: { item: SearchResult }) {
+function SearchResultRow({ item }: { item: SearchResult }) {
   const { theme } = useTheme();
   const badgeLabel = getTypeBadge(item.quoteType);
   const badgeColor =
@@ -200,16 +200,16 @@ export default function SearchScreen() {
 
   const [query, setQuery] = useState("");
   const [localResults, setLocalResults] = useState<ETFSearchResult[]>([]);
-  const [yahooResults, setYahooResults] = useState<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [filter, setFilter] = useState<Filter>("All");
-  const [isSearchingYahoo, setIsSearchingYahoo] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [popularPrices, setPopularPrices] = useState<Record<string, PopularPrice | null>>({});
   const [isinResolving, setIsinResolving] = useState(false);
   const [isinResult, setIsinResult] = useState<ISINResolveResult | null>(null);
   const [isinError, setIsinError] = useState(false);
   const [updateToast, setUpdateToast] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const yahooDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   const { holdings } = usePortfolio();
@@ -254,19 +254,19 @@ export default function SearchScreen() {
     setIsinResult(null);
     setIsinError(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (yahooDebounceRef.current) clearTimeout(yahooDebounceRef.current);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
 
     const trimmed = text.trim();
 
     if (trimmed.length < 2) {
       setLocalResults([]);
-      setYahooResults([]);
+      setSearchResults([]);
       return;
     }
 
     if (isISIN(trimmed)) {
       setLocalResults([]);
-      setYahooResults([]);
+      setSearchResults([]);
       debounceRef.current = setTimeout(() => handleISINResolve(trimmed), 400);
       return;
     }
@@ -275,15 +275,15 @@ export default function SearchScreen() {
     setLocalResults(local);
 
     if (local.length < 5) {
-      setIsSearchingYahoo(true);
-      yahooDebounceRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      searchDebounceRef.current = setTimeout(async () => {
         const r = await searchTickers(trimmed);
-        setYahooResults(r);
-        setIsSearchingYahoo(false);
+        setSearchResults(r);
+        setIsSearching(false);
       }, 500);
     } else {
-      setYahooResults([]);
-      setIsSearchingYahoo(false);
+      setSearchResults([]);
+      setIsSearching(false);
     }
   }
 
@@ -305,7 +305,7 @@ export default function SearchScreen() {
     }
   }
 
-  const filteredYahoo = yahooResults.filter((r) => {
+  const filteredYahoo = searchResults.filter((r) => {
     if (filter === "All") return true;
     if (filter === "ETF")   return r.quoteType === "ETF";
     if (filter === "Stock") return r.quoteType === "EQUITY";
@@ -355,7 +355,7 @@ export default function SearchScreen() {
           {query.length > 0 && (
             <TouchableOpacity
               onPress={() => {
-                setQuery(""); setLocalResults([]); setYahooResults([]);
+                setQuery(""); setLocalResults([]); setSearchResults([]);
                 setIsinResult(null); setIsinError(false);
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -466,7 +466,7 @@ export default function SearchScreen() {
 
             {!queryIsISIN && (
               <>
-                {isSearchingYahoo && !hasLocalResults && (
+                {isSearching && !hasLocalResults && (
                   <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 24, justifyContent: "center" }}>
                     <ActivityIndicator color={theme.accent} />
                     <Text style={{ color: theme.textMuted, marginLeft: 10, fontSize: 14, fontFamily: "Archivo_400Regular" }}>Searching…</Text>
@@ -478,16 +478,16 @@ export default function SearchScreen() {
                     <View style={[hStyles.sectionDivider, { borderBottomColor: theme.hairline }]}>
                       <Feather name="trending-up" size={11} color={theme.textMuted} />
                       <Text style={[hStyles.sectionDividerText, { color: theme.textMuted }]}>
-                        {hasLocalResults ? "MORE RESULTS" : "YAHOO FINANCE"}
+                        {hasLocalResults ? "MORE RESULTS" : "SEARCH RESULTS"}
                       </Text>
                     </View>
                     {filteredYahoo.map((item) => (
-                      <YahooResultRow key={item.symbol} item={item} />
+                      <SearchResultRow key={item.symbol} item={item} />
                     ))}
                   </>
                 )}
 
-                {!hasLocalResults && !isSearchingYahoo && filteredYahoo.length === 0 && queryTrimmed.length >= 2 && (
+                {!hasLocalResults && !isSearching && filteredYahoo.length === 0 && queryTrimmed.length >= 2 && (
                   <View style={{ alignItems: "center", paddingVertical: 48 }}>
                     <Feather name="search" size={28} color={theme.textMuted} />
                     <Text style={{ color: theme.textMuted, marginTop: 10, fontSize: 14, fontFamily: "Archivo_400Regular" }}>No results for "{query}"</Text>
