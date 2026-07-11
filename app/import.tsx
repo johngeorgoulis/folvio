@@ -55,7 +55,8 @@ interface TRImportItem {
 // ─── Progress Indicator ────────────────────────────────────────────────────────
 
 function StepProgress({
-  const { theme } = useTheme(); step }: { step: 1 | 2 | 3 }) {
+  step }: { step: 1 | 2 | 3 }) {
+  const { theme } = useTheme();
   return (
     <View style={prog.row}>
       {([1, 2, 3] as const).map((s) => (

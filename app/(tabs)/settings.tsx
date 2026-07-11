@@ -51,7 +51,6 @@ const ASYNC_KEYS = {
 };
 
 export default function SettingsScreen() {
-  const { theme } = useTheme();
   const { theme, isDark, setIsDark } = useTheme();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 24 : insets.top;
