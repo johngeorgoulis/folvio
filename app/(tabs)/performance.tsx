@@ -406,6 +406,7 @@ function ForecastChart({
   locked: boolean;
   onUnlock: () => void;
 }) {
+  const { theme } = useTheme();
   const H   = 200;
   const PAD = { top: 16, bottom: 32, left: 56, right: 8 };
   const iW  = width - PAD.left - PAD.right;
@@ -486,6 +487,7 @@ function DCAEscalationSlider({
   onChange: (v: number) => void;
   monthlyDCA: number;
 }) {
+  const { theme } = useTheme();
   const MIN = 0, MAX = 10, THUMB = 22;
   const trackRef    = useRef<View>(null);
   const trackPageX  = useRef(0);

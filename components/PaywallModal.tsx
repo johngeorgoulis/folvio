@@ -70,6 +70,7 @@ function triggerMessage(trigger?: string): string {
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
 function FeatureRow({
+  const { theme } = useTheme();
   icon,
   text,
   muted = false,
@@ -90,6 +91,7 @@ function FeatureRow({
 
 // Free tier card (no subscribe button — shows current plan)
 function FreePlanCard() {
+  const { theme } = useTheme();
   return (
     <View style={[styles.planCard, styles.planCardFree]}>
       <View style={styles.planHeader}>
@@ -112,6 +114,7 @@ function FreePlanCard() {
 }
 
 function PaidPlanCard({
+  const { theme } = useTheme();
   tier,
   label,
   tagline,

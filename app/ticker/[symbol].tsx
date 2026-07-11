@@ -136,7 +136,8 @@ function StatCell({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PerfCard({ label, changePct }: { label: string; changePct: number | null }) {
+function PerfCard({
+  const { theme } = useTheme(); label, changePct }: { label: string; changePct: number | null }) {
   const color =
     changePct == null ? theme.textSecondary : changePct >= 0 ? theme.positive : theme.negative;
   const text =

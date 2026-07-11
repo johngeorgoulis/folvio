@@ -54,7 +54,8 @@ interface TRImportItem {
 
 // ─── Progress Indicator ────────────────────────────────────────────────────────
 
-function StepProgress({ step }: { step: 1 | 2 | 3 }) {
+function StepProgress({
+  const { theme } = useTheme(); step }: { step: 1 | 2 | 3 }) {
   return (
     <View style={prog.row}>
       {([1, 2, 3] as const).map((s) => (
@@ -92,6 +93,7 @@ const prog = StyleSheet.create({
 // ─── Step 1: Broker Grid ───────────────────────────────────────────────────────
 
 function BrokerCard({
+  const { theme } = useTheme();
   broker,
   selected,
   onPress,
@@ -164,6 +166,7 @@ function fmtBytes(bytes: number): string {
 // ─── Step 3: Holding Preview Row ───────────────────────────────────────────────
 
 function DuplicateToggle({
+  const { theme } = useTheme();
   value,
   onChange,
 }: {
@@ -204,6 +207,7 @@ function DuplicateToggle({
 }
 
 function PreviewRow({
+  const { theme } = useTheme();
   item,
   onTickerChange,
   onActionChange,
@@ -319,6 +323,7 @@ function PreviewRow({
 }
 
 function TRPreviewRow({
+  const { theme } = useTheme();
   item,
   onActionChange,
 }: {

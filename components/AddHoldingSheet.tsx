@@ -37,6 +37,7 @@ function SegmentControl<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  const { theme } = useTheme();
   return (
     <View
       style={[
