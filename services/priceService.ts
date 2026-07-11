@@ -1108,6 +1108,113 @@ interface CachedFundamentals {
   fetchedAt: number;
 }
 
+async function fetchETFFundamentalsForSymbol(
+  eodhdSym: string,
+  key: string,
+): Promise<ETFFundamentals | null> {
+  const url = `${EODHD_BASE}/fundamentals/${encodeURIComponent(eodhdSym)}?api_token=${key}&filter=ETF_Data&fmt=json`;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal })
+      .finally(() => clearTimeout(timer));
+    if (!res.ok) {
+      console.warn(`[fetchETFFundamentals] ${eodhdSym}: HTTP ${res.status}`);
+      return null;
+    }
+    const d = await res.json();
+    if (!d || typeof d !== "object" || Array.isArray(d) || Object.keys(d).length === 0) {
+      console.warn(`[fetchETFFundamentals] ${eodhdSym}: empty/unexpected payload`, typeof d);
+      return null;
+    }
+    console.log(`[fetchETFFundamentals] ${eodhdSym}: keys =`, Object.keys(d).join(", "));
+
+    const num = (v: any): number | null => {
+      if (v == null || v === "NA" || v === "") return null;
+      const n = typeof v === "number" ? v : parseFloat(v);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    // Parse top holdings — EODHD returns them as an object keyed by symbol
+    const rawHoldings = d.Holdings ?? d.Top_Holdings ?? d.Top_10_Holdings ?? {};
+    const topHoldings: ETFHolding[] = Object.values(rawHoldings)
+      .map((h: any) => ({
+        name: h.Name ?? h.name ?? h.Company ?? "",
+        weightPct: num(h["Assets_%"] ?? h.Assets_Percent ?? h.weight ?? h.Weight_Percentage) ?? 0,
+        country: h.Country ?? h.country,
+        sector: h.Sector ?? h.sector,
+      }))
+      .filter((h) => h.name && h.weightPct > 0)
+      .sort((a, b) => b.weightPct - a.weightPct)
+      .slice(0, 10);
+
+    // Sector weights — EODHD nests these under Sector_Weights (object keyed by sector name)
+    const rawSectors = d.Sector_Weights ?? d.Sector_Weightings ?? d.sectors ?? {};
+    const sectorEntries: [string, any][] = Array.isArray(rawSectors)
+      ? rawSectors.map((s: any, i: number) => [s.Sector ?? s.sector ?? s.type ?? String(i), s])
+      : Object.entries(rawSectors);
+    const sectorWeights: ETFSectorWeight[] = sectorEntries
+      .map(([key, s]: [string, any]) => ({
+        sector: (typeof s === "object" ? (s.Sector ?? s.sector ?? s.type ?? key) : key) ?? "",
+        weightPct: num(typeof s === "object" ? (s["Equity_%"] ?? s.Equity_Percent ?? s.weight ?? s.Relative_to_Category ?? s) : s) ?? 0,
+      }))
+      .filter((s) => s.sector && s.weightPct > 0)
+      .sort((a, b) => b.weightPct - a.weightPct)
+      .slice(0, 8);
+
+    // Country / region weights — EODHD only exposes broad World_Regions for ETFs,
+    // fall back to that if a flat Country_Weightings structure isn't present.
+    const rawCountries = d.Country_Weightings ?? d.Countries ?? d.World_Regions ?? d.countries ?? {};
+    const countryEntries: [string, any][] = Array.isArray(rawCountries)
+      ? rawCountries.map((c: any, i: number) => [c.Country ?? c.Region ?? c.country ?? String(i), c])
+      : Object.entries(rawCountries);
+    const countryWeights: ETFCountryWeight[] = countryEntries
+      .map(([key, c]: [string, any]) => ({
+        country: (typeof c === "object" ? (c.Country ?? c.Region ?? c.country ?? key) : key) ?? "",
+        weightPct: num(typeof c === "object" ? (c["Equity_%"] ?? c.Equity_Percent ?? c.weight ?? c) : c) ?? 0,
+      }))
+      .filter((c) => c.country && c.weightPct > 0)
+      .sort((a, b) => b.weightPct - a.weightPct)
+      .slice(0, 10);
+
+    const rawTer = num(d.NetExpenseRatio ?? d.Net_Expense_Ratio ?? d.Ongoing_Charge ?? d.OngoingCharge);
+    // EODHD sends this as a decimal fraction (0.0022 = 0.22%); values already
+    // expressed as a percentage (e.g. 0.22) would be implausibly small as a fraction.
+    const ter = rawTer != null && rawTer > 0
+      ? (rawTer < 0.5 ? rawTer * 100 : rawTer)
+      : null;
+
+    const result: ETFFundamentals = {
+      isin: d.ISIN ?? undefined,
+      name: d.Name ?? d.Company_Name ?? undefined,
+      ter: ter && ter > 0 ? ter : null,
+      aum: num(d.TotalAssets ?? d.Total_Assets),
+      yield: num(d.Yield),
+      inceptionDate: d.InceptionDate ?? d.Inception_Date ?? undefined,
+      domicile: d.Domicile ?? undefined,
+      replicationMethod: d.ReplicationMethod ?? d.Replication_Method ?? undefined,
+      distributionPolicy: d.DistributionPolicy ?? d.Dividend_Paying_Frequency ?? undefined,
+      holdingsCount: num(d.Holdings_Count ?? d.HoldingsCount) ?? (Object.keys(rawHoldings).length || null),
+      topHoldings,
+      sectorWeights,
+      countryWeights,
+    };
+
+    // Reject results with no usable data — lets the caller try another listing.
+    const hasData = result.ter != null || topHoldings.length > 0 ||
+      sectorWeights.length > 0 || countryWeights.length > 0 || result.aum != null;
+    if (!hasData) {
+      console.warn(`[fetchETFFundamentals] ${eodhdSym}: no usable ETF_Data fields found`);
+      return null;
+    }
+
+    return result;
+  } catch (err) {
+    console.warn(`[fetchETFFundamentals] ${eodhdSym}:`, err);
+    return null;
+  }
+}
+
 export async function fetchETFFundamentals(
   ticker: string,
   exchange?: string,
@@ -1115,7 +1222,8 @@ export async function fetchETFFundamentals(
   const key = eodhdApiKey();
   if (!key) return null;
 
-  const cacheKey = ETF_FUND_CACHE_PREFIX + ticker.toUpperCase();
+  const upperTicker = ticker.toUpperCase();
+  const cacheKey = ETF_FUND_CACHE_PREFIX + upperTicker;
   try {
     const raw = await AsyncStorage.getItem(cacheKey);
     if (raw) {
@@ -1126,87 +1234,31 @@ export async function fetchETFFundamentals(
     }
   } catch { /* ignore cache errors */ }
 
-  // Resolve the EODHD symbol for this ticker
-  const cachedSym = await getCachedEodhdSymbol(ticker.toUpperCase());
-  const eodhdSym = cachedSym ?? (exchange
-    ? `${ticker.toUpperCase()}${(EXCHANGE_EODHD_SUFFIXES[exchange] ?? [".XETRA"])[0]}`
-    : `${ticker.toUpperCase()}.XETRA`);
-
-  const url = `${EODHD_BASE}/fundamentals/${encodeURIComponent(eodhdSym)}?api_token=${key}&filter=ETF_Data&fmt=json`;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10_000);
-    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal })
-      .finally(() => clearTimeout(timer));
-    if (!res.ok) return null;
-    const d = await res.json();
-    if (!d || typeof d !== "object") return null;
-
-    // Parse top holdings — EODHD returns them as an object keyed by symbol
-    const rawHoldings = d.Holdings ?? d.Top_Holdings ?? {};
-    const topHoldings: ETFHolding[] = Object.values(rawHoldings)
-      .map((h: any) => ({
-        name: h.Name ?? h.name ?? "",
-        weightPct: parseFloat(h["Assets_%"] ?? h.weight ?? "0") || 0,
-        country: h.Country ?? h.country,
-        sector: h.Sector ?? h.sector,
-      }))
-      .filter((h) => h.name && h.weightPct > 0)
-      .sort((a, b) => b.weightPct - a.weightPct)
-      .slice(0, 10);
-
-    // Sector weights
-    const rawSectors = d.Sector_Weightings ?? d.sectors ?? [];
-    const sectorWeights: ETFSectorWeight[] = (Array.isArray(rawSectors) ? rawSectors : Object.values(rawSectors))
-      .map((s: any) => ({
-        sector: s.Sector ?? s.sector ?? s.type ?? "",
-        weightPct: parseFloat(s["Equity_%"] ?? s.weight ?? "0") || 0,
-      }))
-      .filter((s) => s.sector && s.weightPct > 0)
-      .sort((a, b) => b.weightPct - a.weightPct)
-      .slice(0, 8);
-
-    // Country weights
-    const rawCountries = d.Country_Weightings ?? d.countries ?? [];
-    const countryWeights: ETFCountryWeight[] = (Array.isArray(rawCountries) ? rawCountries : Object.values(rawCountries))
-      .map((c: any) => ({
-        country: c.Country ?? c.country ?? "",
-        weightPct: parseFloat(c["Equity_%"] ?? c.weight ?? "0") || 0,
-      }))
-      .filter((c) => c.country && c.weightPct > 0)
-      .sort((a, b) => b.weightPct - a.weightPct)
-      .slice(0, 10);
-
-    const ter = d.Net_Expense_Ratio != null && d.Net_Expense_Ratio !== "NA"
-      ? parseFloat(d.Net_Expense_Ratio) * 100  // convert 0.0022 → 0.22%
-      : null;
-
-    const result: ETFFundamentals = {
-      isin: d.ISIN ?? undefined,
-      name: d.Name ?? undefined,
-      ter: ter && ter > 0 ? ter : null,
-      aum: d.TotalAssets && d.TotalAssets !== "NA" ? parseFloat(d.TotalAssets) : null,
-      yield: d.Yield && d.Yield !== "NA" ? parseFloat(d.Yield) : null,
-      inceptionDate: d.InceptionDate ?? undefined,
-      domicile: d.Domicile ?? undefined,
-      replicationMethod: d.ReplicationMethod ?? undefined,
-      distributionPolicy: d.DistributionPolicy ?? undefined,
-      holdingsCount: d.Holdings_Count ?? (Object.keys(rawHoldings).length || null),
-      topHoldings,
-      sectorWeights,
-      countryWeights,
-    };
-
-    try {
-      const cached: CachedFundamentals = { data: result, fetchedAt: Date.now() };
-      await AsyncStorage.setItem(cacheKey, JSON.stringify(cached));
-    } catch { /* ignore */ }
-
-    return result;
-  } catch (err) {
-    console.warn(`[fetchETFFundamentals] ${ticker}:`, err);
-    return null;
+  // Try the already-resolved trading symbol first (fastest, usually correct),
+  // then the exchange-preferred suffixes, then the full waterfall — EODHD's
+  // ETF_Data is often only populated on one specific listing.
+  const cachedSym = await getCachedEodhdSymbol(upperTicker);
+  const candidates: string[] = [];
+  if (cachedSym) candidates.push(cachedSym);
+  const waterfall = buildSuffixWaterfall(exchange);
+  for (const suffix of waterfall) {
+    const sym = suffix ? `${upperTicker}${suffix}` : upperTicker;
+    if (!candidates.includes(sym)) candidates.push(sym);
   }
+
+  for (const sym of candidates) {
+    const result = await fetchETFFundamentalsForSymbol(sym, key);
+    if (result) {
+      try {
+        const cached: CachedFundamentals = { data: result, fetchedAt: Date.now() };
+        await AsyncStorage.setItem(cacheKey, JSON.stringify(cached));
+      } catch { /* ignore */ }
+      return result;
+    }
+  }
+
+  console.warn(`[fetchETFFundamentals] ${upperTicker}: no listing returned usable ETF_Data`);
+  return null;
 }
 
 export async function resolveISIN(isin: string): Promise<ISINResolveResult | null> {
