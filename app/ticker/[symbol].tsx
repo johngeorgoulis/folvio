@@ -87,7 +87,8 @@ function staleBadge(ageMs: number): string {
 }
 
 function symbolToTicker(symbol: string): string {
-  return symbol.split(".")[0];
+  const dot = symbol.lastIndexOf(".");
+  return dot > 0 ? symbol.slice(0, dot) : symbol;
 }
 
 function capitalize(s: string | null | undefined): string {
@@ -96,13 +97,24 @@ function capitalize(s: string | null | undefined): string {
 }
 
 function symbolToExchange(symbol: string): string {
-  if (symbol.endsWith(".DE")) return "XETRA";
-  if (symbol.endsWith(".AS")) return "EURONEXT_AMS";
-  if (symbol.endsWith(".PA")) return "EURONEXT_PAR";
-  if (symbol.endsWith(".L"))  return "LSE";
-  if (symbol.endsWith(".MI")) return "BORSA_IT";
-  if (symbol.endsWith(".SW")) return "SIX";
-  return "XETRA";
+  const dot = symbol.lastIndexOf(".");
+  if (dot < 0) return "XETRA";
+  const suffix = symbol.slice(dot + 1).toUpperCase();
+  const MAP: Record<string, string> = {
+    XETRA: "XETRA", DE: "XETRA", F: "XETRA",
+    LSE: "LSE", L: "LSE",
+    AMS: "EURONEXT_AMS", AS: "EURONEXT_AMS",
+    PAR: "EURONEXT_PAR", PA: "EURONEXT_PAR",
+    MI: "BORSA_IT", MIL: "BORSA_IT",
+    SW: "SIX", CH: "SIX",
+    BRU: "EURONEXT_BRU", BR: "EURONEXT_BRU",
+    MC: "BME",
+    HE: "NASDAQ_HEL",
+    ST: "NASDAQ_STO",
+    OL: "OSLO",
+    CO: "NASDAQ_CPH",
+  };
+  return MAP[suffix] ?? "XETRA";
 }
 
 

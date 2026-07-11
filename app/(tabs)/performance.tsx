@@ -29,11 +29,11 @@ import type { HoldingRow } from "@/services/db";
 // ─── Benchmark definitions ─────────────────────────────────────────────────────
 
 export const BENCHMARKS = [
-  { label: "S&P 500",        symbol: "^GSPC",     description: "US large cap 500 companies" },
-  { label: "MSCI World",     symbol: "URTH",      description: "Developed markets ~1,500 companies" },
-  { label: "Euro Stoxx 50",  symbol: "^STOXX50E", description: "50 largest Eurozone companies" },
-  { label: "FTSE All-World", symbol: "VWRL.L",    description: "Global all-cap index" },
-  { label: "DAX",            symbol: "^GDAXI",    description: "30 largest German companies" },
+  { label: "S&P 500",        symbol: "GSPC.INDX",      description: "US large cap 500 companies" },
+  { label: "MSCI World",     symbol: "URTH.US",        description: "Developed markets ~1,500 companies" },
+  { label: "Euro Stoxx 50",  symbol: "STOXX50E.INDX",  description: "50 largest Eurozone companies" },
+  { label: "FTSE All-World", symbol: "VWRL.LSE",       description: "Global all-cap index" },
+  { label: "DAX",            symbol: "GDAXI.INDX",     description: "30 largest German companies" },
 ] as const;
 export type BenchmarkItem = typeof BENCHMARKS[number];
 const DEFAULT_BENCHMARK = BENCHMARKS[1]; // MSCI World
