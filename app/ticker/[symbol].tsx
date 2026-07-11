@@ -598,18 +598,59 @@ export default function TickerDetailScreen() {
           )}
         </View>
 
-        {/* ── Key Stats ─────────────────────────────────────────────────── */}
+        {/* ── ETF Profile ───────────────────────────────────────────────── */}
+        {isETF && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>ETF Profile</Text>
+            <View style={styles.statsGrid}>
+              {!!displayISIN && <StatCell label="ISIN" value={displayISIN} />}
+              <StatCell label="Asset Class" value={displayAssetClass} />
+              {effectiveTER !== null && (
+                <StatCell label="TER (Annual Fee)" value={`${effectiveTER.toFixed(2)}%`} />
+              )}
+              {knownYield !== undefined && knownYield > 0 && (
+                <StatCell label="Dividend Yield" value={`${knownYield.toFixed(1)}%`} />
+              )}
+              {displayDistribution && (
+                <StatCell label="Distribution" value={capitalize(displayDistribution)} />
+              )}
+              {displayReplication && (
+                <StatCell label="Replication" value={capitalize(displayReplication)} />
+              )}
+              {displayDomicile && (
+                <StatCell label="Domicile" value={capitalize(displayDomicile)} />
+              )}
+              {(displayFundSizeMil || etfData?.fundSize) && (
+                <StatCell
+                  label="Fund Size"
+                  value={
+                    etfData?.fundSize
+                      ? etfData.fundSize
+                      : displayFundSizeMil
+                      ? `€${displayFundSizeMil >= 1000
+                          ? `${(displayFundSizeMil / 1000).toFixed(1)}B`
+                          : `${displayFundSizeMil}M`}`
+                      : "—"
+                  }
+                />
+              )}
+              {etfData?.numberOfHoldings && (
+                <StatCell label="# Holdings" value={etfData.numberOfHoldings.toString()} />
+              )}
+              {displayInception && (
+                <StatCell label="Inception" value={displayInception} />
+              )}
+              <StatCell label="Currency" value={meta.currency || "—"} />
+            </View>
+          </View>
+        )}
+
+        {/* ── Market Data ───────────────────────────────────────────────── */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Key Statistics</Text>
+          <Text style={styles.sectionTitle}>{isETF ? "Market Data" : "Key Statistics"}</Text>
           <View style={styles.statsGrid}>
             <StatCell label="52W High" value={fmt(meta.fiftyTwoWeekHigh)} />
             <StatCell label="52W Low"  value={fmt(meta.fiftyTwoWeekLow)} />
-            <StatCell label="Asset Class" value={displayAssetClass} />
-            <StatCell label="Currency" value={meta.currency || "—"} />
-            {effectiveTER !== null && (
-              <StatCell label="TER (Fee)" value={`${effectiveTER.toFixed(2)}%/yr`} />
-            )}
-            {/* Distance from 52W High/Low */}
             {meta.fiftyTwoWeekHigh > 0 && meta.regularMarketPrice > 0 && (
               <StatCell
                 label="From 52W High"
@@ -622,40 +663,13 @@ export default function TickerDetailScreen() {
                 value={`+${(((meta.regularMarketPrice - meta.fiftyTwoWeekLow) / meta.fiftyTwoWeekLow) * 100).toFixed(1)}%`}
               />
             )}
-            {/* Dividend Yield from known map */}
-            {knownYield !== undefined && knownYield > 0 && (
+            {!isETF && <StatCell label="Asset Class" value={displayAssetClass} />}
+            {!isETF && <StatCell label="Currency" value={meta.currency || "—"} />}
+            {!isETF && effectiveTER !== null && (
+              <StatCell label="TER (Fee)" value={`${effectiveTER.toFixed(2)}%/yr`} />
+            )}
+            {!isETF && knownYield !== undefined && knownYield > 0 && (
               <StatCell label="Div. Yield" value={`${knownYield.toFixed(1)}%`} />
-            )}
-            {/* Merged: local DB + JustETF server data */}
-            {displayReplication && (
-              <StatCell label="Replication" value={capitalize(displayReplication)} />
-            )}
-            {displayDistribution && (
-              <StatCell label="Distribution" value={capitalize(displayDistribution)} />
-            )}
-            {/* Fund size: local DB (millions) or server (formatted string) */}
-            {(displayFundSizeMil || etfData?.fundSize) && (
-              <StatCell
-                label="Fund Size"
-                value={
-                  etfData?.fundSize
-                    ? etfData.fundSize
-                    : displayFundSizeMil
-                    ? `€${displayFundSizeMil >= 1000
-                        ? `${(displayFundSizeMil / 1000).toFixed(1)}B`
-                        : `${displayFundSizeMil}M`}`
-                    : "—"
-                }
-              />
-            )}
-            {etfData?.numberOfHoldings && (
-              <StatCell label="# Holdings" value={etfData.numberOfHoldings.toString()} />
-            )}
-            {displayDomicile && (
-              <StatCell label="Domicile" value={capitalize(displayDomicile)} />
-            )}
-            {displayInception && (
-              <StatCell label="Inception" value={displayInception} />
             )}
           </View>
         </View>
@@ -671,13 +685,64 @@ export default function TickerDetailScreen() {
           </View>
         </View>
 
+        {/* ── Your Position ─────────────────────────────────────────────── */}
+        {existingHolding && (() => {
+          const hVal = existingHolding.quantity * existingHolding.currentPrice;
+          const hInv = existingHolding.quantity * existingHolding.avg_cost_eur;
+          const hGain = hVal - hInv;
+          const hGainPct = hInv > 0 ? (hGain / hInv) * 100 : 0;
+          const hPositive = hGain >= 0;
+          const totalValue = holdings.reduce((s, h) => s + h.quantity * h.currentPrice, 0);
+          const allocationPct = totalValue > 0 ? (hVal / totalValue) * 100 : 0;
+
+          return (
+            <View style={styles.sectionCard}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={styles.sectionTitle}>Your Position</Text>
+                <TouchableOpacity onPress={handleViewHolding}>
+                  <Text style={{ fontSize: 12, fontFamily: "Archivo_600SemiBold", color: theme.accent }}>
+                    Full details →
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {/* P&L summary row */}
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                <View>
+                  <Text style={{ fontSize: 11, fontFamily: "Archivo_600SemiBold", color: theme.textSecondary }}>VALUE</Text>
+                  <Text style={{ fontSize: 22, fontFamily: "Archivo_800ExtraBold", color: theme.text, letterSpacing: -0.5 }}>
+                    {existingHolding.hasPrice ? `€${hVal.toFixed(2)}` : "—"}
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={{ fontSize: 11, fontFamily: "Archivo_600SemiBold", color: theme.textSecondary }}>RETURN</Text>
+                  <Text style={{ fontSize: 22, fontFamily: "Archivo_800ExtraBold", color: hPositive ? theme.positive : theme.negative, letterSpacing: -0.5 }}>
+                    {existingHolding.hasPrice ? `${hPositive ? "+" : ""}${hGainPct.toFixed(2)}%` : "—"}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.statsGrid}>
+                <StatCell label="Quantity" value={`${existingHolding.quantity} units`} />
+                <StatCell label="Avg Cost" value={`€${existingHolding.avg_cost_eur.toFixed(2)}`} />
+                <StatCell label="Invested" value={`€${hInv.toFixed(2)}`} />
+                <StatCell
+                  label="Gain / Loss"
+                  value={existingHolding.hasPrice ? `${hPositive ? "+" : ""}€${Math.abs(hGain).toFixed(2)}` : "—"}
+                />
+                <StatCell label="Portfolio Weight" value={`${allocationPct.toFixed(1)}%`} />
+                {existingHolding.purchase_date ? (
+                  <StatCell label="Since" value={existingHolding.purchase_date} />
+                ) : null}
+              </View>
+            </View>
+          );
+        })()}
+
         {/* ── Target Allocation ─────────────────────────────────────── */}
         {(() => {
           if (!existingHolding) return null;
           const targetRow = targets.find(t => t.ticker.toUpperCase() === ticker.toUpperCase());
           if (!targetRow) return null;
 
-          // Current weight in portfolio
           const totalValue = holdings.reduce((s, h) => s + h.quantity * h.currentPrice, 0);
           const holdingValue = existingHolding.quantity * existingHolding.currentPrice;
           const currentPct = totalValue > 0 ? (holdingValue / totalValue) * 100 : 0;
@@ -709,14 +774,11 @@ export default function TickerDetailScreen() {
                     </Text>
                   </View>
                 </View>
-                {/* Progress bar */}
                 <View style={{ height: 6, backgroundColor: theme.surface, borderRadius: 0, overflow: "hidden" }}>
-                  {/* Target marker */}
                   <View style={{
                     position: "absolute", left: `${targetFill * 100}%`,
                     width: 2, height: "100%", backgroundColor: theme.textTertiary,
                   }} />
-                  {/* Current fill */}
                   <View style={{
                     width: `${barFill * 100}%`, height: "100%",
                     backgroundColor: driftColor, borderRadius: 0,
@@ -767,16 +829,26 @@ export default function TickerDetailScreen() {
         ]}
       >
         {inPortfolio ? (
-          <TouchableOpacity
-            style={[styles.actionBtnOutlined, { borderColor: theme.accent }]}
-            onPress={handleViewHolding}
-            activeOpacity={0.8}
-          >
-            <Feather name="check-circle" size={18} color={theme.accent} />
-            <Text style={[styles.actionBtnOutlinedText, { color: theme.accent }]}>
-              In Portfolio — View Holding
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <TouchableOpacity
+              style={[styles.actionBtnOutlined, { borderColor: theme.hairline, flex: 1 }]}
+              onPress={handleAddToPortfolio}
+              activeOpacity={0.8}
+            >
+              <Feather name="plus" size={16} color={theme.text} />
+              <Text style={[styles.actionBtnOutlinedText, { color: theme.text, fontSize: 14 }]}>
+                Add More
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: theme.accent, flex: 2 }]}
+              onPress={handleViewHolding}
+              activeOpacity={0.8}
+            >
+              <Feather name="briefcase" size={16} color="#0A0F1A" />
+              <Text style={styles.actionBtnText}>View Full Holding</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: theme.accent }]}
