@@ -21,9 +21,11 @@ import {
   fetchEodhdChartHistory,
   fetchETFDataBySymbol,
   fetchETFDataFromServer,
+  fetchETFFundamentals,
   fetchPeriodReturn,
   fetchTickerMeta,
   type ChartPoint,
+  type ETFFundamentals,
   type ServerETFData,
   type TickerMeta,
 } from "@/services/priceService";
@@ -170,6 +172,7 @@ export default function TickerDetailScreen() {
   const [rangeChange, setRangeChange] = useState<{ abs: number; pct: number } | null>(null);
   const [perfCards, setPerfCards] = useState<{ w: number | null; m: number | null; m3: number | null; y: number | null }>({ w: null, m: null, m3: null, y: null });
   const [etfData, setEtfData] = useState<ServerETFData | null>(null);
+  const [etfFund, setEtfFund] = useState<ETFFundamentals | null>(null);
   const [localETF, setLocalETF] = useState<ETFEntry | null>(null);
 
   const { targets, rebalanceThreshold } = useAllocation();
@@ -314,23 +317,37 @@ export default function TickerDetailScreen() {
   const assetClass = getAssetClass(cleanTicker);
   const knownYield = KNOWN_YIELDS_MAP[cleanTicker.toUpperCase()];
   const portfolioISIN = holdings.find(h => h.ticker.toUpperCase() === cleanTicker.toUpperCase())?.isin ?? "";
-  const effectiveTER = etfData?.ter ?? localETF?.ter ?? ter;
-  // ISIN priority: portfolio (exact) > Yahoo Finance meta > local DB > server-resolved from JustETF search
-  const displayISIN = portfolioISIN || (meta?.isin ?? "") || localETF?.isin || etfData?.isin || "";
-  // Key stats — use server data (etfData) with local DB fallback (localETF)
-  const displayDistribution = etfData?.distributionPolicy || localETF?.distribution || null;
-  const displayReplication  = etfData?.replicationMethod  || localETF?.replication  || null;
-  const displayDomicile     = etfData?.domicile            || localETF?.domicile     || null;
-  const displayInception    = etfData?.launchDate          || localETF?.inceptionDate || null;
+
+  // Data priority: EODHD fundamentals > local DB > server ETF data
+  const effectiveTER =
+    (etfFund?.ter != null ? etfFund.ter : null) ??
+    etfData?.ter ?? localETF?.ter ?? ter;
+  const displayISIN =
+    portfolioISIN || etfFund?.isin || (meta?.isin ?? "") || localETF?.isin || etfData?.isin || "";
+  const displayDistribution =
+    etfFund?.distributionPolicy || etfData?.distributionPolicy || localETF?.distribution || null;
+  const displayReplication =
+    etfFund?.replicationMethod || etfData?.replicationMethod || localETF?.replication || null;
+  const displayDomicile =
+    etfFund?.domicile || etfData?.domicile || localETF?.domicile || null;
+  const displayInception =
+    etfFund?.inceptionDate || etfData?.launchDate || localETF?.inceptionDate || null;
   const displayAssetClass   = assetClass !== "Unknown" ? assetClass : (localETF?.assetClass ?? "—");
   const displayFundSizeMil  = localETF?.fundSize ?? null;  // in millions EUR
+  const displayAUM = etfFund?.aum ?? null;  // in USD from EODHD
+  const displayHoldingsCount = etfFund?.holdingsCount ?? etfData?.numberOfHoldings ?? null;
+  const displayYield =
+    etfFund?.yield != null && etfFund.yield > 0
+      ? etfFund.yield
+      : (knownYield !== undefined && knownYield > 0 ? knownYield : null);
 
-  // Three-tier ISIN resolution for ETF data enrichment.
-  //   1. Portfolio ISIN  — exact, fastest
-  //   2. meta.isin — from EODHD fundamentals
-  //   3. symbol fallback via /etf/by-symbol
+  // ETF data enrichment — runs as soon as meta is available
   useEffect(() => {
     if (!safeSymbol || loadingMeta) return;
+    // EODHD fundamentals — primary rich data source (top holdings, sector, etc.)
+    fetchETFFundamentals(cleanTicker, symbolToExchange(safeSymbol))
+      .then(d => { if (d) setEtfFund(d); });
+    // Server ETF data (JustETF) — secondary, for description field mostly
     if (portfolioISIN) {
       fetchETFDataFromServer(portfolioISIN).then(d => { if (d) setEtfData(d); });
     } else if (meta?.isin) {
@@ -338,7 +355,7 @@ export default function TickerDetailScreen() {
     } else {
       fetchETFDataBySymbol(safeSymbol).then(d => { if (d) setEtfData(d); });
     }
-  }, [safeSymbol, portfolioISIN, meta?.isin, loadingMeta]);
+  }, [safeSymbol, portfolioISIN, meta?.isin, loadingMeta, cleanTicker]);
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const bottomPad = Platform.OS === "web" ? 24 : insets.bottom + 24;
@@ -589,8 +606,8 @@ export default function TickerDetailScreen() {
               {effectiveTER !== null && (
                 <StatCell label="TER (Annual Fee)" value={`${effectiveTER.toFixed(2)}%`} />
               )}
-              {knownYield !== undefined && knownYield > 0 && (
-                <StatCell label="Dividend Yield" value={`${knownYield.toFixed(1)}%`} />
+              {displayYield != null && (
+                <StatCell label="Dividend Yield" value={`${displayYield.toFixed(2)}%`} />
               )}
               {displayDistribution && (
                 <StatCell label="Distribution" value={capitalize(displayDistribution)} />
@@ -601,27 +618,112 @@ export default function TickerDetailScreen() {
               {displayDomicile && (
                 <StatCell label="Domicile" value={capitalize(displayDomicile)} />
               )}
-              {(displayFundSizeMil || etfData?.fundSize) && (
-                <StatCell
-                  label="Fund Size"
-                  value={
-                    etfData?.fundSize
-                      ? etfData.fundSize
-                      : displayFundSizeMil
-                      ? `€${displayFundSizeMil >= 1000
-                          ? `${(displayFundSizeMil / 1000).toFixed(1)}B`
-                          : `${displayFundSizeMil}M`}`
-                      : "—"
-                  }
-                />
-              )}
-              {etfData?.numberOfHoldings && (
-                <StatCell label="# Holdings" value={etfData.numberOfHoldings.toString()} />
-              )}
               {displayInception && (
                 <StatCell label="Inception" value={displayInception} />
               )}
               <StatCell label="Currency" value={meta.currency || "—"} />
+              {displayHoldingsCount != null && (
+                <StatCell label="# Holdings" value={displayHoldingsCount.toString()} />
+              )}
+              {/* AUM — prefer EODHD (USD), fall back to local DB (EUR millions) */}
+              {(displayAUM != null || displayFundSizeMil != null) && (
+                <StatCell
+                  label="Fund Size"
+                  value={
+                    displayAUM != null
+                      ? displayAUM >= 1e9
+                        ? `$${(displayAUM / 1e9).toFixed(1)}B`
+                        : `$${(displayAUM / 1e6).toFixed(0)}M`
+                      : displayFundSizeMil! >= 1000
+                        ? `€${(displayFundSizeMil! / 1000).toFixed(1)}B`
+                        : `€${displayFundSizeMil!}M`
+                  }
+                />
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* ── Top Holdings ──────────────────────────────────────────────── */}
+        {isETF && etfFund?.topHoldings && etfFund.topHoldings.length > 0 && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Top Holdings</Text>
+            <View style={{ gap: 8 }}>
+              {etfFund.topHoldings.slice(0, 8).map((h, i) => (
+                <View key={i} style={{ gap: 3 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={{ fontSize: 13, fontFamily: "Archivo_600SemiBold", color: theme.text, flex: 1 }} numberOfLines={1}>
+                      {h.name}
+                    </Text>
+                    <Text style={{ fontSize: 13, fontFamily: "Archivo_800ExtraBold", color: theme.accent, marginLeft: 8, minWidth: 48, textAlign: "right" }}>
+                      {h.weightPct.toFixed(2)}%
+                    </Text>
+                  </View>
+                  <View style={{ height: 3, backgroundColor: theme.hairline, overflow: "hidden" }}>
+                    <View style={{
+                      width: `${Math.min(h.weightPct / (etfFund.topHoldings![0].weightPct || 1) * 100, 100)}%`,
+                      height: "100%",
+                      backgroundColor: theme.accent + "88",
+                    }} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ── Sector Breakdown ──────────────────────────────────────────── */}
+        {isETF && etfFund?.sectorWeights && etfFund.sectorWeights.length > 0 && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Sector Breakdown</Text>
+            <View style={{ gap: 8 }}>
+              {etfFund.sectorWeights.map((s, i) => (
+                <View key={i} style={{ gap: 3 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={{ fontSize: 12, fontFamily: "Archivo_400Regular", color: theme.textSecondary, flex: 1 }} numberOfLines={1}>
+                      {s.sector}
+                    </Text>
+                    <Text style={{ fontSize: 12, fontFamily: "Archivo_600SemiBold", color: theme.text, marginLeft: 8, minWidth: 40, textAlign: "right" }}>
+                      {s.weightPct.toFixed(1)}%
+                    </Text>
+                  </View>
+                  <View style={{ height: 3, backgroundColor: theme.hairline, overflow: "hidden" }}>
+                    <View style={{
+                      width: `${Math.min(s.weightPct / (etfFund.sectorWeights![0].weightPct || 1) * 100, 100)}%`,
+                      height: "100%",
+                      backgroundColor: theme.positive + "88",
+                    }} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ── Country Breakdown ─────────────────────────────────────────── */}
+        {isETF && etfFund?.countryWeights && etfFund.countryWeights.length > 0 && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Country Breakdown</Text>
+            <View style={{ gap: 8 }}>
+              {etfFund.countryWeights.slice(0, 8).map((c, i) => (
+                <View key={i} style={{ gap: 3 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={{ fontSize: 12, fontFamily: "Archivo_400Regular", color: theme.textSecondary, flex: 1 }} numberOfLines={1}>
+                      {c.country}
+                    </Text>
+                    <Text style={{ fontSize: 12, fontFamily: "Archivo_600SemiBold", color: theme.text, marginLeft: 8, minWidth: 40, textAlign: "right" }}>
+                      {c.weightPct.toFixed(1)}%
+                    </Text>
+                  </View>
+                  <View style={{ height: 3, backgroundColor: theme.hairline, overflow: "hidden" }}>
+                    <View style={{
+                      width: `${Math.min(c.weightPct / (etfFund.countryWeights![0].weightPct || 1) * 100, 100)}%`,
+                      height: "100%",
+                      backgroundColor: theme.accent + "55",
+                    }} />
+                  </View>
+                </View>
+              ))}
             </View>
           </View>
         )}
