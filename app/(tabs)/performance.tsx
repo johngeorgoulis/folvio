@@ -52,7 +52,6 @@ function SummaryRow({
   value: number;
   theme: typeof minimalLight;
 }) {
-  const { theme } = useTheme();
   return (
     <View style={dStyles.summaryRow}>
       <Text style={[dStyles.summaryLabel, { color: theme.textSecondary }]}>{label}</Text>
