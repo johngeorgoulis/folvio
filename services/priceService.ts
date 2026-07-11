@@ -1191,7 +1191,7 @@ export async function fetchETFFundamentals(
       domicile: d.Domicile ?? undefined,
       replicationMethod: d.ReplicationMethod ?? undefined,
       distributionPolicy: d.DistributionPolicy ?? undefined,
-      holdingsCount: d.Holdings_Count ?? Object.keys(rawHoldings).length || null,
+      holdingsCount: d.Holdings_Count ?? (Object.keys(rawHoldings).length || null),
       topHoldings,
       sectorWeights,
       countryWeights,
