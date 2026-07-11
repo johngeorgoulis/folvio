@@ -128,6 +128,8 @@ function deriveChangeFromChart(
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatCell({ label, value }: { label: string; value: string }) {
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   return (
     <View style={styles.statCell}>
       <Text style={styles.statLabel}>{label}</Text>
@@ -139,6 +141,7 @@ function StatCell({ label, value }: { label: string; value: string }) {
 function PerfCard({
   label, changePct }: { label: string; changePct: number | null }) {
   const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const color =
     changePct == null ? theme.textSecondary : changePct >= 0 ? theme.positive : theme.negative;
   const text =
@@ -157,6 +160,7 @@ function PerfCard({
 
 export default function TickerDetailScreen() {
   const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const { symbol } = useLocalSearchParams<{ symbol: string }>();
   const insets = useSafeAreaInsets();
   const { holdings } = usePortfolio();
@@ -790,7 +794,7 @@ export default function TickerDetailScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+function makeStyles(theme: any) { return StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 16, gap: 12 },
   loadingScreen: {
@@ -1043,4 +1047,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Archivo_600SemiBold",
   },
-});
+}); }

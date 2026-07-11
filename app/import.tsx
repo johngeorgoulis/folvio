@@ -94,7 +94,6 @@ const prog = StyleSheet.create({
 // ─── Step 1: Broker Grid ───────────────────────────────────────────────────────
 
 function BrokerCard({
-  const { theme } = useTheme();
   broker,
   selected,
   onPress,
@@ -103,6 +102,7 @@ function BrokerCard({
   selected: boolean;
   onPress: () => void;
 }) {
+  const { theme } = useTheme();
   return (
     <TouchableOpacity
       style={[
@@ -167,13 +167,13 @@ function fmtBytes(bytes: number): string {
 // ─── Step 3: Holding Preview Row ───────────────────────────────────────────────
 
 function DuplicateToggle({
-  const { theme } = useTheme();
   value,
   onChange,
 }: {
   value: DuplicateAction;
   onChange: (v: DuplicateAction) => void;
 }) {
+  const { theme } = useTheme();
   const options: { key: DuplicateAction; label: string }[] = [
     { key: "skip", label: "Skip" },
     { key: "merge", label: "Merge" },
@@ -208,7 +208,6 @@ function DuplicateToggle({
 }
 
 function PreviewRow({
-  const { theme } = useTheme();
   item,
   onTickerChange,
   onActionChange,
@@ -217,6 +216,7 @@ function PreviewRow({
   onTickerChange: (t: string) => void;
   onActionChange: (a: DuplicateAction) => void;
 }) {
+  const { theme } = useTheme();
   const willImport = !item.isDuplicate || item.duplicateAction !== "skip";
   return (
     <View
@@ -324,13 +324,13 @@ function PreviewRow({
 }
 
 function TRPreviewRow({
-  const { theme } = useTheme();
   item,
   onActionChange,
 }: {
   item: TRImportItem;
   onActionChange: (a: DuplicateAction) => void;
 }) {
+  const { theme } = useTheme();
   const isSellNoHolding = item.trade.type === "SELL" && item.isNew;
   const willImport = !isSellNoHolding && (item.isNew || item.action !== "skip");
   const displayName = item.trade.ticker
@@ -976,7 +976,7 @@ export default function ImportScreen() {
           <View
             style={[
               styles.bottomBar,
-              { paddingBottom: bottomPad, borderTopColor: theme.hairline },
+              { paddingBottom: bottomPad, borderTopColor: theme.hairline, backgroundColor: theme.background },
             ]}
           >
             <TouchableOpacity
@@ -1118,7 +1118,7 @@ export default function ImportScreen() {
           <View
             style={[
               styles.bottomBar,
-              { paddingBottom: bottomPad, borderTopColor: theme.hairline },
+              { paddingBottom: bottomPad, borderTopColor: theme.hairline, backgroundColor: theme.background },
             ]}
           >
             <TouchableOpacity
@@ -1436,7 +1436,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    backgroundColor: theme.background,
   },
   primaryBtn: {
     height: 52,

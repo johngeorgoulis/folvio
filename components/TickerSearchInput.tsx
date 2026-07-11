@@ -67,6 +67,7 @@ function parseSymbol(symbol: string): { ticker: string; exchange: string } {
 
 export default function TickerSearchInput({ value, onChange, onSelect, inputStyle }: Props) {
   const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const [results, setResults] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -220,7 +221,7 @@ export default function TickerSearchInput({ value, onChange, onSelect, inputStyl
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(theme: any) { return StyleSheet.create({
   wrapper: {
     position: "relative",
     zIndex: 100,
@@ -312,4 +313,4 @@ const styles = StyleSheet.create({
     color: theme.textSecondary,
     fontFamily: "Archivo_400Regular",
   },
-});
+}); }

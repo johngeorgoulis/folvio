@@ -70,7 +70,6 @@ function triggerMessage(trigger?: string): string {
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
 function FeatureRow({
-  const { theme } = useTheme();
   icon,
   text,
   muted = false,
@@ -79,6 +78,8 @@ function FeatureRow({
   text: string;
   muted?: boolean;
 }) {
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   return (
     <View style={styles.featureRow}>
       <View style={[styles.featureIconWrap, muted && styles.featureIconWrapMuted]}>
@@ -92,6 +93,7 @@ function FeatureRow({
 // Free tier card (no subscribe button — shows current plan)
 function FreePlanCard() {
   const { theme } = useTheme();
+  const styles = makeStyles(theme);
   return (
     <View style={[styles.planCard, styles.planCardFree]}>
       <View style={styles.planHeader}>
@@ -114,7 +116,6 @@ function FreePlanCard() {
 }
 
 function PaidPlanCard({
-  const { theme } = useTheme();
   tier,
   label,
   tagline,
@@ -135,6 +136,8 @@ function PaidPlanCard({
   badgeColor?: string;
   onSubscribe: (tier: SubscriptionTier) => void;
 }) {
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const price      = PRICES[tier as "investor" | "pro"][billing];
   const monthlyEq  = billing === "yearly"
     ? (PRICES[tier as "investor" | "pro"].yearly / 12).toFixed(2)
@@ -193,6 +196,7 @@ interface Props {
 
 export default function PaywallModal({ visible, onClose, trigger }: Props) {
   const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const [billing, setBilling] = useState<BillingPeriod>("yearly");
   const { setSubscription, tier: currentTier } = useSubscription();
   const required = requiredTierFor(trigger);
@@ -336,7 +340,7 @@ export default function PaywallModal({ visible, onClose, trigger }: Props) {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+function makeStyles(theme: any) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background, paddingTop: 12 },
   closeBtn:  { alignSelf: "flex-end", padding: 16 },
 
@@ -462,4 +466,4 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginTop: 4,
   },
-});
+}); }
