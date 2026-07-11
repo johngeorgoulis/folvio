@@ -11,6 +11,98 @@ const goldDim = "#D97706";
 const success = "#10B981"; // Emerald green
 const danger  = "#EF4444"; // Red
 
+// ── Minimalist redesign palette (Modernist design system) ─────────────────────
+
+export type MinimalTheme = {
+  background: string;
+  surface: string;
+  text: string;
+  textSecondary: string;
+  textMuted: string;
+  divider: string;
+  hairline: string;
+  accent: string;
+  accentPressed: string;
+  positive: string;
+  negative: string;
+  shadow: string;
+  // Legacy aliases for components that still reference these
+  textTertiary: string;
+  backgroundCard: string;
+  backgroundElevated: string;
+  border: string;
+  borderLight: string;
+  tint: string;
+  tintDim: string;
+  warning: string;
+  tabIconDefault: string;
+  tabIconSelected: string;
+  chartLine: string;
+  chartFill: string;
+  deepBlue: string;
+  deepBlueDark: string;
+};
+
+export const minimalLight: MinimalTheme = {
+  background:         "#f3f2f2",
+  surface:            "#eae9e9",
+  text:               "#201e1d",
+  textSecondary:      "#7d7979",
+  textMuted:          "#7d7979",
+  divider:            "rgba(32,30,29,0.4)",
+  hairline:           "#d7d3d3",
+  accent:             "#ec3013",
+  accentPressed:      "#dd2b0f",
+  positive:           "#1a7a4a",
+  negative:           "#8a2a1a",
+  shadow:             "rgba(45,43,43,0.14)",
+  // Legacy aliases
+  textTertiary:       "#9b9797",
+  backgroundCard:     "#eae9e9",
+  backgroundElevated: "#eae9e9",
+  border:             "#d7d3d3",
+  borderLight:        "#eae7e7",
+  tint:               "#ec3013",
+  tintDim:            "#dd2b0f",
+  warning:            "#ec3013",
+  tabIconDefault:     "#7d7979",
+  tabIconSelected:    "#201e1d",
+  chartLine:          "#ec3013",
+  chartFill:          "rgba(236,48,19,0.10)",
+  deepBlue:           "#eae9e9",
+  deepBlueDark:       "#d7d3d3",
+};
+
+export const minimalDark: MinimalTheme = {
+  background:         "#2d2b2b",
+  surface:            "#444141",
+  text:               "#f8f4f4",
+  textSecondary:      "#bab6b6",
+  textMuted:          "#bab6b6",
+  divider:            "#605d5d",
+  hairline:           "#605d5d",
+  accent:             "#ff9783",
+  accentPressed:      "#ec3013",
+  positive:           "#4ade80",
+  negative:           "#ff9783",
+  shadow:             "rgba(0,0,0,0.30)",
+  // Legacy aliases
+  textTertiary:       "#7d7979",
+  backgroundCard:     "#444141",
+  backgroundElevated: "#444141",
+  border:             "#605d5d",
+  borderLight:        "#605d5d",
+  tint:               "#ff9783",
+  tintDim:            "#ec3013",
+  warning:            "#ff9783",
+  tabIconDefault:     "#bab6b6",
+  tabIconSelected:    "#f8f4f4",
+  chartLine:          "#ff9783",
+  chartFill:          "rgba(255,151,131,0.10)",
+  deepBlue:           "#444141",
+  deepBlueDark:       "#2d2b2b",
+};
+
 export default {
   // ── Light theme kept for compatibility; app runs forced-dark ───────────────
   light: {

@@ -355,8 +355,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title:    { fontSize: 24, fontFamily: "Inter_700Bold",    color: theme.text,          letterSpacing: -0.5, textAlign: "center" },
-  subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", color: theme.textSecondary, textAlign: "center", lineHeight: 20 },
+  title:    { fontSize: 24, fontFamily: "Archivo_800ExtraBold",    color: theme.text,          letterSpacing: -0.5, textAlign: "center" },
+  subtitle: { fontSize: 14, fontFamily: "Archivo_400Regular", color: theme.textSecondary, textAlign: "center", lineHeight: 20 },
 
   // Billing toggle
   billingToggle: {
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.border,
   },
-  billingOptionText:       { fontSize: 13, fontFamily: "Inter_600SemiBold", color: theme.textSecondary },
+  billingOptionText:       { fontSize: 13, fontFamily: "Archivo_600SemiBold", color: theme.textSecondary },
   billingOptionTextActive: { color: theme.text },
   savingsBadge: {
     backgroundColor: theme.positive + "22",
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  savingsText: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: theme.positive },
+  savingsText: { fontSize: 10, fontFamily: "Archivo_600SemiBold", color: theme.positive },
 
   // Plan card
   planCard: {
@@ -409,16 +409,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  planBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  planBadgeText: { fontSize: 10, fontFamily: "Archivo_800ExtraBold", letterSpacing: 0.5 },
 
   planHeader:   { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  planName:     { fontSize: 18, fontFamily: "Inter_700Bold",    color: theme.text },
-  planTagline:  { fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary, marginTop: 2 },
+  planName:     { fontSize: 18, fontFamily: "Archivo_800ExtraBold",    color: theme.text },
+  planTagline:  { fontSize: 12, fontFamily: "Archivo_400Regular", color: theme.textSecondary, marginTop: 2 },
 
   planPriceBlock: { alignItems: "flex-end", gap: 1 },
-  planPrice:      { fontSize: 22, fontFamily: "Inter_700Bold",    color: theme.tint },
-  planPeriod:     { fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary },
-  monthlyEq:      { fontSize: 11, fontFamily: "Inter_400Regular", color: theme.textTertiary, marginTop: -8 },
+  planPrice:      { fontSize: 22, fontFamily: "Archivo_800ExtraBold",    color: theme.tint },
+  planPeriod:     { fontSize: 12, fontFamily: "Archivo_400Regular", color: theme.textSecondary },
+  monthlyEq:      { fontSize: 11, fontFamily: "Archivo_400Regular", color: theme.textTertiary, marginTop: -8 },
 
   featureList:     { gap: 10 },
   featureRow:      { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   featureIconWrapMuted: {
     backgroundColor: theme.backgroundElevated,
   },
-  featureText: { fontSize: 13, fontFamily: "Inter_400Regular", color: theme.text, flex: 1 },
+  featureText: { fontSize: 13, fontFamily: "Archivo_400Regular", color: theme.text, flex: 1 },
 
   // CTA
   cta: {
@@ -441,19 +441,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-  ctaText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#0A0F1E" },
+  ctaText: { fontSize: 15, fontFamily: "Archivo_800ExtraBold", color: "#0A0F1E" },
 
   // Restore / Maybe later
   restoreBtn: { alignItems: "center", paddingVertical: 4 },
-  restoreText: { fontSize: 13, fontFamily: "Inter_500Medium", color: theme.textSecondary, textDecorationLine: "underline" },
+  restoreText: { fontSize: 13, fontFamily: "Archivo_600SemiBold", color: theme.textSecondary, textDecorationLine: "underline" },
 
   maybeLaterBtn: { alignItems: "center", paddingVertical: 4 },
-  maybeLaterText: { fontSize: 13, fontFamily: "Inter_400Regular", color: theme.textTertiary },
+  maybeLaterText: { fontSize: 13, fontFamily: "Archivo_400Regular", color: theme.textTertiary },
 
   // Fine print
   fine: {
     fontSize: 11,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: theme.textTertiary,
     textAlign: "center",
     lineHeight: 16,

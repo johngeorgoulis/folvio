@@ -186,7 +186,7 @@ const cardStyles = StyleSheet.create({
   },
   qLabel: {
     fontSize: 11,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
     color: TEXT_SEC,
     letterSpacing: 0.8,
     textTransform: "uppercase",
@@ -194,7 +194,7 @@ const cardStyles = StyleSheet.create({
   },
   qText: {
     fontSize: 24,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: TEXT,
     letterSpacing: -0.4,
     lineHeight: 32,
@@ -212,7 +212,7 @@ const cardStyles = StyleSheet.create({
   },
   optionText: {
     fontSize: 15,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
     flex: 1,
     lineHeight: 20,
   },
@@ -303,20 +303,20 @@ const resultStyles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: 17,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: TEXT_SEC,
     marginBottom: 4,
   },
   label: {
     fontSize: 34,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     letterSpacing: -1,
     marginBottom: 18,
     textAlign: "center",
   },
   description: {
     fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: TEXT_SEC,
     textAlign: "center",
     lineHeight: 24,
@@ -332,9 +332,9 @@ const resultStyles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  scoreKey:  { fontSize: 13, fontFamily: "Inter_400Regular", color: TEXT_SEC },
-  scoreVal:  { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
-  scoreMax:  { fontSize: 15, fontFamily: "Inter_400Regular" },
+  scoreKey:  { fontSize: 13, fontFamily: "Archivo_400Regular", color: TEXT_SEC },
+  scoreVal:  { fontSize: 26, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.5 },
+  scoreMax:  { fontSize: 15, fontFamily: "Archivo_400Regular" },
   buttons: { gap: 12, paddingHorizontal: 4 },
   primaryBtn: {
     width: "100%",
@@ -344,7 +344,7 @@ const resultStyles = StyleSheet.create({
   },
   primaryBtnText: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: DARK_BG,
   },
   secondaryBtn: {
@@ -356,7 +356,7 @@ const resultStyles = StyleSheet.create({
   },
   secondaryBtnText: {
     fontSize: 16,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
   },
 });
 
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     color: TEXT_SEC,
     minWidth: 24,
   },
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 15,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
     color: TEXT_SEC,
   },
   list: {
@@ -601,6 +601,6 @@ const styles = StyleSheet.create({
   },
   nextBtnText: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
   },
 });

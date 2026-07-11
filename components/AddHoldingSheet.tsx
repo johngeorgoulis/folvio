@@ -96,7 +96,7 @@ const segStyles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
   },
 });
 
@@ -265,7 +265,7 @@ export function AddHoldingSheet({ visible, onClose }: AddHoldingSheetProps) {
               style={[inputStyle, styles.pickerRow]}
               onPress={() => setShowBrokerPicker(!showBrokerPicker)}
             >
-              <Text style={{ color: theme.text, fontFamily: "Inter_400Regular", fontSize: 15 }}>
+              <Text style={{ color: theme.text, fontFamily: "Archivo_400Regular", fontSize: 15 }}>
                 {broker}
               </Text>
               <Feather
@@ -299,7 +299,7 @@ export function AddHoldingSheet({ visible, onClose }: AddHoldingSheetProps) {
                         styles.brokerText,
                         {
                           color: broker === b ? theme.tint : theme.text,
-                          fontFamily: broker === b ? "Inter_600SemiBold" : "Inter_400Regular",
+                          fontFamily: broker === b ? "Archivo_600SemiBold" : "Archivo_400Regular",
                         },
                       ]}
                     >
@@ -393,11 +393,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
   },
   saveBtn: {
     fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
   },
   scrollContent: {
     padding: 20,
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     letterSpacing: 0.8,
     marginBottom: 6,
   },
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
   },
   pickerRow: {
     flexDirection: "row",

@@ -66,7 +66,7 @@ export default function PriceChart({ data, width, height = 200, range, avgCostEU
   if (data.length < 2) {
     return (
       <View style={[styles.empty, { width, height, backgroundColor: theme.backgroundCard }]}>
-        <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: "Inter_400Regular" }}>
+        <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: "Archivo_400Regular" }}>
           Chart unavailable
         </Text>
       </View>
@@ -165,7 +165,7 @@ export default function PriceChart({ data, width, height = 200, range, avgCostEU
                 fontSize={9}
                 fill="#94A3B8"
                 textAnchor="end"
-                fontFamily="Inter_600SemiBold"
+                fontFamily="Archivo_600SemiBold"
               >
                 Avg {avgLabel}
               </SvgText>
@@ -185,7 +185,7 @@ export default function PriceChart({ data, width, height = 200, range, avgCostEU
               fontSize={10}
               fill={theme.textSecondary}
               textAnchor={anchor}
-              fontFamily="Inter_400Regular"
+              fontFamily="Archivo_400Regular"
             >
               {label}
             </SvgText>
@@ -227,7 +227,7 @@ export default function PriceChart({ data, width, height = 200, range, avgCostEU
               fontSize={11}
               fill={lineColor}
               textAnchor="middle"
-              fontFamily="Inter_600SemiBold"
+              fontFamily="Archivo_600SemiBold"
             >
               {formatPrice(activePrice)}
             </SvgText>

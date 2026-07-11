@@ -112,8 +112,8 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     gap: 10,
   },
-  triggerLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  triggerPreview: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  triggerLabel: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
+  triggerPreview: { fontSize: 12, fontFamily: "Archivo_400Regular", marginTop: 2 },
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.72)",
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     letterSpacing: 0.8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -144,6 +144,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 10,
   },
-  optionLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  optionSym: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  optionLabel: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
+  optionSym: { fontSize: 11, fontFamily: "Archivo_400Regular", marginTop: 1 },
 });

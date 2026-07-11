@@ -1,15 +1,11 @@
-import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 
-const theme = Colors.dark;
-const GOLD  = "#F59E0B";
-const MUTED = "#475569";
-const TAB_H = 64;
+const TAB_H = 60;
 
 type FeatherName = React.ComponentProps<typeof Feather>["name"];
 
@@ -18,59 +14,49 @@ interface TabIconProps {
   label: string;
   color: string;
   focused: boolean;
+  accentColor: string;
 }
 
-function TabIcon({ name, label, color, focused }: TabIconProps) {
+function TabIcon({ name, label, focused, color, accentColor }: TabIconProps) {
   return (
     <View style={styles.tabItem}>
-      <Feather name={name} size={22} color={color} />
-      {focused && (
-        <Text
-          style={[styles.tabLabel, { color }]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-        >
-          {label}
-        </Text>
-      )}
+      <Feather name={name} size={18} color={color} />
+      <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>
+        {label}
+      </Text>
+      {focused && <View style={[styles.tabUnderline, { backgroundColor: accentColor }]} />}
     </View>
   );
 }
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const isIOS  = Platform.OS === "ios";
+  const { theme } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarActiveTintColor: GOLD,
-        tabBarInactiveTintColor: MUTED,
+        tabBarActiveTintColor: theme.text,
+        tabBarInactiveTintColor: theme.textMuted,
         tabBarStyle: {
           position: "absolute",
           height: TAB_H + insets.bottom,
           paddingBottom: insets.bottom,
-          backgroundColor: isIOS ? "transparent" : theme.background,
-          borderTopWidth: 1,
-          borderTopColor: theme.border,
+          backgroundColor: theme.background,
+          borderTopWidth: 2,
+          borderTopColor: theme.text,
           elevation: 0,
         },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView
-              intensity={95}
-              tint="dark"
-              style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(10,15,30,0.88)" }]}
-            />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background }]} />
-          ),
+        tabBarBackground: () => (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background }]} />
+        ),
         tabBarItemStyle: {
           height: TAB_H,
           justifyContent: "center",
           alignItems: "center",
+          borderRightWidth: Platform.OS === "web" ? 0 : 0,
         },
       }}
     >
@@ -78,7 +64,7 @@ export default function TabLayout() {
         name="index"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="home" label="Home" color={color} focused={focused} />
+            <TabIcon name="home" label="HOME" color={color} focused={focused} accentColor={theme.accent} />
           ),
         }}
       />
@@ -86,7 +72,7 @@ export default function TabLayout() {
         name="holdings"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="briefcase" label="Holdings" color={color} focused={focused} />
+            <TabIcon name="briefcase" label="HOLDINGS" color={color} focused={focused} accentColor={theme.accent} />
           ),
         }}
       />
@@ -94,7 +80,7 @@ export default function TabLayout() {
         name="search"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="search" label="Search" color={color} focused={focused} />
+            <TabIcon name="search" label="EXPLORE" color={color} focused={focused} accentColor={theme.accent} />
           ),
         }}
       />
@@ -102,7 +88,7 @@ export default function TabLayout() {
         name="performance"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="bar-chart-2" label="Returns" color={color} focused={focused} />
+            <TabIcon name="bar-chart-2" label="RETURNS" color={color} focused={focused} accentColor={theme.accent} />
           ),
         }}
       />
@@ -110,7 +96,7 @@ export default function TabLayout() {
         name="insights"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="zap" label="Insights" color={color} focused={focused} />
+            <TabIcon name="zap" label="INSIGHTS" color={color} focused={focused} accentColor={theme.accent} />
           ),
         }}
       />
@@ -127,10 +113,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 3,
+    position: "relative",
+    paddingBottom: 4,
   },
   tabLabel: {
-    fontSize: 11,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 0.1,
+    fontSize: 9,
+    fontFamily: "Archivo_800ExtraBold",
+    letterSpacing: 0.6,
+  },
+  tabUnderline: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
   },
 });

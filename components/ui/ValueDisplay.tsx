@@ -59,16 +59,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   label: {
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   value: {
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     letterSpacing: -0.5,
   },
   subValue: {
     fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
   },
 });

@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
     fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: theme.text,
   },
   adornment: {
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   },
   dropTicker: {
     fontSize: 13,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: theme.text,
   },
   exBadge: {
@@ -291,13 +291,13 @@ const styles = StyleSheet.create({
   },
   exBadgeText: {
     fontSize: 9,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     color: "#C9A84C",
     letterSpacing: 0.3,
   },
   dropName: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: theme.textSecondary,
     flex: 1,
   },
@@ -310,6 +310,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     color: theme.textSecondary,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
   },
 });

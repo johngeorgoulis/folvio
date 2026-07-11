@@ -382,7 +382,7 @@ export default function HoldingDetailScreen() {
           {!!holding.isin && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>ISIN</Text>
-              <Text style={[styles.infoValue, { letterSpacing: 0.5, fontFamily: "Inter_400Regular" }]}>
+              <Text style={[styles.infoValue, { letterSpacing: 0.5, fontFamily: "Archivo_400Regular" }]}>
                 {holding.isin}
               </Text>
             </View>
@@ -411,7 +411,7 @@ export default function HoldingDetailScreen() {
         {brokerBreakdown.length >= 2 && (
           <View style={styles.card}>
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { fontFamily: "Inter_600SemiBold", color: theme.text }]}>
+              <Text style={[styles.infoLabel, { fontFamily: "Archivo_600SemiBold", color: theme.text }]}>
                 Broker Breakdown
               </Text>
             </View>
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: "row", alignItems: "center", gap: 10 },
   tickerText: {
     fontSize: 32,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: "#FFFFFF",
     letterSpacing: -1,
   },
@@ -484,24 +484,24 @@ const styles = StyleSheet.create({
   },
   exchangeText: {
     fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     color: "#C9A84C",
     letterSpacing: 0.5,
   },
   nameText: {
     fontSize: 13,
     color: "rgba(255,255,255,0.6)",
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
   },
   priceRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
   priceText: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: "#FFFFFF",
     letterSpacing: -0.5,
   },
   gainPill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 20 },
-  gainPillText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  gainPillText: { fontSize: 12, fontFamily: "Archivo_600SemiBold" },
 
   priceStatusRow: {
     flexDirection: "row",
@@ -509,9 +509,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 6,
   },
-  liveLabel: { fontSize: 12, color: "#2ECC71", fontFamily: "Inter_400Regular" },
-  staleLabel: { fontSize: 12, color: "#F39C12", fontFamily: "Inter_400Regular" },
-  noPriceLabel: { fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "Inter_400Regular" },
+  liveLabel: { fontSize: 12, color: "#2ECC71", fontFamily: "Archivo_400Regular" },
+  staleLabel: { fontSize: 12, color: "#F39C12", fontFamily: "Archivo_400Regular" },
+  noPriceLabel: { fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "Archivo_400Regular" },
   refreshBtn: {
     padding: 6,
     borderRadius: 8,
@@ -539,13 +539,13 @@ const styles = StyleSheet.create({
   metricCell: { flex: 1, gap: 5 },
   metricLabel: {
     fontSize: 11,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
     color: theme.textSecondary,
     letterSpacing: 0.2,
   },
   metricValue: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: theme.text,
   },
 
@@ -560,17 +560,17 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: theme.textSecondary,
   },
   infoValue: {
     fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     color: theme.text,
   },
   infoSub: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: theme.textSecondary,
   },
 
@@ -598,10 +598,10 @@ const styles = StyleSheet.create({
   },
   editBtn: { borderColor: theme.tint, backgroundColor: theme.tint + "11" },
   deleteBtn: { borderColor: theme.negative, backgroundColor: theme.negative + "11" },
-  actionBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  actionBtnText: { fontSize: 15, fontFamily: "Archivo_600SemiBold" },
 
   notFoundWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
-  notFoundText: { fontSize: 14, fontFamily: "Inter_400Regular", color: theme.textSecondary },
+  notFoundText: { fontSize: 14, fontFamily: "Archivo_400Regular", color: theme.textSecondary },
 
   allocBarWrap: {
     position: "relative",
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
   },
   allocBarLabel: {
     fontSize: 10,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: theme.textTertiary,
   },
 });

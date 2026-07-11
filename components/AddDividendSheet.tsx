@@ -127,7 +127,7 @@ export function AddDividendSheet({ visible, onClose }: AddDividendSheetProps) {
                         styles.holdingName,
                         {
                           color: selectedHoldingId === h.id ? theme.tint : theme.text,
-                          fontFamily: selectedHoldingId === h.id ? "Inter_600SemiBold" : "Inter_400Regular",
+                          fontFamily: selectedHoldingId === h.id ? "Archivo_600SemiBold" : "Archivo_400Regular",
                         },
                       ]}
                     >
@@ -208,17 +208,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
   },
-  headerTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  saveBtn: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  headerTitle: { fontSize: 16, fontFamily: "Archivo_600SemiBold" },
+  saveBtn: { fontSize: 16, fontFamily: "Archivo_600SemiBold" },
   scrollContent: { padding: 20, gap: 6 },
-  label: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, marginBottom: 6 },
+  label: { fontSize: 11, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.8, marginBottom: 6 },
   input: {
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
   },
   holdingList: { borderRadius: 12, borderWidth: 1, overflow: "hidden" },
   holdingItem: {
@@ -230,6 +230,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   holdingName: { fontSize: 14 },
-  holdingMeta: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  holdingMeta: { fontSize: 12, fontFamily: "Archivo_400Regular", marginTop: 2 },
   row: { flexDirection: "row", gap: 12 },
 });

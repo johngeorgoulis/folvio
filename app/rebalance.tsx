@@ -332,7 +332,7 @@ export default function RebalanceScreen() {
             <View style={[styles.overweightBanner, { backgroundColor: "#F39C1211", borderColor: "#F39C1244" }]}>
               <Feather name="alert-triangle" size={13} color="#F39C12" style={{ marginTop: 1 }} />
               <Text style={styles.overweightBannerText}>
-                <Text style={{ fontFamily: "Inter_600SemiBold" }}>{worstOverweight.ticker}</Text>
+                <Text style={{ fontFamily: "Archivo_600SemiBold" }}>{worstOverweight.ticker}</Text>
                 {" "}is significantly overweight ({worstOverweight.drift > 0 ? "+" : ""}{worstOverweight.drift.toFixed(1)}%). DCA mode will skip it, but consider a Full Rebalance to restore your target allocation.
               </Text>
             </View>
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backBtn: { padding: 4, marginRight: 8 },
-  navTitle: { flex: 1, fontSize: 18, fontFamily: "Inter_700Bold" },
+  navTitle: { flex: 1, fontSize: 18, fontFamily: "Archivo_800ExtraBold" },
   navAction: { padding: 8 },
   content: { paddingHorizontal: 16, paddingTop: 16, gap: 14 },
   emptyCard: {
@@ -468,8 +468,8 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
   },
-  emptyTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  emptySubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  emptyTitle: { fontSize: 16, fontFamily: "Archivo_600SemiBold" },
+  emptySubtitle: { fontSize: 13, fontFamily: "Archivo_400Regular", lineHeight: 18 },
   warningCard: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -478,9 +478,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
-  warningText: { flex: 1, fontSize: 13, color: "#FBBF24", fontFamily: "Inter_400Regular", lineHeight: 18 },
+  warningText: { flex: 1, fontSize: 13, color: "#FBBF24", fontFamily: "Archivo_400Regular", lineHeight: 18 },
   card: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 12 },
-  sectionTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  sectionTitle: { fontSize: 15, fontFamily: "Archivo_600SemiBold" },
   barContainer: {
     flexDirection: "row",
     height: 20,
@@ -492,19 +492,19 @@ const styles = StyleSheet.create({
   legendGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: 11, color: "#94A3B8", fontFamily: "Inter_500Medium" },
+  legendText: { fontSize: 11, color: "#94A3B8", fontFamily: "Archivo_600SemiBold" },
   tableHeader: { flexDirection: "row", alignItems: "center", marginTop: 4 },
   tableDivider: { height: 1, marginBottom: 2 },
   rowDivider: { height: 1 },
   thTicker: { flex: 2, flexDirection: "row", alignItems: "center", gap: 6 },
-  thNum: { flex: 1, fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 0.3, textAlign: "center" },
+  thNum: { flex: 1, fontSize: 10, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.3, textAlign: "center" },
   thStatus: { flex: 1.5, alignItems: "flex-end" },
   tableRow: { flexDirection: "row", alignItems: "center", paddingVertical: 9 },
   colorDot: { width: 8, height: 8, borderRadius: 4 },
-  rowTicker: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  rowTicker: { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
   badge: { flexDirection: "row", alignItems: "center", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, gap: 4 },
   badgeDot: { width: 5, height: 5, borderRadius: 3 },
-  badgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  badgeText: { fontSize: 10, fontFamily: "Archivo_600SemiBold" },
   modeToggle: { flexDirection: "row", gap: 10 },
   modeBtn: {
     flex: 1,
@@ -513,8 +513,8 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 2,
   },
-  modeBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  modeSubText: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  modeBtnText: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
+  modeSubText: { fontSize: 11, fontFamily: "Archivo_400Regular" },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -524,8 +524,8 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     height: 50,
   },
-  inputPrefix: { fontSize: 18, fontFamily: "Inter_500Medium", marginRight: 6 },
-  cashInput: { flex: 1, fontSize: 18, fontFamily: "Inter_500Medium", height: 50 },
+  inputPrefix: { fontSize: 18, fontFamily: "Archivo_600SemiBold", marginRight: 6 },
+  cashInput: { flex: 1, fontSize: 18, fontFamily: "Archivo_600SemiBold", height: 50 },
   fullRebalanceNote: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  fullRebalanceNoteText: { flex: 1, fontSize: 12, color: "#F87171", fontFamily: "Inter_400Regular", lineHeight: 17 },
+  fullRebalanceNoteText: { flex: 1, fontSize: 12, color: "#F87171", fontFamily: "Archivo_400Regular", lineHeight: 17 },
   overweightBanner: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -543,14 +543,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  overweightBannerText: { flex: 1, fontSize: 12, color: "#F39C12", fontFamily: "Inter_400Regular", lineHeight: 17 },
+  overweightBannerText: { flex: 1, fontSize: 12, color: "#F39C12", fontFamily: "Archivo_400Regular", lineHeight: 17 },
   calcBtn: {
     borderRadius: 12,
     height: 48,
     alignItems: "center",
     justifyContent: "center",
   },
-  calcBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#0A0F1A" },
+  calcBtnText: { fontSize: 15, fontFamily: "Archivo_800ExtraBold", color: "#0A0F1A" },
   warningRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     paddingBottom: 8,
   },
-  warningRowText: { flex: 1, fontSize: 12, color: "#FBBF24", fontFamily: "Inter_400Regular", lineHeight: 17 },
+  warningRowText: { flex: 1, fontSize: 12, color: "#FBBF24", fontFamily: "Archivo_400Regular", lineHeight: 17 },
   suggestionRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -573,14 +573,14 @@ const styles = StyleSheet.create({
     minWidth: 46,
     alignItems: "center",
   },
-  actionText: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
-  suggestionMain: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  suggestionValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  actionText: { fontSize: 11, fontFamily: "Archivo_800ExtraBold", letterSpacing: 0.5 },
+  suggestionMain: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
+  suggestionValue: { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
   summaryCard: { borderRadius: 20, padding: 24 },
-  summaryTitle: { color: "rgba(255,255,255,0.6)", fontSize: 11, fontFamily: "Inter_500Medium", letterSpacing: 0.5, marginBottom: 12 },
+  summaryTitle: { color: "rgba(255,255,255,0.6)", fontSize: 11, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.5, marginBottom: 12 },
   summaryGrid: { flexDirection: "row", alignItems: "center" },
   summaryItem: { flex: 1, alignItems: "center", gap: 4 },
   summaryDivider: { width: 1, height: 40, backgroundColor: "rgba(255,255,255,0.15)", marginHorizontal: 8 },
-  summaryLabel: { color: "rgba(255,255,255,0.55)", fontSize: 11, fontFamily: "Inter_400Regular" },
-  summaryValue: { color: "#FFFFFF", fontSize: 18, fontFamily: "Inter_700Bold" },
+  summaryLabel: { color: "rgba(255,255,255,0.55)", fontSize: 11, fontFamily: "Archivo_400Regular" },
+  summaryValue: { color: "#FFFFFF", fontSize: 18, fontFamily: "Archivo_800ExtraBold" },
 });

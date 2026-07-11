@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import { useAllocation, THRESHOLD_OPTIONS, type ThresholdOption } from "@/context/AllocationContext";
 import { useSubscription, tierLabel, PRICES, type SubscriptionTier } from "@/context/SubscriptionContext";
@@ -50,7 +51,7 @@ const ASYNC_KEYS = {
 };
 
 export default function SettingsScreen() {
-  const theme = Colors.dark;
+  const { theme, isDark, setIsDark } = useTheme();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 24 : insets.top;
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
@@ -447,6 +448,14 @@ export default function SettingsScreen() {
       {/* ── 2. DISPLAY ───────────────────────────────────────────────────── */}
       <Text style={labelStyle}>DISPLAY</Text>
       <View style={[styles.section, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
+        <Row label="Dark Mode">
+          <Switch
+            value={isDark}
+            onValueChange={setIsDark}
+            trackColor={{ false: theme.hairline, true: theme.accent + "88" }}
+            thumbColor={isDark ? theme.accent : theme.textMuted}
+          />
+        </Row>
         <Row label="Show Cost Basis">
           <Switch
             value={showCostBasis}
@@ -864,11 +873,11 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 16, gap: 8 },
-  pageTitle: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.8, marginBottom: 8 },
+  pageTitle: { fontSize: 28, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.8, marginBottom: 8 },
 
   sectionLabel: {
     fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     letterSpacing: 0.8,
     marginTop: 10,
     marginBottom: 6,
@@ -894,8 +903,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  rowLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  rowValue: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  rowLabel: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
+  rowValue: { fontSize: 14, fontFamily: "Archivo_400Regular" },
 
   // Chips
   chipRow: { flexDirection: "row", gap: 8, marginTop: 10 },
@@ -905,7 +914,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
   },
-  chipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  chipText: { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
 
   // Allocation editor
   allocationHeader: {
@@ -914,7 +923,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10,
   },
-  allocationSum: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 3 },
+  allocationSum: { fontSize: 12, fontFamily: "Archivo_600SemiBold", marginTop: 3 },
   addBtn: {
     width: 32,
     height: 32,
@@ -930,9 +939,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderTopWidth: 1,
   },
-  allocationTicker: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  allocationTicker: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
   allocationActions: { flexDirection: "row", alignItems: "center", gap: 12 },
-  allocationPct: { fontSize: 14, fontFamily: "Inter_500Medium", marginRight: 4 },
+  allocationPct: { fontSize: 14, fontFamily: "Archivo_600SemiBold", marginRight: 4 },
   editInline: { flexDirection: "row", alignItems: "center", gap: 8 },
   editInput: {
     width: 64,
@@ -941,10 +950,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     textAlign: "right",
   },
-  editPctSign: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  editPctSign: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
   addRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -952,13 +961,13 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     borderTopWidth: 1,
   },
-  addPctSign: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  addPctSign: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
   input: {
     borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
   },
 
   // Data rows
@@ -976,7 +985,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
   },
-  premiumPillText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  premiumPillText: { fontSize: 11, fontFamily: "Archivo_600SemiBold" },
 
   // ── Premium section ─────────────────────────────────────────────────────
   premiumCard: {
@@ -993,12 +1002,12 @@ const styles = StyleSheet.create({
   },
   premiumCardTier: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: "#F1F5F9",
   },
   premiumCardSub: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: "#94A3B8",
   },
   progressTrack: {
@@ -1025,7 +1034,7 @@ const styles = StyleSheet.create({
   upgradeBtnText: {
     color: "#0A0F1E",
     fontSize: 14,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
   },
   featureItem: {
     flexDirection: "row",
@@ -1036,7 +1045,7 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: "#CBD5E1",
   },
   tierCard: {
@@ -1053,24 +1062,24 @@ const styles = StyleSheet.create({
   },
   tierName: {
     fontSize: 15,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: "#F1F5F9",
     marginBottom: 3,
   },
   tierDesc: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: "#94A3B8",
   },
   tierPrice: {
     fontSize: 20,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: "#F1F5F9",
     letterSpacing: -0.5,
   },
   tierPeriod: {
     fontSize: 11,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: "#475569",
   },
   upgradeFullBtn: {
@@ -1081,7 +1090,7 @@ const styles = StyleSheet.create({
   },
   upgradeFullBtnText: {
     fontSize: 15,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: "#0A0F1E",
   },
 
@@ -1095,10 +1104,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   notifRowLeft: { flex: 1, marginRight: 12 },
-  notifRowTitle: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  notifRowSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  notifRowTitle: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
+  notifRowSub: { fontSize: 12, fontFamily: "Archivo_400Regular", marginTop: 2 },
   dcaDayBadge: { flexDirection: "row", alignItems: "center" },
-  dcaDayBadgeText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  dcaDayBadgeText: { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
 
   // Permission denied banner
   permDeniedBanner: {
@@ -1109,8 +1118,8 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 4,
   },
-  permDeniedText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
-  permDeniedLink: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 6 },
+  permDeniedText: { fontSize: 12, fontFamily: "Archivo_400Regular", lineHeight: 17 },
+  permDeniedLink: { fontSize: 12, fontFamily: "Archivo_600SemiBold", marginTop: 6 },
 
   // DCA Day picker modal
   modalOverlay: {
@@ -1127,8 +1136,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 20,
   },
-  modalTitle: { fontSize: 17, fontFamily: "Inter_700Bold", marginBottom: 4 },
-  modalSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 16 },
+  modalTitle: { fontSize: 17, fontFamily: "Archivo_800ExtraBold", marginBottom: 4 },
+  modalSub: { fontSize: 13, fontFamily: "Archivo_400Regular", marginBottom: 16 },
   dayGrid: { maxHeight: 240 },
   dayGridInner: {
     flexDirection: "row",
@@ -1143,12 +1152,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  dayCellText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  dayCellText: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
   modalCancel: {
     marginTop: 16,
     borderTopWidth: 1,
     paddingTop: 14,
     alignItems: "center",
   },
-  modalCancelText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  modalCancelText: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
 });

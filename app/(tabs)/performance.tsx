@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import Svg, { Path, Line, Text as SvgText } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "@/context/ThemeContext"; import { minimalLight } from "@/constants/colors";
 import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -49,7 +50,7 @@ function SummaryRow({
 }: {
   label: string;
   value: number;
-  theme: typeof Colors.dark;
+  theme: typeof minimalLight;
 }) {
   return (
     <View style={dStyles.summaryRow}>
@@ -64,13 +65,13 @@ function SummaryRow({
 const dStyles = StyleSheet.create({
   summaryBox: { padding: 14, gap: 10, marginTop: 4, marginBottom: 10 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  summaryLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
-  summaryValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  summaryNote: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  summaryLabel: { fontSize: 13, fontFamily: "Archivo_400Regular" },
+  summaryValue: { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
+  summaryNote: { fontSize: 11, fontFamily: "Archivo_400Regular" },
   summaryDivider: { height: StyleSheet.hairlineWidth },
   disclaimer: {
     fontSize: 10,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     fontStyle: "italic",
     textAlign: "center",
     lineHeight: 14,
@@ -89,7 +90,7 @@ function BenchmarkComparisonSection({
   defaultBenchmark: BenchmarkItem;
   onUpgrade: () => void;
 }) {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
   const { holdings, totalInvested, totalPortfolioValue } = usePortfolio();
   const [activeBench, setActiveBench] = useState<BenchmarkItem>(defaultBenchmark);
   const [benchReturn, setBenchReturn] = useState<number | null>(null);
@@ -191,7 +192,7 @@ function BenchmarkComparisonSection({
       </ScrollView>
 
       {earliestDate && (
-        <Text style={[{ fontSize: 11, fontFamily: "Inter_400Regular", color: theme.textTertiary, marginBottom: 14 }]}>
+        <Text style={[{ fontSize: 11, fontFamily: "Archivo_400Regular", color: theme.textTertiary, marginBottom: 14 }]}>
           Since {earliestDate} (your first purchase)
         </Text>
       )}
@@ -246,7 +247,7 @@ function PortfolioChart({
   snapshots: PortfolioSnapshot[];
   width: number;
 }) {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
 
   const data = snapshots.map((s) => s.totalValueEUR);
   if (data.length < 2) return null;
@@ -437,13 +438,13 @@ function ForecastChart({
         ))}
         {yLabels.map((l, i) => (
           <SvgText key={i} x={PAD.left - 4} y={l.y + 4} fontSize={9}
-            fill={Colors.dark.textTertiary} textAnchor="end" fontFamily="Inter_400Regular">
+            fill={Colors.dark.textTertiary} textAnchor="end" fontFamily="Archivo_400Regular">
             {l.label}
           </SvgText>
         ))}
         {xLabels.map((l, i) => (
           <SvgText key={i} x={l.x} y={H - 4} fontSize={9}
-            fill={Colors.dark.textTertiary} textAnchor="middle" fontFamily="Inter_400Regular">
+            fill={Colors.dark.textTertiary} textAnchor="middle" fontFamily="Archivo_400Regular">
             {l.label}
           </SvgText>
         ))}
@@ -776,35 +777,35 @@ function ForecastSection() {
 const fcStyles = StyleSheet.create({
   titleRow:     { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
   tierBadge:    { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  tierBadgeText:{ fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  tierBadgeText:{ fontSize: 10, fontFamily: "Archivo_800ExtraBold", letterSpacing: 0.5 },
 
   subCard:      { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 12 },
-  subCardTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2, marginBottom: 2 },
-  bigNumber:    { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.5, marginBottom: 2 },
-  subText:      { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  subCardTitle: { fontSize: 12, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.2, marginBottom: 2 },
+  bigNumber:    { fontSize: 26, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.5, marginBottom: 2 },
+  subText:      { fontSize: 12, fontFamily: "Archivo_400Regular", lineHeight: 17 },
 
   inputRow:   { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  inputLabel: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
-  inputValue: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  inputLabel: { fontSize: 13, fontFamily: "Archivo_400Regular", flex: 1 },
+  inputValue: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
   input: {
     borderWidth: 1, borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 6,
-    fontSize: 14, fontFamily: "Inter_600SemiBold",
+    fontSize: 14, fontFamily: "Archivo_600SemiBold",
     minWidth: 80, textAlign: "right",
   },
 
   segmented: { flexDirection: "row", gap: 8 },
   segBtn:    { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, alignItems: "center" },
-  segBtnText:{ fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  segBtnText:{ fontSize: 13, fontFamily: "Archivo_600SemiBold" },
 
   legend:     { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 12 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   legendDot:  { width: 8, height: 8, borderRadius: 4 },
-  legendLabel:{ fontSize: 11, fontFamily: "Inter_400Regular" },
+  legendLabel:{ fontSize: 11, fontFamily: "Archivo_400Regular" },
 
   tableRow:   { flexDirection: "row", paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth },
-  tableHeader:{ fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  tableCell:  { fontSize: 13, fontFamily: "Inter_500Medium" },
+  tableHeader:{ fontSize: 11, fontFamily: "Archivo_600SemiBold" },
+  tableCell:  { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
 
   chartOverlay: {
     position: "absolute",
@@ -819,23 +820,23 @@ const fcStyles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10,
     borderRadius: 12, borderWidth: 1,
   },
-  chartLockText:    { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  chartLockText:    { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
   chartLockPill:    { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  chartLockPillText:{ fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  chartLockPillText:{ fontSize: 10, fontFamily: "Archivo_800ExtraBold", letterSpacing: 0.5 },
 
   sliderHeader:    { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  sliderValueText: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  sliderValueText: { fontSize: 15, fontFamily: "Archivo_800ExtraBold" },
   sliderTrack: { position: "absolute", left: 0, right: 0, height: 6, borderRadius: 3 },
   sliderFill:  { position: "absolute", left: 0, height: 6, borderRadius: 3 },
   sliderThumb: { position: "absolute", width: 22, height: 22, borderRadius: 11, top: -8 },
   sliderTicks: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
-  sliderTick:  { fontSize: 11, fontFamily: "Inter_500Medium" },
+  sliderTick:  { fontSize: 11, fontFamily: "Archivo_600SemiBold" },
 });
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function PerformanceScreen() {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const topPad = Platform.OS === "web" ? 24 : insets.top;
@@ -1037,10 +1038,10 @@ export default function PerformanceScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 16, gap: 14 },
-  pageTitle: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.8, marginBottom: 2 },
+  pageTitle: { fontSize: 28, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.8, marginBottom: 2 },
 
   card: { borderRadius: 16, padding: 18, borderWidth: 1 },
-  sectionTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 14 },
+  sectionTitle: { fontSize: 15, fontFamily: "Archivo_600SemiBold", marginBottom: 14 },
   chartHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1054,7 +1055,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
   },
-  rangeBtnText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  rangeBtnText: { fontSize: 11, fontFamily: "Archivo_600SemiBold" },
   chartPlaceholder: {
     height: CHART_H,
     alignItems: "center",
@@ -1062,8 +1063,8 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 24,
   },
-  chartEmptyTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginTop: 4 },
-  chartEmptySub: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 18 },
+  chartEmptyTitle: { fontSize: 14, fontFamily: "Archivo_600SemiBold", marginTop: 4 },
+  chartEmptySub: { fontSize: 12, fontFamily: "Archivo_400Regular", textAlign: "center", lineHeight: 18 },
 
   gridLine: { position: "absolute", height: 1, borderTopWidth: StyleSheet.hairlineWidth },
   chartYLabel: {
@@ -1071,10 +1072,10 @@ const styles = StyleSheet.create({
     left: 0,
     width: PAD.left - 6,
     fontSize: 10,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     textAlign: "right",
   },
-  chartXLabel: { position: "absolute", fontSize: 10, fontFamily: "Inter_400Regular" },
+  chartXLabel: { position: "absolute", fontSize: 10, fontFamily: "Archivo_400Regular" },
   chartDot: { position: "absolute", width: 8, height: 8, borderRadius: 4 },
 
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
@@ -1086,9 +1087,9 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 4,
   },
-  metricLabel: { fontSize: 11, fontFamily: "Inter_500Medium", letterSpacing: 0.3 },
-  metricValue: { fontSize: 20, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
-  metricSub: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  metricLabel: { fontSize: 11, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.3 },
+  metricValue: { fontSize: 20, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.5 },
+  metricSub: { fontSize: 12, fontFamily: "Archivo_600SemiBold" },
 
   benchmarkBlur: { height: 140, position: "relative", marginBottom: 0 },
   fakeLine: { position: "absolute", height: 2, borderRadius: 1, left: 0 },
@@ -1111,8 +1112,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
-  premiumText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  premiumSub: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 18 },
+  premiumText: { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
+  premiumSub: { fontSize: 12, fontFamily: "Archivo_400Regular", textAlign: "center", lineHeight: 18 },
 
   benchChip: {
     paddingHorizontal: 12,
@@ -1120,10 +1121,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
   },
-  benchChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  benchChipText: { fontSize: 12, fontFamily: "Archivo_600SemiBold" },
   disclaimer: {
     fontSize: 10,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     fontStyle: "italic",
     textAlign: "center",
     lineHeight: 14,

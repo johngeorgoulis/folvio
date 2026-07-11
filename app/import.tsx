@@ -920,7 +920,7 @@ export default function ImportScreen() {
           title: "Import Portfolio",
           headerStyle: { backgroundColor: theme.backgroundCard },
           headerTintColor: theme.text,
-          headerTitleStyle: { fontFamily: "Inter_600SemiBold", fontSize: 17 },
+          headerTitleStyle: { fontFamily: "Archivo_600SemiBold", fontSize: 17 },
           headerLeft: () => (
             <TouchableOpacity
               onPress={() =>
@@ -1321,13 +1321,13 @@ const styles = StyleSheet.create({
 
   stepTitle: {
     fontSize: 22,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     letterSpacing: -0.5,
     marginBottom: 4,
   },
   stepSub: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     lineHeight: 20,
     marginBottom: 20,
   },
@@ -1356,12 +1356,12 @@ const styles = StyleSheet.create({
   brokerEmoji: { fontSize: 28, marginBottom: 8 },
   brokerName: {
     fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     textAlign: "center",
   },
   brokerLabel: {
     fontSize: 11,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     marginTop: 2,
     textAlign: "center",
   },
@@ -1383,16 +1383,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  instrNumText: { fontSize: 11, fontFamily: "Inter_700Bold" },
+  instrNumText: { fontSize: 11, fontFamily: "Archivo_800ExtraBold" },
   instrText: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     lineHeight: 20,
     flex: 1,
   },
   instrCode: {
     fontSize: 11,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     fontStyle: "italic",
     paddingLeft: 32,
   },
@@ -1408,18 +1408,18 @@ const styles = StyleSheet.create({
     minHeight: 150,
     justifyContent: "center",
   },
-  uploadTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  uploadTitle: { fontSize: 16, fontFamily: "Archivo_600SemiBold" },
   uploadSub: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     textAlign: "center",
   },
   uploadFileName: {
     fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     textAlign: "center",
   },
-  uploadFileSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  uploadFileSub: { fontSize: 12, fontFamily: "Archivo_400Regular" },
 
   // Bottom bars
   bottomBar: {
@@ -1438,7 +1438,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  primaryBtnText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  primaryBtnText: { fontSize: 16, fontFamily: "Archivo_600SemiBold" },
 
   // Preview rows
   previewRow: {
@@ -1452,13 +1452,13 @@ const styles = StyleSheet.create({
   previewLeft: { flex: 1.2, gap: 2 },
   previewMid: { flex: 1, alignItems: "flex-end", gap: 2 },
   previewRight: { flex: 1.1, alignItems: "flex-end" },
-  previewTicker: { fontSize: 15, fontFamily: "Inter_700Bold" },
-  previewStat: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  previewDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  previewInstrName: { fontSize: 10, fontFamily: "Inter_400Regular" },
+  previewTicker: { fontSize: 15, fontFamily: "Archivo_800ExtraBold" },
+  previewStat: { fontSize: 12, fontFamily: "Archivo_400Regular" },
+  previewDate: { fontSize: 11, fontFamily: "Archivo_400Regular" },
+  previewInstrName: { fontSize: 10, fontFamily: "Archivo_400Regular" },
   previewWarning: {
     fontSize: 10,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     lineHeight: 14,
   },
 
@@ -1469,7 +1469,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     fontSize: 14,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     minWidth: 70,
   },
 
@@ -1480,7 +1480,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: "center",
   },
-  statusText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  statusText: { fontSize: 11, fontFamily: "Archivo_600SemiBold" },
 
   // Duplicate segmented control
   segmented: {
@@ -1490,7 +1490,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   segBtn: { paddingHorizontal: 7, paddingVertical: 4 },
-  segBtnText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  segBtnText: { fontSize: 10, fontFamily: "Archivo_600SemiBold" },
 
   // Detection banner (auto-detected broker)
   detectionBanner: {
@@ -1503,9 +1503,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 8,
   },
-  detectionBannerText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  detectionBannerSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  detectionBannerLink: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  detectionBannerText: { fontSize: 12, fontFamily: "Archivo_600SemiBold" },
+  detectionBannerSub: { fontSize: 12, fontFamily: "Archivo_400Regular" },
+  detectionBannerLink: { fontSize: 12, fontFamily: "Archivo_600SemiBold" },
 
   // Warning banner
   warnBanner: {
@@ -1517,7 +1517,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 8,
   },
-  warnBannerText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
+  warnBannerText: { fontSize: 12, fontFamily: "Archivo_400Regular", flex: 1 },
 
   // Action bar (step 3)
   actionBar: {
@@ -1539,7 +1539,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cancelBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  cancelBtnText: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
   importBtn: {
     flex: 2,
     height: 52,
@@ -1547,5 +1547,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  importBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  importBtnText: { fontSize: 15, fontFamily: "Archivo_600SemiBold" },
 });

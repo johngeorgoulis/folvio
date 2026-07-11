@@ -324,8 +324,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   cancelBtn: { padding: 4 },
-  cancelText: { fontSize: 15, fontFamily: "Inter_400Regular" },
-  headerTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  cancelText: { fontSize: 15, fontFamily: "Archivo_400Regular" },
+  headerTitle: { fontSize: 16, fontFamily: "Archivo_800ExtraBold" },
   saveBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
-  saveBtnText: { color: "#0A0F1A", fontSize: 14, fontFamily: "Inter_700Bold" },
+  saveBtnText: { color: "#0A0F1A", fontSize: 14, fontFamily: "Archivo_800ExtraBold" },
   tickerOuter: {
     paddingHorizontal: 16,
     paddingTop: 14,
@@ -343,16 +343,16 @@ const styles = StyleSheet.create({
   form: { paddingHorizontal: 16, paddingTop: 14, gap: 14, paddingBottom: 48 },
   field: { gap: 6 },
   row: { flexDirection: "row", gap: 12 },
-  label: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.6 },
+  label: { fontSize: 11, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.6 },
   input: {
     borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 11,
     fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
   },
-  hint: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
+  hint: { fontSize: 11, fontFamily: "Archivo_400Regular", marginTop: 3 },
   msgBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -361,5 +361,5 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  msgText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  msgText: { fontSize: 13, fontFamily: "Archivo_400Regular", flex: 1 },
 });

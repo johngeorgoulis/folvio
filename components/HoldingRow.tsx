@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     flex: 1,
   },
   driftDot: {
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 15,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
   },
   middle: {
     flexDirection: "row",
@@ -204,14 +204,14 @@ const styles = StyleSheet.create({
   },
   gain: {
     fontSize: 12,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
   },
   bottom: {
     gap: 4,
   },
   meta: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
   },
   allocationRow: {
     flexDirection: "row",

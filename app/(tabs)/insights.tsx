@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { formatEUR } from "@/utils/format";
@@ -87,7 +87,7 @@ function computeRiskProfile(
 }
 
 function RiskProfileCard({ profile }: { profile: RiskProfile }) {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
 
   const sharpeColor =
     profile.sharpe > 0.5 ? theme.positive :
@@ -154,7 +154,7 @@ function RiskProfileCard({ profile }: { profile: RiskProfile }) {
 
 const riskStyles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
-  sub: { fontSize: 11, fontFamily: "Inter_400Regular", marginBottom: 16 },
+  sub: { fontSize: 11, fontFamily: "Archivo_400Regular", marginBottom: 16 },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -172,9 +172,9 @@ const riskStyles = StyleSheet.create({
   },
   cellRight: { borderLeftWidth: StyleSheet.hairlineWidth },
   cellBottom: { borderBottomWidth: 0 },
-  cellLabel: { fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 0.2, marginBottom: 6 },
-  cellValue: { fontSize: 22, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
-  sentence: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18, fontStyle: "italic" },
+  cellLabel: { fontSize: 10, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.2, marginBottom: 6 },
+  cellValue: { fontSize: 22, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.5 },
+  sentence: { fontSize: 12, fontFamily: "Archivo_400Regular", lineHeight: 18, fontStyle: "italic" },
 });
 
 // ─── Crisis Backtest Section ───────────────────────────────────────────────────
@@ -228,7 +228,7 @@ function classifyETF(ticker: string): "equity" | "bond" | "gold" | null {
 }
 
 function CrisisBacktestSection() {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
   const { holdings } = usePortfolio();
   const [selectedId, setSelectedId] = useState<CrisisId>("financial");
   const [dca, setDca] = useState(400);
@@ -449,24 +449,24 @@ function CrisisBacktestSection() {
 }
 
 const crisisStyles = StyleSheet.create({
-  subtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 16, lineHeight: 18 },
+  subtitle: { fontSize: 12, fontFamily: "Archivo_400Regular", marginBottom: 16, lineHeight: 18 },
   selectorScroll: { marginBottom: 16 },
   selectorRow: { flexDirection: "row", gap: 8 },
   crisisChip: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, minWidth: 120 },
-  crisisName: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  crisisDate: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 2 },
+  crisisName: { fontSize: 12, fontFamily: "Archivo_600SemiBold" },
+  crisisDate: { fontSize: 10, fontFamily: "Archivo_400Regular", marginTop: 2 },
   warningBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 12 },
-  warningText: { fontSize: 11, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 16 },
+  warningText: { fontSize: 11, fontFamily: "Archivo_400Regular", flex: 1, lineHeight: 16 },
   metricBlock: { borderRadius: 12, padding: 14, gap: 10, marginBottom: 10 },
-  metricTitle: { fontSize: 11, fontFamily: "Inter_500Medium", letterSpacing: 0.3 },
+  metricTitle: { fontSize: 11, fontFamily: "Archivo_600SemiBold", letterSpacing: 0.3 },
   metricRow: { flexDirection: "row", alignItems: "center" },
   metricHalf: { flex: 1, alignItems: "center", gap: 4 },
   metricDivider: { width: 1, height: 40, marginHorizontal: 8 },
-  metricBig: { fontSize: 22, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
-  metricSmall: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  metricNote: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
-  metricCaption: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  emptyHint: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", padding: 20 },
+  metricBig: { fontSize: 22, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.5 },
+  metricSmall: { fontSize: 11, fontFamily: "Archivo_400Regular" },
+  metricNote: { fontSize: 12, fontFamily: "Archivo_400Regular", lineHeight: 18 },
+  metricCaption: { fontSize: 11, fontFamily: "Archivo_400Regular" },
+  emptyHint: { fontSize: 13, fontFamily: "Archivo_400Regular", textAlign: "center", padding: 20 },
 });
 
 // ─── AI Insights ───────────────────────────────────────────────────────────────
@@ -478,7 +478,7 @@ function insightIcon(type: AIInsight["type"]): { name: React.ComponentProps<type
 }
 
 function InsightCard({ insight }: { insight: AIInsight }) {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
   const { name, color } = insightIcon(insight.type);
   return (
     <View style={[aiStyles.insightCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
@@ -494,7 +494,7 @@ function InsightCard({ insight }: { insight: AIInsight }) {
 }
 
 function SkeletonCard() {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
   return (
     <View style={[aiStyles.insightCard, { backgroundColor: theme.backgroundCard, borderColor: theme.border }]}>
       <View style={[aiStyles.insightIcon, { backgroundColor: theme.backgroundElevated }]} />
@@ -514,7 +514,7 @@ function AIInsightsSection({
   holdings: Parameters<typeof generatePortfolioInsights>[0];
   totalPortfolioValue: number;
 }) {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
   const [insights, setInsights]   = useState<AIInsight[] | null>(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
@@ -625,8 +625,8 @@ const aiStyles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4 },
   headerLeft: { gap: 6 },
   claudeBadge: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  claudeLabel: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
-  subtext: { fontSize: 11, fontFamily: "Inter_400Regular", marginBottom: 16 },
+  claudeLabel: { fontSize: 10, fontFamily: "Archivo_800ExtraBold", letterSpacing: 0.3 },
+  subtext: { fontSize: 11, fontFamily: "Archivo_400Regular", marginBottom: 16 },
   cards: { gap: 10 },
   insightCard: {
     flexDirection: "row",
@@ -645,12 +645,12 @@ const aiStyles = StyleSheet.create({
     flexShrink: 0,
   },
   insightBody: { flex: 1 },
-  insightTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 4, lineHeight: 18 },
-  insightText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  insightTitle: { fontSize: 13, fontFamily: "Archivo_600SemiBold", marginBottom: 4, lineHeight: 18 },
+  insightText: { fontSize: 12, fontFamily: "Archivo_400Regular", lineHeight: 18 },
   skeletonLine: { height: 12, borderRadius: 6 },
   errorBox: { flexDirection: "row", alignItems: "flex-start", gap: 10, borderRadius: 12, borderWidth: 1, padding: 14 },
-  errorText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
-  debugText: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 6 },
+  errorText: { fontSize: 12, fontFamily: "Archivo_400Regular", lineHeight: 18 },
+  debugText: { fontSize: 10, fontFamily: "Archivo_400Regular", marginTop: 6 },
 });
 
 // ─── Pro locked placeholder ────────────────────────────────────────────────────
@@ -666,7 +666,7 @@ function ProLockedSection({
   description: string;
   trigger: string;
 }) {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
   const { showPaywall } = useSubscription();
 
   return (
@@ -711,16 +711,16 @@ const lockedStyles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
-  proBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
-  title: { fontSize: 16, fontFamily: "Inter_700Bold", letterSpacing: -0.3 },
-  desc: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
+  proBadgeText: { fontSize: 11, fontFamily: "Archivo_800ExtraBold", letterSpacing: 0.5 },
+  title: { fontSize: 16, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.3 },
+  desc: { fontSize: 13, fontFamily: "Archivo_400Regular", lineHeight: 19 },
   cta: {
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",
     marginTop: 4,
   },
-  ctaText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#0A0F1E" },
+  ctaText: { fontSize: 14, fontFamily: "Archivo_800ExtraBold", color: "#0A0F1E" },
 });
 
 // ─── Investor Profile Card ────────────────────────────────────────────────────
@@ -740,7 +740,7 @@ const PROFILE_DESCRIPTIONS_MAP: Record<string, string> = {
 };
 
 function InvestorProfileCard({ profile }: { profile: InvestorProfileRow | null }) {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
 
   if (!profile) {
     return (
@@ -817,8 +817,8 @@ const ipStyles = StyleSheet.create({
     flexShrink: 0,
   },
   setupBody: { flex: 1 },
-  setupTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 3 },
-  setupSub: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  setupTitle: { fontSize: 14, fontFamily: "Archivo_600SemiBold", marginBottom: 3 },
+  setupSub: { fontSize: 12, fontFamily: "Archivo_400Regular", lineHeight: 17 },
   header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   iconWrap: {
@@ -828,8 +828,8 @@ const ipStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  label: { fontSize: 15, fontFamily: "Inter_700Bold", letterSpacing: -0.2 },
-  scoreText: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  label: { fontSize: 15, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.2 },
+  scoreText: { fontSize: 11, fontFamily: "Archivo_400Regular", marginTop: 1 },
   editBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -838,11 +838,11 @@ const ipStyles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 8,
   },
-  editText: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  description: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19, marginBottom: 12 },
+  editText: { fontSize: 12, fontFamily: "Archivo_600SemiBold" },
+  description: { fontSize: 13, fontFamily: "Archivo_400Regular", lineHeight: 19, marginBottom: 12 },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  tagText: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  tagText: { fontSize: 11, fontFamily: "Archivo_400Regular" },
 });
 
 // ─── ETF Overlap Card ─────────────────────────────────────────────────────────
@@ -858,7 +858,7 @@ function OverlapCard({
     hasPrice: boolean;
   }>;
 }) {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
 
   const result = useMemo<OverlapResult>(() => {
     const eligible = holdings.filter(
@@ -942,11 +942,11 @@ const overlapStyles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  title: { fontSize: 13, fontFamily: "Inter_600SemiBold", lineHeight: 18, marginBottom: 4 },
-  finding: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  title: { fontSize: 13, fontFamily: "Archivo_600SemiBold", lineHeight: 18, marginBottom: 4 },
+  finding: { fontSize: 12, fontFamily: "Archivo_400Regular", lineHeight: 18 },
   subline: {
     fontSize: 11,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     lineHeight: 16,
     marginTop: 4,
     fontStyle: "italic",
@@ -956,7 +956,7 @@ const overlapStyles = StyleSheet.create({
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function InsightsScreen() {
-  const theme = Colors.dark;
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const topPad    = Platform.OS === "web" ? 24 : insets.top;
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
@@ -1049,20 +1049,20 @@ export default function InsightsScreen() {
 
 const divStyles = StyleSheet.create({
   box: { borderRadius: 12, padding: 16, alignItems: "center", gap: 6, marginBottom: 10 },
-  label: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  value: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.8 },
-  hint: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 18, marginBottom: 8 },
+  label: { fontSize: 12, fontFamily: "Archivo_400Regular" },
+  value: { fontSize: 28, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.8 },
+  hint: { fontSize: 12, fontFamily: "Archivo_400Regular", textAlign: "center", lineHeight: 18, marginBottom: 8 },
 });
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 16, gap: 14 },
-  pageTitle: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.8, marginBottom: 2 },
+  pageTitle: { fontSize: 28, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.8, marginBottom: 2 },
   card: { borderRadius: 16, padding: 18, borderWidth: 1 },
-  sectionTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 14 },
+  sectionTitle: { fontSize: 15, fontFamily: "Archivo_600SemiBold", marginBottom: 14 },
   disclaimer: {
     fontSize: 10,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     fontStyle: "italic",
     textAlign: "center",
     lineHeight: 14,

@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   skipText: {
     color: MUTED,
     fontSize: 15,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
   },
 
   // Page layout
@@ -309,13 +309,13 @@ const styles = StyleSheet.create({
   fMarkWrap: { marginBottom: 4 },
   wordmark: {
     fontSize: 48,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: WHITE,
     letterSpacing: 1,
   },
   welcomeHeading: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: WHITE,
     textAlign: "center",
     lineHeight: 38,
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   },
   welcomeSubtitle: {
     fontSize: 16,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: MUTED,
     textAlign: "center",
     lineHeight: 24,
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   },
   bulletText: {
     fontSize: 15,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
     color: WHITE,
     flex: 1,
     lineHeight: 22,
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: WHITE,
     textAlign: "center",
     lineHeight: 38,
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   },
   pageBody: {
     fontSize: 16,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: MUTED,
     textAlign: "center",
     lineHeight: 26,
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   searchBar: {
     flex: 1,
     fontSize: 16,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: WHITE,
   },
 
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     fontSize: 17,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: NAVY,
   },
   lastCtaGroup: {
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   },
   secondaryLink: {
     fontSize: 15,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
     color: MUTED,
     textDecorationLine: "underline",
   },

@@ -1,10 +1,9 @@
 import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
+  Archivo_400Regular,
+  Archivo_600SemiBold,
+  Archivo_800ExtraBold,
   useFonts,
-} from "@expo-google-fonts/inter";
+} from "@expo-google-fonts/archivo";
 import { Feather } from "@expo/vector-icons";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -24,6 +23,7 @@ import PaywallModal from "@/components/PaywallModal";
 import { PortfolioProvider } from "@/context/PortfolioContext";
 import { AllocationProvider } from "@/context/AllocationContext";
 import { SubscriptionProvider, useSubscription } from "@/context/SubscriptionContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { configureNotificationHandler } from "@/services/notificationService";
 import { loadAssetClassOverrides } from "@/services/assetClassService";
 import { initDb } from "@/services/db";
@@ -48,10 +48,9 @@ function GlobalPaywall() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    Archivo_400Regular,
+    Archivo_600SemiBold,
+    Archivo_800ExtraBold,
     // Load Feather icon font explicitly — the tab bar renders at launch
     // (before any navigation), so the font must be ready on first paint.
     // Without this, Expo web shows grey squares instead of icons.
@@ -112,7 +111,7 @@ export default function RootLayout() {
   if (!onboardingDone) {
     return (
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style="auto" />
         <OnboardingFlow onComplete={handleOnboardingComplete} />
       </SafeAreaProvider>
     );
@@ -122,7 +121,7 @@ export default function RootLayout() {
   if (!investorProfileDone) {
     return (
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style="auto" />
         <InvestorProfileOnboarding
           onComplete={() => setInvestorProfileDone(true)}
           onSkip={() => setInvestorProfileDone(true)}
@@ -134,11 +133,12 @@ export default function RootLayout() {
   // ── Main app ────────────────────────────────────────────────────────────────
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
+      <StatusBar style="auto" />
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
+              <ThemeProvider>
               <SubscriptionProvider>
                 <PortfolioProvider>
                   <AllocationProvider>
@@ -178,6 +178,7 @@ export default function RootLayout() {
                   </AllocationProvider>
                 </PortfolioProvider>
               </SubscriptionProvider>
+              </ThemeProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

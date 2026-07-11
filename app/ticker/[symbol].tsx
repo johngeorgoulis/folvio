@@ -414,7 +414,7 @@ export default function TickerDetailScreen() {
               <Text style={styles.priceText}>
                 {existingHolding.hasPrice ? `€${existingHolding.currentPrice.toFixed(2)}` : `€${existingHolding.avg_cost_eur.toFixed(2)}`}
               </Text>
-              <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 4 }}>
+              <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "Archivo_400Regular", marginTop: 4 }}>
                 {existingHolding.hasPrice ? "Last known price — live data unavailable" : "Avg cost shown — no price data"}
               </Text>
             </View>
@@ -450,7 +450,7 @@ export default function TickerDetailScreen() {
           <Feather name="arrow-left" size={22} color={theme.text} />
         </TouchableOpacity>
         <Feather name="wifi-off" size={36} color={theme.textTertiary} />
-        <Text style={{ color: theme.text, marginTop: 14, fontSize: 16, fontFamily: "Inter_600SemiBold" }}>
+        <Text style={{ color: theme.text, marginTop: 14, fontSize: 16, fontFamily: "Archivo_600SemiBold" }}>
           Data unavailable
         </Text>
         <Text style={{ color: theme.textSecondary, marginTop: 6, fontSize: 13, textAlign: "center", paddingHorizontal: 32 }}>
@@ -558,10 +558,10 @@ export default function TickerDetailScreen() {
           {(range === "3Y" || range === "5Y" || range === "All") ? (
             <View style={{ height: 200, alignItems: "center", justifyContent: "center", gap: 10 }}>
               <Feather name="lock" size={28} color={theme.textTertiary} />
-              <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: theme.textSecondary }}>
+              <Text style={{ fontSize: 14, fontFamily: "Archivo_600SemiBold", color: theme.textSecondary }}>
                 Upgrade to Pro
               </Text>
-              <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textTertiary, textAlign: "center", paddingHorizontal: 24 }}>
+              <Text style={{ fontSize: 12, fontFamily: "Archivo_400Regular", color: theme.textTertiary, textAlign: "center", paddingHorizontal: 24 }}>
                 Extended history requires a Pro subscription
               </Text>
             </View>
@@ -584,7 +584,7 @@ export default function TickerDetailScreen() {
                 backgroundColor: rangePerf >= 0 ? theme.positive + "22" : theme.negative + "22",
                 paddingHorizontal: 14, paddingVertical: 6,
               }]}>
-                <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: rangePerf >= 0 ? theme.positive : theme.negative }}>
+                <Text style={{ fontSize: 14, fontFamily: "Archivo_600SemiBold", color: rangePerf >= 0 ? theme.positive : theme.negative }}>
                   {rangePerf >= 0 ? "+" : ""}{rangePerf.toFixed(2)}% this {range}
                 </Text>
               </View>
@@ -689,16 +689,16 @@ export default function TickerDetailScreen() {
               <View style={{ gap: 10 }}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                   <View style={{ gap: 2 }}>
-                    <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: theme.textSecondary }}>CURRENT</Text>
-                    <Text style={{ fontSize: 18, fontFamily: "Inter_700Bold", color: theme.text }}>{currentPct.toFixed(1)}%</Text>
+                    <Text style={{ fontSize: 11, fontFamily: "Archivo_600SemiBold", color: theme.textSecondary }}>CURRENT</Text>
+                    <Text style={{ fontSize: 18, fontFamily: "Archivo_800ExtraBold", color: theme.text }}>{currentPct.toFixed(1)}%</Text>
                   </View>
                   <View style={{ gap: 2, alignItems: "center" }}>
-                    <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: theme.textSecondary }}>TARGET</Text>
-                    <Text style={{ fontSize: 18, fontFamily: "Inter_700Bold", color: theme.text }}>{targetPct.toFixed(1)}%</Text>
+                    <Text style={{ fontSize: 11, fontFamily: "Archivo_600SemiBold", color: theme.textSecondary }}>TARGET</Text>
+                    <Text style={{ fontSize: 18, fontFamily: "Archivo_800ExtraBold", color: theme.text }}>{targetPct.toFixed(1)}%</Text>
                   </View>
                   <View style={{ gap: 2, alignItems: "flex-end" }}>
-                    <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: theme.textSecondary }}>DRIFT</Text>
-                    <Text style={{ fontSize: 18, fontFamily: "Inter_700Bold", color: driftColor }}>
+                    <Text style={{ fontSize: 11, fontFamily: "Archivo_600SemiBold", color: theme.textSecondary }}>DRIFT</Text>
+                    <Text style={{ fontSize: 18, fontFamily: "Archivo_800ExtraBold", color: driftColor }}>
                       {drift >= 0 ? "+" : ""}{drift.toFixed(1)}%
                     </Text>
                   </View>
@@ -717,7 +717,7 @@ export default function TickerDetailScreen() {
                   }} />
                 </View>
                 {beyondThreshold && (
-                  <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: "#F59E0B" }}>
+                  <Text style={{ fontSize: 11, fontFamily: "Archivo_400Regular", color: "#F59E0B" }}>
                     {absDrift.toFixed(1)}% outside {rebalanceThreshold}% threshold — consider rebalancing
                   </Text>
                 )}
@@ -729,7 +729,7 @@ export default function TickerDetailScreen() {
         {etfData?.description && (
           <View style={[styles.sectionCard, { gap: 6 }]}>
             <Text style={[styles.sectionTitle, { fontSize: 13 }]}>About</Text>
-            <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary, lineHeight: 18 }}>
+            <Text style={{ fontSize: 12, fontFamily: "Archivo_400Regular", color: theme.textSecondary, lineHeight: 18 }}>
               {etfData.description}
             </Text>
           </View>
@@ -740,9 +740,9 @@ export default function TickerDetailScreen() {
             style={[styles.sectionCard, { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
             onPress={() => Linking.openURL(`https://www.justetf.com/en/etf-profile.html?isin=${displayISIN}`)}
           >
-            <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: theme.textSecondary }}>View on JustETF</Text>
+            <Text style={{ fontSize: 13, fontFamily: "Archivo_400Regular", color: theme.textSecondary }}>View on JustETF</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: theme.tint }}>justetf.com</Text>
+              <Text style={{ fontSize: 13, fontFamily: "Archivo_600SemiBold", color: theme.tint }}>justetf.com</Text>
               <Feather name="external-link" size={12} color={theme.tint} />
             </View>
           </TouchableOpacity>
@@ -840,13 +840,13 @@ const styles = StyleSheet.create({
   },
   symbolText: {
     fontSize: 26,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: theme.text,
     letterSpacing: -0.5,
   },
   nameText: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: "rgba(255,255,255,0.7)",
     marginTop: 2,
     lineHeight: 18,
@@ -860,7 +860,7 @@ const styles = StyleSheet.create({
   },
   exchBadgeText: {
     fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     color: "rgba(255,255,255,0.8)",
     letterSpacing: 0.3,
   },
@@ -874,13 +874,13 @@ const styles = StyleSheet.create({
   },
   currBadgeText: {
     fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
     color: theme.tint,
     letterSpacing: 0.3,
   },
   priceText: {
     fontSize: 42,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: theme.text,
     letterSpacing: -1,
   },
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
   },
   changeText: {
     fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
   },
   liveRow: {
     flexDirection: "row",
@@ -906,7 +906,7 @@ const styles = StyleSheet.create({
   },
   liveText: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Archivo_400Regular",
     color: "rgba(255,255,255,0.55)",
   },
   chartCard: {
@@ -928,7 +928,7 @@ const styles = StyleSheet.create({
   },
   rangeBtnText: {
     fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
   },
   sectionCard: {
     backgroundColor: theme.backgroundCard,
@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 15,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: theme.text,
     letterSpacing: -0.2,
   },
@@ -958,13 +958,13 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 11,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
     color: theme.textSecondary,
     letterSpacing: 0.2,
   },
   statValue: {
     fontSize: 15,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: theme.text,
     marginTop: 3,
   },
@@ -981,13 +981,13 @@ const styles = StyleSheet.create({
   },
   perfLabel: {
     fontSize: 11,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Archivo_600SemiBold",
     color: theme.textSecondary,
     letterSpacing: 0.3,
   },
   perfValue: {
     fontSize: 14,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     marginTop: 4,
   },
   actionBar: {
@@ -1009,7 +1009,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
     color: "#0A0F1A",
   },
   actionBtnOutlined: {
@@ -1023,7 +1023,7 @@ const styles = StyleSheet.create({
   },
   actionBtnOutlinedText: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Archivo_800ExtraBold",
   },
   retryBtn: {
     flexDirection: "row",
@@ -1039,6 +1039,6 @@ const styles = StyleSheet.create({
   retryText: {
     color: theme.tint,
     fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Archivo_600SemiBold",
   },
 });

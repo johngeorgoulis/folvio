@@ -13,8 +13,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Colors from "@/constants/colors";
 import { usePortfolio } from "@/context/PortfolioContext";
+import { useTheme } from "@/context/ThemeContext";
+import type { MinimalTheme } from "@/constants/colors";
 import {
   fetchSymbolPrice,
   resolveISIN,
@@ -29,9 +30,6 @@ import {
   type ETFSearchResult,
 } from "@/services/etfDatabaseService";
 
-const theme = Colors.dark;
-
-// ─── Asset class badge colours ────────────────────────────────────────────────
 const ASSET_CLASS_COLORS: Record<string, string> = {
   "Equity":       "#22C55E",
   "Bonds":        "#4A90D9",
@@ -44,7 +42,6 @@ function getAssetClassColor(assetClass: string): string {
   return ASSET_CLASS_COLORS[assetClass] ?? "#8A9BB0";
 }
 
-// ─── Static popular lists ─────────────────────────────────────────────────────
 const POPULAR_ETFS = [
   { symbol: "VWCE.DE", ticker: "VWCE", name: "Vanguard FTSE All-World Acc" },
   { symbol: "IWDA.AS", ticker: "IWDA", name: "iShares Core MSCI World" },
@@ -55,7 +52,6 @@ const POPULAR_ETFS = [
   { symbol: "EUNL.DE", ticker: "EUNL", name: "iShares Core MSCI World" },
   { symbol: "AGGH.AS", ticker: "AGGH", name: "iShares Core Global Agg Bond" },
 ];
-
 
 const ISIN_REGEX = /^[A-Z]{2}[A-Z0-9]{10}$/;
 function isISIN(q: string): boolean { return ISIN_REGEX.test(q.trim().toUpperCase()); }
@@ -81,40 +77,50 @@ function formatPrice(price: number): string {
   return `€${price.toFixed(3)}`;
 }
 
-// ─── Popular Card ─────────────────────────────────────────────────────────────
 function PopularCard({ ticker, name, symbol, price }: {
   ticker: string; name: string; symbol: string;
   price: PopularPrice | null | undefined;
 }) {
+  const { theme } = useTheme();
   const isPos = price ? price.changePct >= 0 : true;
   const changeColor = isPos ? theme.positive : theme.negative;
   return (
     <TouchableOpacity
-      style={styles.popularCard}
+      style={[popularCardStyles.card, { backgroundColor: theme.surface, borderColor: theme.hairline }]}
       onPress={() => router.push({ pathname: "/ticker/[symbol]", params: { symbol } })}
       activeOpacity={0.75}
     >
-      <View style={styles.popularCardHeader}>
-        <Text style={styles.popularTicker}>{ticker}</Text>
-        {price === undefined && <ActivityIndicator size="small" color={theme.textTertiary} />}
+      <View style={popularCardStyles.header}>
+        <Text style={[popularCardStyles.ticker, { color: theme.accent }]}>{ticker}</Text>
+        {price === undefined && <ActivityIndicator size="small" color={theme.textMuted} />}
       </View>
-      <Text style={styles.popularName} numberOfLines={2}>{name}</Text>
-      <View style={styles.popularPriceRow}>
+      <Text style={[popularCardStyles.name, { color: theme.textMuted }]} numberOfLines={2}>{name}</Text>
+      <View style={popularCardStyles.priceRow}>
         {price != null ? (
           <>
-            <Text style={styles.popularPrice}>{formatPrice(price.price)}</Text>
-            <Text style={[styles.popularChange, { color: changeColor }]}>{formatPctChange(price.changePct)}</Text>
+            <Text style={[popularCardStyles.price, { color: theme.text }]}>{formatPrice(price.price)}</Text>
+            <Text style={[popularCardStyles.change, { color: changeColor }]}>{formatPctChange(price.changePct)}</Text>
           </>
         ) : price === null ? (
-          <Text style={{ color: theme.textTertiary, fontSize: 12 }}>—</Text>
+          <Text style={{ color: theme.textMuted, fontSize: 12 }}>—</Text>
         ) : null}
       </View>
     </TouchableOpacity>
   );
 }
 
-// ─── Local ETF Result Row (from database) ─────────────────────────────────────
+const popularCardStyles = StyleSheet.create({
+  card: { width: 138, borderWidth: 1, padding: 14, gap: 4 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  ticker: { fontSize: 15, fontFamily: "Archivo_800ExtraBold", letterSpacing: 0.3 },
+  name: { fontSize: 11, fontFamily: "Archivo_400Regular", lineHeight: 15 },
+  priceRow: { flexDirection: "row", alignItems: "baseline", gap: 6, marginTop: 6 },
+  price: { fontSize: 14, fontFamily: "Archivo_600SemiBold" },
+  change: { fontSize: 12, fontFamily: "Archivo_600SemiBold" },
+});
+
 function LocalETFRow({ item }: { item: ETFSearchResult }) {
+  const { theme } = useTheme();
   const acColor = getAssetClassColor(item.assetClass);
   const distLabel = item.distribution
     ? item.distribution === "Accumulating" ? "Acc" : "Dist"
@@ -122,71 +128,73 @@ function LocalETFRow({ item }: { item: ETFSearchResult }) {
 
   return (
     <TouchableOpacity
-      style={styles.resultRow}
+      style={[rowStyles.row, { borderBottomColor: theme.hairline }]}
       onPress={() =>
-        router.push({
-          pathname: "/ticker/[symbol]",
-          params: { symbol: item.primaryTicker },
-        })
+        router.push({ pathname: "/ticker/[symbol]", params: { symbol: item.primaryTicker } })
       }
       activeOpacity={0.75}
     >
-      <View style={styles.resultLeft}>
-        <View style={styles.resultTickerRow}>
-          <Text style={styles.resultSymbol}>{item.ticker}</Text>
-          {/* Asset class badge */}
-          <View style={[styles.typeBadge, { backgroundColor: acColor + "22", borderColor: acColor + "55" }]}>
-            <Text style={[styles.typeBadgeText, { color: acColor }]}>{item.assetClass}</Text>
-          </View>
-          {/* Acc / Dist badge */}
+      <View style={rowStyles.left}>
+        <View style={rowStyles.tickerRow}>
+          <Text style={[rowStyles.symbol, { color: theme.text }]}>{item.ticker}</Text>
+          <Text style={[rowStyles.tag, { color: acColor, borderColor: acColor + "55" }]}>{item.assetClass}</Text>
           {distLabel && (
-            <View style={[styles.typeBadge, { backgroundColor: theme.tint + "22", borderColor: theme.tint + "44" }]}>
-              <Text style={[styles.typeBadgeText, { color: theme.tint }]}>{distLabel}</Text>
-            </View>
+            <Text style={[rowStyles.tag, { color: theme.accent, borderColor: theme.accent + "55" }]}>{distLabel}</Text>
           )}
         </View>
-        <Text style={styles.resultName} numberOfLines={1}>{item.shortName || item.name}</Text>
-        <Text style={styles.resultISIN} numberOfLines={1}>{item.isin}</Text>
+        <Text style={[rowStyles.name, { color: theme.textMuted }]} numberOfLines={1}>{item.shortName || item.name}</Text>
+        <Text style={[rowStyles.isin, { color: theme.textMuted }]} numberOfLines={1}>{item.isin}</Text>
       </View>
-      <View style={styles.resultRight}>
+      <View style={rowStyles.right}>
         {item.ter !== null && (
-          <Text style={styles.resultTER}>{item.ter.toFixed(2)}%</Text>
+          <Text style={[rowStyles.ter, { color: theme.textMuted }]}>{item.ter.toFixed(2)}%</Text>
         )}
-        <Feather name="chevron-right" size={15} color={theme.textTertiary} />
+        <Feather name="chevron-right" size={15} color={theme.textMuted} />
       </View>
     </TouchableOpacity>
   );
 }
 
-// ─── Yahoo Finance Result Row ─────────────────────────────────────────────────
 function YahooResultRow({ item }: { item: SearchResult }) {
+  const { theme } = useTheme();
   const badgeLabel = getTypeBadge(item.quoteType);
   const badgeColor =
-    item.quoteType === "ETF" ? theme.tint :
+    item.quoteType === "ETF" ? theme.accent :
     item.quoteType === "EQUITY" ? "#4A90D9" : "#8A9BB0";
   return (
     <TouchableOpacity
-      style={styles.resultRow}
+      style={[rowStyles.row, { borderBottomColor: theme.hairline }]}
       onPress={() => router.push({ pathname: "/ticker/[symbol]", params: { symbol: item.symbol } })}
       activeOpacity={0.75}
     >
-      <View style={styles.resultLeft}>
-        <View style={styles.resultTickerRow}>
-          <Text style={styles.resultSymbol}>{item.symbol}</Text>
-          <View style={[styles.typeBadge, { backgroundColor: badgeColor + "22", borderColor: badgeColor + "55" }]}>
-            <Text style={[styles.typeBadgeText, { color: badgeColor }]}>{badgeLabel}</Text>
-          </View>
+      <View style={rowStyles.left}>
+        <View style={rowStyles.tickerRow}>
+          <Text style={[rowStyles.symbol, { color: theme.text }]}>{item.symbol}</Text>
+          <Text style={[rowStyles.tag, { color: badgeColor, borderColor: badgeColor + "55" }]}>{badgeLabel}</Text>
         </View>
-        <Text style={styles.resultName} numberOfLines={1}>{item.shortName}</Text>
+        <Text style={[rowStyles.name, { color: theme.textMuted }]} numberOfLines={1}>{item.shortName}</Text>
       </View>
-      <Text style={styles.resultExch}>{item.exchDisp || item.exchange}</Text>
+      <Text style={[rowStyles.exch, { color: theme.textMuted }]}>{item.exchDisp || item.exchange}</Text>
     </TouchableOpacity>
   );
 }
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────
+const rowStyles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1 },
+  left: { flex: 1 },
+  right: { flexDirection: "row", alignItems: "center", gap: 8, marginLeft: 8 },
+  tickerRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" },
+  symbol: { fontSize: 15, fontFamily: "Archivo_800ExtraBold" },
+  tag: { fontSize: 10, fontFamily: "Archivo_600SemiBold", borderWidth: 1, paddingHorizontal: 5, paddingVertical: 1 },
+  name: { fontSize: 12, fontFamily: "Archivo_400Regular" },
+  isin: { fontSize: 10, fontFamily: "Archivo_400Regular", marginTop: 1 },
+  ter: { fontSize: 11, fontFamily: "Archivo_600SemiBold" },
+  exch: { fontSize: 11, fontFamily: "Archivo_400Regular", marginLeft: 8 },
+});
+
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
   const topPad = Platform.OS === "web" ? 24 : insets.top;
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
@@ -206,7 +214,6 @@ export default function SearchScreen() {
 
   const { holdings } = usePortfolio();
 
-  // ── Init ETF database ────────────────────────────────────────────────────
   useEffect(() => {
     setUpdateCallback((msg) => {
       setUpdateToast(msg);
@@ -215,7 +222,6 @@ export default function SearchScreen() {
     initETFDatabase();
   }, []);
 
-  // ── Popular prices ────────────────────────────────────────────────────────
   useEffect(() => {
     const all = [...POPULAR_ETFS];
     Promise.allSettled(all.map((item) => fetchSymbolPrice(item.symbol))).then((settled) => {
@@ -240,12 +246,9 @@ export default function SearchScreen() {
       ),
       ticker: h.ticker,
       name: h.name || h.ticker,
-      isInPortfolio: true,
     }));
   }, [holdings]);
 
-
-  // ── Search logic ──────────────────────────────────────────────────────────
   function handleQueryChange(text: string) {
     setQuery(text);
     setIsinResult(null);
@@ -268,11 +271,9 @@ export default function SearchScreen() {
       return;
     }
 
-    // 1. Instant local search — no debounce needed (synchronous)
     const local = searchETFDatabase(trimmed, 10);
     setLocalResults(local);
 
-    // 2. Yahoo Finance fallback — debounced, only if local gives < 5 results
     if (local.length < 5) {
       setIsSearchingYahoo(true);
       yahooDebounceRef.current = setTimeout(async () => {
@@ -285,12 +286,6 @@ export default function SearchScreen() {
       setIsSearchingYahoo(false);
     }
   }
-
-  const runLocalSearch = useCallback((q: string) => {
-    const local = searchETFDatabase(q, 10);
-    setLocalResults(local);
-    return local;
-  }, []);
 
   async function handleISINResolve(isin: string) {
     setIsinResolving(true);
@@ -310,7 +305,6 @@ export default function SearchScreen() {
     }
   }
 
-  // Filter Yahoo results
   const filteredYahoo = yahooResults.filter((r) => {
     if (filter === "All") return true;
     if (filter === "ETF")   return r.quoteType === "ETF";
@@ -323,43 +317,36 @@ export default function SearchScreen() {
   const queryIsISIN = isISIN(queryTrimmed);
   const showHome = queryTrimmed.length < 2;
   const hasLocalResults = localResults.length > 0;
-  const showYahooSection = !hasLocalResults || filteredYahoo.length > 0;
   const FILTERS: Filter[] = ["All", "ETF", "Stock", "Fund"];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* ── Update toast ───────────────────────────────────────────────────── */}
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
       {updateToast && (
-        <View style={[styles.toast, { top: topPad + 8 }]}>
-          <Feather name="database" size={13} color={theme.tint} />
-          <Text style={styles.toastText}>{updateToast}</Text>
+        <View style={[toastStyle.toast, { top: topPad + 8, backgroundColor: theme.surface, borderColor: theme.hairline }]}>
+          <Feather name="database" size={13} color={theme.accent} />
+          <Text style={[toastStyle.text, { color: theme.text }]}>{updateToast}</Text>
         </View>
       )}
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: topPad + 12, paddingBottom: bottomPad }]}
+        contentContainerStyle={[{ paddingHorizontal: 20, paddingTop: topPad + 12, paddingBottom: bottomPad, gap: 0 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Explore</Text>
-          <Text style={styles.subtitle}>Search UCITS ETFs &amp; funds</Text>
-        </View>
+        <Text style={[hStyles.title, { color: theme.text }]}>EXPLORE</Text>
+        <View style={[hStyles.divider, { backgroundColor: theme.text }]} />
 
-        {/* Search bar */}
-        <View style={[
-          styles.searchBar,
-          { backgroundColor: theme.backgroundCard, borderColor: query.length > 0 ? theme.tint : theme.border },
-        ]}>
-          <Feather name="search" size={18} color={theme.textSecondary} style={{ marginRight: 8 }} />
+        {/* Search input */}
+        <View style={[hStyles.searchBar, { backgroundColor: theme.surface, borderColor: query.length > 0 ? theme.accent : theme.hairline }]}>
+          <Feather name="search" size={16} color={theme.textMuted} style={{ marginRight: 8 }} />
           <TextInput
             ref={inputRef}
-            style={styles.searchInput}
+            style={[hStyles.searchInput, { color: theme.text }]}
             value={query}
             onChangeText={handleQueryChange}
             placeholder="Ticker, name or ISIN..."
-            placeholderTextColor={theme.textTertiary}
+            placeholderTextColor={theme.textMuted}
             returnKeyType="search"
             autoCorrect={false}
             autoCapitalize="characters"
@@ -373,148 +360,103 @@ export default function SearchScreen() {
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Feather name="x" size={16} color={theme.textSecondary} />
+              <Feather name="x" size={16} color={theme.textMuted} />
             </TouchableOpacity>
           )}
         </View>
 
-        {/* ── Home: ETFs ─────────────────────────────────────────────────── */}
+        {/* Home */}
         {showHome && (
           <>
-            {/* Your ETFs — only when user has holdings */}
             {userETFs.length > 0 && (
               <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Your ETFs</Text>
-                </View>
-                <ScrollView
-                  horizontal showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.horizontalList}
-                  keyboardShouldPersistTaps="handled"
-                >
+                <Text style={[hStyles.sectionLabel, { color: theme.textMuted }]}>YOUR ETFS</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, flexDirection: "row", paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
                   {userETFs.map((item) => (
-                    <PopularCard
-                      key={item.symbol} {...item}
-                      price={item.symbol in popularPrices ? popularPrices[item.symbol] : undefined}
-                    />
+                    <PopularCard key={item.symbol} {...item} price={item.symbol in popularPrices ? popularPrices[item.symbol] : undefined} />
                   ))}
                 </ScrollView>
               </>
             )}
-
-            {/* Popular ETFs — always shown */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Popular ETFs</Text>
-            </View>
-            <ScrollView
-              horizontal showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-              keyboardShouldPersistTaps="handled"
-            >
+            <Text style={[hStyles.sectionLabel, { color: theme.textMuted }]}>POPULAR</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, flexDirection: "row", paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
               {POPULAR_ETFS.map((item) => (
-                <PopularCard
-                  key={item.symbol} {...item}
-                  price={item.symbol in popularPrices ? popularPrices[item.symbol] : undefined}
-                />
+                <PopularCard key={item.symbol} {...item} price={item.symbol in popularPrices ? popularPrices[item.symbol] : undefined} />
               ))}
             </ScrollView>
           </>
         )}
 
-        {/* ── Search Results ─────────────────────────────────────────────── */}
+        {/* Search Results */}
         {!showHome && (
           <>
-            {/* ISIN badge */}
             {queryIsISIN && (
-              <View style={styles.isinBadgeRow}>
-                <Feather name="hash" size={13} color={theme.tint} />
-                <Text style={styles.isinBadgeText}>ISIN detected</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 8 }}>
+                <Feather name="hash" size={13} color={theme.accent} />
+                <Text style={{ fontSize: 12, fontFamily: "Archivo_600SemiBold", color: theme.accent }}>ISIN detected</Text>
               </View>
             )}
 
-            {/* Filter tabs — hidden for ISIN queries */}
             {!queryIsISIN && !hasLocalResults && (
-              <View style={styles.filterRow}>
+              <View style={{ flexDirection: "row", gap: 8, paddingVertical: 10 }}>
                 {FILTERS.map((f) => (
                   <TouchableOpacity
                     key={f}
-                    style={[
-                      styles.filterChip,
-                      {
-                        backgroundColor: filter === f ? theme.tint : theme.backgroundCard,
-                        borderColor: filter === f ? theme.tint : theme.border,
-                      },
-                    ]}
+                    style={[hStyles.filterChip, {
+                      borderBottomWidth: filter === f ? 2 : 0,
+                      borderBottomColor: filter === f ? theme.accent : "transparent",
+                    }]}
                     onPress={() => setFilter(f)}
                   >
-                    <Text style={[styles.filterChipText, { color: filter === f ? "#0A0F1A" : theme.textSecondary }]}>
-                      {f}
-                    </Text>
+                    <Text style={[hStyles.filterChipText, { color: filter === f ? theme.text : theme.textMuted }]}>{f}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             )}
 
-            {/* ISIN: resolving */}
             {queryIsISIN && isinResolving && (
-              <View style={styles.loadingRow}>
-                <ActivityIndicator color={theme.tint} />
-                <Text style={{ color: theme.textSecondary, marginLeft: 10, fontSize: 14 }}>
-                  Looking up ISIN…
-                </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 24, justifyContent: "center" }}>
+                <ActivityIndicator color={theme.accent} />
+                <Text style={{ color: theme.textMuted, marginLeft: 10, fontSize: 14, fontFamily: "Archivo_400Regular" }}>Looking up ISIN…</Text>
               </View>
             )}
 
-            {/* ISIN: candidates */}
             {queryIsISIN && !isinResolving && isinResult && (
-              <View style={{ gap: 8, marginTop: 8 }}>
-                <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: "Inter_400Regular" }}>
-                  Select an exchange listing:
-                </Text>
+              <View style={{ gap: 0 }}>
+                <Text style={{ color: theme.textMuted, fontSize: 12, fontFamily: "Archivo_400Regular", paddingVertical: 8 }}>Select an exchange listing:</Text>
                 {isinResult.candidates.map((sym) => (
                   <TouchableOpacity
-                    key={sym} style={styles.resultRow}
+                    key={sym}
+                    style={[rowStyles.row, { borderBottomColor: theme.hairline }]}
                     onPress={() => router.push({ pathname: "/ticker/[symbol]", params: { symbol: sym } })}
                     activeOpacity={0.75}
                   >
-                    <View style={styles.resultLeft}>
-                      <View style={styles.resultTickerRow}>
-                        <Text style={styles.resultSymbol}>{sym}</Text>
-                        <View style={[styles.typeBadge, { backgroundColor: theme.tint + "22", borderColor: theme.tint + "55" }]}>
-                          <Text style={[styles.typeBadgeText, { color: theme.tint }]}>ETF</Text>
-                        </View>
-                      </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[rowStyles.symbol, { color: theme.text }]}>{sym}</Text>
                       {isinResult.etfData?.description ? (
-                        <Text style={styles.resultName} numberOfLines={1}>
+                        <Text style={[rowStyles.name, { color: theme.textMuted }]} numberOfLines={1}>
                           {isinResult.etfData.description.substring(0, 60)}
                         </Text>
                       ) : null}
                     </View>
-                    <Feather name="chevron-right" size={16} color={theme.textTertiary} />
+                    <Feather name="chevron-right" size={16} color={theme.textMuted} />
                   </TouchableOpacity>
                 ))}
               </View>
             )}
 
-            {/* ISIN: not found */}
             {queryIsISIN && !isinResolving && isinError && (
-              <View style={styles.emptyResults}>
-                <Feather name="alert-circle" size={28} color={theme.textTertiary} />
-                <Text style={{ color: theme.textSecondary, marginTop: 10, fontSize: 14 }}>
-                  Could not resolve ISIN
-                </Text>
-                <Text style={{ color: theme.textTertiary, marginTop: 4, fontSize: 12, textAlign: "center", paddingHorizontal: 24 }}>
-                  This ISIN is not listed on JustETF or is not available.
-                </Text>
+              <View style={{ alignItems: "center", paddingVertical: 48 }}>
+                <Feather name="alert-circle" size={28} color={theme.textMuted} />
+                <Text style={{ color: theme.textMuted, marginTop: 10, fontSize: 14, fontFamily: "Archivo_400Regular" }}>Could not resolve ISIN</Text>
               </View>
             )}
 
-            {/* ── Local DB results (instant) ─────────────────────────────── */}
             {!queryIsISIN && hasLocalResults && (
               <>
-                <View style={styles.sectionDivider}>
-                  <Feather name="database" size={11} color={theme.textTertiary} />
-                  <Text style={styles.sectionDividerText}>UCITS ETF Database</Text>
+                <View style={[hStyles.sectionDivider, { borderBottomColor: theme.hairline }]}>
+                  <Feather name="database" size={11} color={theme.textMuted} />
+                  <Text style={[hStyles.sectionDividerText, { color: theme.textMuted }]}>ETF DATABASE</Text>
                 </View>
                 {localResults.map((item) => (
                   <LocalETFRow key={item.isin} item={item} />
@@ -522,24 +464,21 @@ export default function SearchScreen() {
               </>
             )}
 
-            {/* ── Yahoo Finance results (fallback / supplement) ──────────── */}
             {!queryIsISIN && (
               <>
                 {isSearchingYahoo && !hasLocalResults && (
-                  <View style={styles.loadingRow}>
-                    <ActivityIndicator color={theme.tint} />
-                    <Text style={{ color: theme.textSecondary, marginLeft: 10, fontSize: 14 }}>
-                      Searching…
-                    </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 24, justifyContent: "center" }}>
+                    <ActivityIndicator color={theme.accent} />
+                    <Text style={{ color: theme.textMuted, marginLeft: 10, fontSize: 14, fontFamily: "Archivo_400Regular" }}>Searching…</Text>
                   </View>
                 )}
 
                 {filteredYahoo.length > 0 && (
                   <>
-                    <View style={styles.sectionDivider}>
-                      <Feather name="trending-up" size={11} color={theme.textTertiary} />
-                      <Text style={styles.sectionDividerText}>
-                        {hasLocalResults ? "More results (Yahoo Finance)" : "Yahoo Finance"}
+                    <View style={[hStyles.sectionDivider, { borderBottomColor: theme.hairline }]}>
+                      <Feather name="trending-up" size={11} color={theme.textMuted} />
+                      <Text style={[hStyles.sectionDividerText, { color: theme.textMuted }]}>
+                        {hasLocalResults ? "MORE RESULTS" : "YAHOO FINANCE"}
                       </Text>
                     </View>
                     {filteredYahoo.map((item) => (
@@ -548,13 +487,10 @@ export default function SearchScreen() {
                   </>
                 )}
 
-                {/* No results at all */}
                 {!hasLocalResults && !isSearchingYahoo && filteredYahoo.length === 0 && queryTrimmed.length >= 2 && (
-                  <View style={styles.emptyResults}>
-                    <Feather name="search" size={28} color={theme.textTertiary} />
-                    <Text style={{ color: theme.textSecondary, marginTop: 10, fontSize: 14 }}>
-                      No results for "{query}"
-                    </Text>
+                  <View style={{ alignItems: "center", paddingVertical: 48 }}>
+                    <Feather name="search" size={28} color={theme.textMuted} />
+                    <Text style={{ color: theme.textMuted, marginTop: 10, fontSize: 14, fontFamily: "Archivo_400Regular" }}>No results for "{query}"</Text>
                   </View>
                 )}
               </>
@@ -566,63 +502,24 @@ export default function SearchScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, gap: 4 },
-  header: { marginBottom: 14 },
-  title: { fontSize: 28, fontFamily: "Inter_700Bold", color: theme.text, letterSpacing: -0.8 },
-  subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", color: theme.textSecondary, marginTop: 2 },
-  searchBar: {
-    flexDirection: "row", alignItems: "center", borderRadius: 14,
-    borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8,
-  },
-  searchInput: { flex: 1, fontSize: 16, fontFamily: "Inter_400Regular", color: theme.text, padding: 0 },
-  sectionHeader: { marginTop: 16, marginBottom: 10 },
-  sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: theme.text, letterSpacing: -0.3 },
-  sectionDivider: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    marginTop: 12, marginBottom: 6, paddingHorizontal: 2,
-  },
-  sectionDividerText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: theme.textTertiary, letterSpacing: 0.3 },
-  horizontalList: { paddingRight: 4, gap: 10, flexDirection: "row" },
-  popularCard: {
-    width: 138, backgroundColor: theme.backgroundCard, borderRadius: 14,
-    borderWidth: 1, borderColor: theme.border, padding: 14, gap: 4,
-  },
-  popularCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  popularTicker: { fontSize: 15, fontFamily: "Inter_700Bold", color: theme.tint, letterSpacing: 0.3 },
-  popularName: { fontSize: 11, fontFamily: "Inter_400Regular", color: theme.textSecondary, lineHeight: 15 },
-  popularPriceRow: { flexDirection: "row", alignItems: "baseline", gap: 6, marginTop: 6 },
-  popularPrice: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: theme.text },
-  popularChange: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  filterRow: { flexDirection: "row", gap: 8, marginTop: 10, marginBottom: 8 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
-  filterChipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  loadingRow: { flexDirection: "row", alignItems: "center", paddingVertical: 24, justifyContent: "center" },
-  emptyResults: { alignItems: "center", paddingVertical: 48 },
-  resultRow: {
-    flexDirection: "row", alignItems: "center", backgroundColor: theme.backgroundCard,
-    borderRadius: 12, borderWidth: 1, borderColor: theme.border, padding: 14, marginBottom: 8,
-  },
-  resultLeft: { flex: 1 },
-  resultRight: { flexDirection: "row", alignItems: "center", gap: 8, marginLeft: 8 },
-  resultTickerRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" },
-  resultSymbol: { fontSize: 15, fontFamily: "Inter_700Bold", color: theme.text },
-  typeBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
-  typeBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.3 },
-  resultName: { fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary },
-  resultISIN: { fontSize: 10, fontFamily: "Inter_400Regular", color: theme.textTertiary, marginTop: 1 },
-  resultTER: { fontSize: 11, fontFamily: "Inter_500Medium", color: theme.textSecondary },
-  resultExch: { fontSize: 11, fontFamily: "Inter_400Regular", color: theme.textTertiary, marginLeft: 8 },
-  isinBadgeRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8, marginBottom: 4, paddingHorizontal: 4 },
-  isinBadgeText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: theme.tint, letterSpacing: 0.2 },
+const toastStyle = StyleSheet.create({
   toast: {
     position: "absolute", left: 16, right: 16, zIndex: 100,
-    backgroundColor: theme.backgroundElevated ?? "#1E2C3A",
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderRadius: 0,
+    paddingHorizontal: 14, paddingVertical: 10,
     flexDirection: "row", alignItems: "center", gap: 8,
-    borderWidth: 1, borderColor: theme.tint + "44",
   },
-  toastText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: theme.text },
+  text: { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
+});
+
+const hStyles = StyleSheet.create({
+  title: { fontSize: 26, fontFamily: "Archivo_800ExtraBold", letterSpacing: -0.5, marginBottom: 12 },
+  divider: { height: 2, marginBottom: 16 },
+  searchBar: { flexDirection: "row", alignItems: "center", borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16 },
+  searchInput: { flex: 1, fontSize: 15, fontFamily: "Archivo_400Regular", padding: 0 },
+  sectionLabel: { fontSize: 11, fontFamily: "Archivo_800ExtraBold", letterSpacing: 0.8, marginBottom: 10, marginTop: 8 },
+  filterChip: { paddingVertical: 6, paddingHorizontal: 2, marginRight: 12 },
+  filterChipText: { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
+  sectionDivider: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 10, borderBottomWidth: 1 },
+  sectionDividerText: { fontSize: 11, fontFamily: "Archivo_800ExtraBold", letterSpacing: 0.6 },
 });

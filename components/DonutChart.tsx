@@ -59,12 +59,12 @@ export function DonutChart({
         </Svg>
         <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}>
           {centerLabel && (
-            <Text style={{ color: theme.text, fontFamily: "Inter_700Bold", fontSize: 18 }}>
+            <Text style={{ color: theme.text, fontFamily: "Archivo_800ExtraBold", fontSize: 18 }}>
               {centerLabel}
             </Text>
           )}
           {centerSublabel && (
-            <Text style={{ color: theme.textSecondary, fontFamily: "Inter_400Regular", fontSize: 11 }}>
+            <Text style={{ color: theme.textSecondary, fontFamily: "Archivo_400Regular", fontSize: 11 }}>
               {centerSublabel}
             </Text>
           )}
@@ -111,12 +111,12 @@ export function DonutChart({
       </Svg>
       <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}>
         {centerLabel && (
-          <Text style={{ color: theme.text, fontFamily: "Inter_700Bold", fontSize: 17, letterSpacing: -0.5 }}>
+          <Text style={{ color: theme.text, fontFamily: "Archivo_800ExtraBold", fontSize: 17, letterSpacing: -0.5 }}>
             {centerLabel}
           </Text>
         )}
         {centerSublabel && (
-          <Text style={{ color: theme.textSecondary, fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 2 }}>
+          <Text style={{ color: theme.textSecondary, fontFamily: "Archivo_400Regular", fontSize: 11, marginTop: 2 }}>
             {centerSublabel}
           </Text>
         )}

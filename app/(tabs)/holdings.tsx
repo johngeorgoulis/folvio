@@ -14,18 +14,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
-import Colors from "@/constants/colors";
 import { isExchangeOpen } from "@/utils/marketHours";
 import { usePortfolio, FREE_TIER_LIMIT } from "@/context/PortfolioContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAllocation } from "@/context/AllocationContext";
+import { useTheme } from "@/context/ThemeContext";
 import { formatEUR, formatPct, formatQuantity } from "@/utils/format";
 import { calculateAllocations, validateTargets } from "@/services/allocationService";
 import AddHoldingModal, { type AddHoldingInitialValues } from "@/components/AddHoldingModal";
 
-const theme = Colors.dark;
-
-// Detect ACC / DIST from the fund name or ticker
 function getDistBadge(name: string, ticker: string): "ACC" | "DIST" | null {
   const hay = (name + " " + ticker).toLowerCase();
   if (hay.includes("acc") || hay.includes("accumul")) return "ACC";
@@ -35,6 +32,7 @@ function getDistBadge(name: string, ticker: string): "ACC" | "DIST" | null {
 
 export default function HoldingsScreen() {
   const insets    = useSafeAreaInsets();
+  const { theme } = useTheme();
   const topPad    = Platform.OS === "web" ? 24 : insets.top;
   const bottomPad = Platform.OS === "web" ? 80 : insets.bottom + 80;
 
@@ -104,7 +102,7 @@ export default function HoldingsScreen() {
   function renderRightActions(holdingId: string, ticker: string) {
     return (
       <TouchableOpacity
-        style={styles.swipeDelete}
+        style={[styles.swipeDelete, { backgroundColor: theme.negative }]}
         onPress={() => handleDeleteHolding(holdingId, ticker)}
       >
         <Feather name="trash-2" size={20} color="#fff" />
@@ -113,85 +111,77 @@ export default function HoldingsScreen() {
     );
   }
 
+  const s = makeStyles(theme);
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[s.container]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: topPad + 12, paddingBottom: bottomPad }]}
+        contentContainerStyle={[s.content, { paddingTop: topPad + 12, paddingBottom: bottomPad }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.pageTitle}>Holdings</Text>
-            <Text style={styles.pageSubtitle}>
-              {holdings.length} holding{holdings.length !== 1 ? "s" : ""}
+        <View style={s.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.pageTitle}>HOLDINGS</Text>
+            <Text style={s.pageSubtitle}>
+              {holdings.length} position{holdings.length !== 1 ? "s" : ""}
               {isHardLimited && (
-                <Text style={{ color: theme.tint }}> · Upgrade for unlimited</Text>
+                <Text style={{ color: theme.accent }}> · Upgrade for unlimited</Text>
               )}
             </Text>
           </View>
-          <View style={styles.headerActions}>
+          <View style={s.headerActions}>
             <TouchableOpacity
-              style={styles.refreshBtn}
+              style={s.actionBtn}
               onPress={refreshPrices}
               disabled={isRefreshingPrices}
             >
               {isRefreshingPrices ? (
-                <ActivityIndicator size="small" color={theme.tint} />
+                <ActivityIndicator size="small" color={theme.accent} />
               ) : (
-                <Feather name="refresh-cw" size={16} color={theme.tint} />
+                <Feather name="refresh-cw" size={16} color={theme.text} />
               )}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.addBtn} onPress={handleAddPress}>
-              <Feather name="plus" size={20} color={theme.background} />
+            <TouchableOpacity style={[s.actionBtn, s.addBtn]} onPress={handleAddPress}>
+              <Feather name="plus" size={22} color={theme.text} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* ── Rebalance entry card ────────────────────────────────────────── */}
+        <View style={s.headerDivider} />
+
+        {/* ── Rebalance row ────────────────────────────────────────────────── */}
         <TouchableOpacity
-          style={[
-            rebalanceStyles.card,
-            { backgroundColor: theme.backgroundCard, borderColor: needsRebalancing > 0 ? "#FBBF24" : theme.border },
-          ]}
+          style={s.rebalanceRow}
           onPress={() => router.push("/rebalance" as never)}
           activeOpacity={0.8}
         >
-          <View style={rebalanceStyles.left}>
-            <View style={[rebalanceStyles.icon, { backgroundColor: needsRebalancing > 0 ? "#FBBF2422" : theme.backgroundElevated }]}>
-              <Feather name="sliders" size={20} color={needsRebalancing > 0 ? "#FBBF24" : theme.tint} />
-            </View>
-            <View>
-              <Text style={[rebalanceStyles.title, { color: theme.text }]}>Rebalance Calculator</Text>
-              {validation.valid ? (
-                <Text style={[rebalanceStyles.sub, { color: needsRebalancing > 0 ? "#FBBF24" : theme.positive }]}>
-                  {needsRebalancing > 0
-                    ? `${needsRebalancing} holding${needsRebalancing > 1 ? "s" : ""} outside ±${rebalanceThreshold}% threshold`
-                    : "Portfolio is balanced"}
-                </Text>
-              ) : (
-                <Text style={[rebalanceStyles.sub, { color: theme.textSecondary }]}>
-                  Set target allocations in Settings
-                </Text>
-              )}
-            </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.rebalanceTitle}>Rebalance Calculator</Text>
+            {validation.valid ? (
+              <Text style={[s.rebalanceSub, { color: needsRebalancing > 0 ? theme.accent : theme.positive }]}>
+                {needsRebalancing > 0
+                  ? `${needsRebalancing} holding${needsRebalancing > 1 ? "s" : ""} outside ±${rebalanceThreshold}% threshold`
+                  : "Portfolio is balanced"}
+              </Text>
+            ) : (
+              <Text style={[s.rebalanceSub, { color: theme.textMuted }]}>Set target allocations in Settings</Text>
+            )}
           </View>
-          <Feather name="chevron-right" size={18} color={theme.textTertiary} />
+          <Feather name="arrow-right" size={16} color={theme.textMuted} />
         </TouchableOpacity>
+
+        <View style={s.hairline} />
 
         {/* ── Empty state ─────────────────────────────────────────────────── */}
         {holdings.length === 0 && (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconWrap}>
-              <Feather name="briefcase" size={30} color={theme.tint} />
-            </View>
-            <Text style={styles.emptyTitle}>No holdings yet</Text>
-            <Text style={styles.emptySubtitle}>
+          <View style={s.emptyState}>
+            <Text style={s.emptyTitle}>No holdings yet</Text>
+            <Text style={s.emptySubtitle}>
               Add your first UCITS ETF or stock to begin tracking your European portfolio.
             </Text>
-            <TouchableOpacity style={styles.emptyBtn} onPress={handleAddPress}>
-              <Feather name="plus" size={16} color={theme.background} />
-              <Text style={styles.emptyBtnText}>Add Holding</Text>
+            <TouchableOpacity style={s.emptyBtn} onPress={handleAddPress}>
+              <Text style={s.emptyBtnText}>+ Add Holding</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -207,15 +197,11 @@ export default function HoldingsScreen() {
           const distBadge   = getDistBadge(h.name ?? "", h.ticker);
           const isLast      = idx === holdings.length - 1;
 
-          // ── Warning icon: stale-during-market-hours OR drift beyond threshold ──
-          // Uses exchange-specific timezone so e.g. BORSA_IT doesn't trigger a
-          // false stale-warning after 17:30 CET when Xetra/LSE are still open.
           const targetAlloc = targets.find(t => t.ticker.toUpperCase() === h.ticker.toUpperCase());
           const driftPct    = targetAlloc ? Math.abs(weight - targetAlloc.target_pct) : 0;
           const hasDrift    = targetAlloc != null && driftPct > rebalanceThreshold;
           const showWarning = (h.hasPrice && h.priceIsStale && isExchangeOpen(h.exchange)) || hasDrift;
 
-          // ── PRICE color: green above avg cost, red below, neutral at par ────
           const priceColor = !h.hasPrice
             ? theme.text
             : h.currentPrice > h.avg_cost_eur
@@ -231,83 +217,39 @@ export default function HoldingsScreen() {
               overshootRight={false}
             >
               <Pressable
-                style={styles.holdingCard}
+                style={[s.holdingCard, isLast && { marginBottom: 0 }]}
                 onPress={() => router.push({ pathname: "/holding/[id]", params: { id: h.id } })}
               >
-                {/* ── Main row ────────────────────────────────────────────── */}
-                <View style={styles.holdingMain}>
-                  {/* Left: ticker badge */}
-                  <View style={styles.tickerBadge}>
-                    <Text style={styles.tickerBadgeText}>{h.ticker.slice(0, 4)}</Text>
-                  </View>
-
-                  {/* Centre: name + badges */}
+                {/* Top row: ticker + tags + value */}
+                <View style={s.holdingTop}>
                   <View style={{ flex: 1 }}>
-                    <View style={styles.tickerRow}>
-                      <Text style={styles.holdingTicker}>{h.ticker}</Text>
-                      {showWarning && (
-                        <Text style={{ fontSize: 12, color: theme.warning }}>⚠</Text>
-                      )}
-                      {!h.hasPrice && (
-                        <Text style={styles.noPrice}>no price</Text>
-                      )}
+                    <View style={s.tickerRow}>
+                      <Text style={s.holdingTicker}>{h.ticker}</Text>
+                      {showWarning && <Text style={{ fontSize: 12, color: theme.accent }}>⚠</Text>}
+                      {!h.hasPrice && <Text style={s.noPrice}>no price</Text>}
+                      {distBadge && <Text style={s.tag}>{distBadge}</Text>}
+                      {h.exchange && <Text style={s.tag}>{h.exchange}</Text>}
                     </View>
-                    <View style={styles.nameRow}>
-                      <Text style={styles.holdingName} numberOfLines={1}>
-                        {h.name || h.exchange}
-                      </Text>
-                      {distBadge && (
-                        <View style={styles.pill}>
-                          <Text style={styles.pillText}>{distBadge}</Text>
-                        </View>
-                      )}
-                      {h.exchange && (
-                        <View style={styles.pill}>
-                          <Text style={styles.pillText}>{h.exchange}</Text>
-                        </View>
-                      )}
-                    </View>
+                    <Text style={s.holdingName} numberOfLines={1}>{h.name || h.exchange}</Text>
                   </View>
-
-                  {/* Right: value + gain% */}
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Text style={styles.holdingValue}>
-                      {h.hasPrice ? formatEUR(marketValue) : "—"}
-                    </Text>
-                    {h.hasPrice && (
-                      <Text style={[styles.holdingGain, { color: isPositive ? theme.positive : theme.negative }]}>
-                        {isPositive ? "+" : ""}{formatPct(gainPct, false)}
-                      </Text>
-                    )}
-                  </View>
+                  <Text style={s.holdingValue}>
+                    {h.hasPrice ? formatEUR(marketValue) : "—"}
+                  </Text>
                 </View>
 
-                {/* ── Inset divider ────────────────────────────────────────── */}
-                <View style={styles.divider} />
-
-                {/* ── Detail strip ─────────────────────────────────────────── */}
-                <View style={styles.detailStrip}>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>QTY</Text>
-                    <Text style={styles.detailValue}>{formatQuantity(h.quantity)}</Text>
-                  </View>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>AVG COST</Text>
-                    <Text style={styles.detailValue}>{formatEUR(h.avg_cost_eur)}</Text>
-                  </View>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>PRICE</Text>
-                    <Text style={[styles.detailValue, { color: priceColor }]}>
-                      {h.hasPrice ? formatEUR(h.currentPrice) : "—"}
+                {/* Bottom row: qty · avg cost + gain % */}
+                <View style={s.holdingBottom}>
+                  <Text style={s.holdingMeta}>
+                    {formatQuantity(h.quantity)} units · avg {formatEUR(h.avg_cost_eur)}
+                  </Text>
+                  {h.hasPrice && (
+                    <Text style={[s.holdingGain, { color: isPositive ? theme.positive : theme.negative }]}>
+                      {isPositive ? "+" : ""}{formatPct(gainPct, false)}
                     </Text>
-                  </View>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>WEIGHT</Text>
-                    <Text style={styles.detailValue}>{weight.toFixed(1)}%</Text>
-                  </View>
+                  )}
                 </View>
-
               </Pressable>
+              {!isLast && <View style={s.hairline} />}
             </Swipeable>
           );
         })}
@@ -322,148 +264,82 @@ export default function HoldingsScreen() {
   );
 }
 
-// ── Rebalance banner styles ─────────────────────────────────────────────────────
-const rebalanceStyles = StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  left: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  icon: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  sub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-});
+function makeStyles(theme: ReturnType<typeof import("@/context/ThemeContext").useTheme>["theme"]) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.background },
+    content:   { paddingHorizontal: 20, gap: 0 },
 
-// ── Styles ─────────────────────────────────────────────────────────────────────
+    header:        { flexDirection: "row", alignItems: "flex-end", marginBottom: 12 },
+    pageTitle:     { fontSize: 26, fontFamily: "Archivo_800ExtraBold", color: theme.text, letterSpacing: -0.5 },
+    pageSubtitle:  { fontSize: 12, fontFamily: "Archivo_400Regular", color: theme.textMuted, marginTop: 3 },
+    headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+    actionBtn: {
+      width: 40, height: 40,
+      alignItems: "center", justifyContent: "center",
+    },
+    addBtn: {},
+    headerDivider: { height: 2, backgroundColor: theme.text, marginBottom: 0 },
+
+    rebalanceRow: {
+      flexDirection: "row", alignItems: "center",
+      paddingVertical: 14,
+    },
+    rebalanceTitle: { fontSize: 14, fontFamily: "Archivo_600SemiBold", color: theme.text },
+    rebalanceSub:   { fontSize: 12, fontFamily: "Archivo_400Regular", marginTop: 2 },
+
+    hairline: { height: 1, backgroundColor: theme.hairline },
+
+    emptyState: { paddingVertical: 40, gap: 12 },
+    emptyTitle: { fontSize: 18, fontFamily: "Archivo_800ExtraBold", color: theme.text },
+    emptySubtitle: { fontSize: 14, fontFamily: "Archivo_400Regular", color: theme.textMuted, lineHeight: 22 },
+    emptyBtn: { paddingHorizontal: 20, paddingVertical: 12, backgroundColor: theme.accent, alignSelf: "flex-start", marginTop: 4 },
+    emptyBtnText: { fontSize: 14, fontFamily: "Archivo_800ExtraBold", color: "#fff" },
+
+    holdingCard: {
+      backgroundColor: theme.surface,
+      paddingHorizontal: 14,
+      paddingTop: 14,
+      paddingBottom: 12,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 1,
+      shadowRadius: 2,
+      elevation: 1,
+      marginTop: 8,
+    },
+    holdingTop: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+    tickerRow:  { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
+    holdingTicker: { fontSize: 16, fontFamily: "Archivo_800ExtraBold", color: theme.text },
+    holdingName:   { fontSize: 12, fontFamily: "Archivo_400Regular", color: theme.textMuted, marginTop: 3 },
+    noPrice:       { fontSize: 10, fontFamily: "Archivo_400Regular", color: theme.textMuted },
+    tag: {
+      fontSize: 10, fontFamily: "Archivo_600SemiBold", color: theme.textMuted,
+      borderWidth: 1, borderColor: theme.hairline,
+      paddingHorizontal: 5, paddingVertical: 1,
+    },
+    holdingValue: { fontSize: 16, fontFamily: "Archivo_800ExtraBold", color: theme.text },
+    holdingBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 },
+    holdingMeta:   { fontSize: 12, fontFamily: "Archivo_400Regular", color: theme.textMuted },
+    holdingGain:   { fontSize: 13, fontFamily: "Archivo_600SemiBold" },
+
+    swipeDelete: {
+      justifyContent: "center",
+      alignItems: "center",
+      width: 80,
+      marginLeft: 8,
+      gap: 4,
+    },
+    swipeDeleteLabel: { color: "#fff", fontSize: 11, fontFamily: "Archivo_600SemiBold" },
+  });
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content:   { paddingHorizontal: 16, gap: 10 },
-
-  // Header
-  header:        { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-  pageTitle:     { fontSize: 26, fontFamily: "Inter_700Bold", color: theme.text, letterSpacing: -0.8 },
-  pageSubtitle:  { fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary, marginTop: 2 },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  refreshBtn: {
-    width: 44, height: 44, borderRadius: 12,
-    alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: theme.border,
-    backgroundColor: theme.backgroundCard,
-  },
-  addBtn: {
-    width: 44, height: 44, borderRadius: 12,
-    alignItems: "center", justifyContent: "center",
-    backgroundColor: theme.tint,
-  },
-
-  // Swipe delete
   swipeDelete: {
-    backgroundColor: theme.negative,
     justifyContent: "center",
     alignItems: "center",
     width: 80,
-    borderRadius: 14,
     marginLeft: 8,
     gap: 4,
   },
-  swipeDeleteLabel: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
-
-  // Empty state
-  emptyState: {
-    backgroundColor: theme.backgroundCard,
-    borderRadius: 16,
-    padding: 36,
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderColor: theme.border,
-    marginTop: 8,
-  },
-  emptyIconWrap: {
-    width: 68, height: 68, borderRadius: 20,
-    backgroundColor: theme.backgroundElevated,
-    borderWidth: 1, borderColor: theme.border,
-    alignItems: "center", justifyContent: "center",
-    marginBottom: 4,
-  },
-  emptyTitle:    { fontSize: 18, fontFamily: "Inter_700Bold", color: theme.text },
-  emptySubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", color: theme.textSecondary, textAlign: "center", lineHeight: 21 },
-  emptyBtn: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    paddingHorizontal: 22, paddingVertical: 13,
-    backgroundColor: theme.tint, borderRadius: 12, marginTop: 4,
-  },
-  emptyBtnText: { color: theme.background, fontSize: 15, fontFamily: "Inter_700Bold" },
-
-  // Holding card
-  holdingCard: {
-    backgroundColor: theme.backgroundCard,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.border,
-    minHeight: 64,
-    overflow: "hidden",
-  },
-
-  // Main row
-  holdingMain: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    minHeight: 64,
-  },
-
-  // Ticker badge
-  tickerBadge: {
-    width: 46, height: 46, borderRadius: 12,
-    backgroundColor: theme.backgroundElevated,
-    borderWidth: 1, borderColor: theme.border,
-    alignItems: "center", justifyContent: "center",
-  },
-  tickerBadgeText: { color: theme.tint, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
-
-  // Name row
-  tickerRow:   { flexDirection: "row", alignItems: "center", gap: 5 },
-  nameRow:     { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3, flexWrap: "wrap" },
-  holdingTicker: { fontSize: 16, fontFamily: "Inter_700Bold", color: theme.text },
-  holdingName:   { fontSize: 12, fontFamily: "Inter_400Regular", color: theme.textSecondary, flexShrink: 1 },
-  noPrice:       { fontSize: 10, fontFamily: "Inter_400Regular", color: theme.textTertiary },
-
-  // Pills (ACC/DIST/exchange)
-  pill: {
-    paddingHorizontal: 6, paddingVertical: 2,
-    borderRadius: 6, backgroundColor: theme.backgroundElevated,
-    borderWidth: 1, borderColor: theme.border,
-  },
-  pillText: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: theme.textSecondary },
-
-  // Right side
-  holdingValue: { fontSize: 16, fontFamily: "Inter_700Bold", color: theme.text },
-  holdingGain:  { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 3 },
-
-  // Inset divider (20px from left, not full-width)
-  divider: {
-    height: 1,
-    backgroundColor: theme.border,
-    marginLeft: 20, // inset from left edge
-  },
-
-  // Detail strip
-  detailStrip: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  detailItem:  { alignItems: "center", gap: 3 },
-  detailLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: theme.textTertiary, letterSpacing: 0.5 },
-  detailValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: theme.text },
-
+  swipeDeleteLabel: { color: "#fff", fontSize: 11, fontFamily: "Archivo_600SemiBold" },
 });
