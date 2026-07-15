@@ -162,6 +162,47 @@ function PerfCard({
   );
 }
 
+/** ETF characteristics card shown when live price data failed to load but
+ *  local-DB / EODHD-fundamentals data is still available. */
+function ETFCharacteristicsFallback({
+  styles, displayISIN, displayAssetClass, effectiveTER,
+  displayDistribution, displayReplication, displayDomicile, displayInception,
+}: {
+  styles: ReturnType<typeof makeStyles>;
+  displayISIN: string;
+  displayAssetClass: string;
+  effectiveTER: number | null;
+  displayDistribution: string | null;
+  displayReplication: string | null;
+  displayDomicile: string | null;
+  displayInception: string | null;
+}) {
+  return (
+    <View style={styles.sectionCard}>
+      <Text style={styles.sectionTitle}>ETF Profile</Text>
+      <View style={styles.statsGrid}>
+        {!!displayISIN && <StatCell label="ISIN" value={displayISIN} />}
+        <StatCell label="Asset Class" value={displayAssetClass} />
+        {effectiveTER !== null && (
+          <StatCell label="TER (Annual Fee)" value={`${effectiveTER.toFixed(2)}%`} />
+        )}
+        {displayDistribution && (
+          <StatCell label="Distribution" value={capitalize(displayDistribution)} />
+        )}
+        {displayReplication && (
+          <StatCell label="Replication" value={capitalize(displayReplication)} />
+        )}
+        {displayDomicile && (
+          <StatCell label="Domicile" value={capitalize(displayDomicile)} />
+        )}
+        {displayInception && (
+          <StatCell label="Inception" value={displayInception} />
+        )}
+      </View>
+    </View>
+  );
+}
+
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function TickerDetailScreen() {
@@ -452,6 +493,16 @@ export default function TickerDetailScreen() {
                 />
               </View>
             </View>
+            <ETFCharacteristicsFallback
+              styles={styles}
+              displayISIN={displayISIN}
+              displayAssetClass={displayAssetClass}
+              effectiveTER={effectiveTER}
+              displayDistribution={displayDistribution}
+              displayReplication={displayReplication}
+              displayDomicile={displayDomicile}
+              displayInception={displayInception}
+            />
             <TouchableOpacity style={styles.retryBtn} onPress={loadMeta}>
               <Feather name="refresh-cw" size={14} color={theme.accent} />
               <Text style={styles.retryText}>Retry loading live data</Text>
@@ -460,22 +511,44 @@ export default function TickerDetailScreen() {
         </View>
       );
     }
+    const hasAnyETFData = !!(localETF || etfFund || etfData);
     return (
-      <View style={[styles.loadingScreen, { backgroundColor: theme.background, paddingTop: topPad }]}>
-        <TouchableOpacity style={[styles.backBtn, { top: topPad + 4 }]} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={22} color={theme.text} />
-        </TouchableOpacity>
-        <Feather name="wifi-off" size={36} color={theme.textTertiary} />
-        <Text style={{ color: theme.text, marginTop: 14, fontSize: 16, fontFamily: "Archivo_600SemiBold" }}>
-          Data unavailable
-        </Text>
-        <Text style={{ color: theme.textSecondary, marginTop: 6, fontSize: 13, textAlign: "center", paddingHorizontal: 32 }}>
-          Could not load data for {safeSymbol}. Check your connection and try again.
-        </Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={loadMeta}>
-          <Feather name="refresh-cw" size={14} color={theme.accent} />
-          <Text style={styles.retryText}>Retry</Text>
-        </TouchableOpacity>
+      <View style={[styles.root, { backgroundColor: theme.background }]}>
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingTop: topPad, paddingBottom: 32 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtnInline}>
+              <Feather name="arrow-left" size={22} color={theme.text} />
+            </TouchableOpacity>
+          </View>
+          <View style={{ alignItems: "center", paddingVertical: 24 }}>
+            <Feather name="wifi-off" size={36} color={theme.textTertiary} />
+            <Text style={{ color: theme.text, marginTop: 14, fontSize: 16, fontFamily: "Archivo_600SemiBold" }}>
+              Live price unavailable
+            </Text>
+            <Text style={{ color: theme.textSecondary, marginTop: 6, fontSize: 13, textAlign: "center", paddingHorizontal: 32 }}>
+              Could not load live data for {safeSymbol}{hasAnyETFData ? ", showing what we know about this ETF." : ". Check your connection and try again."}
+            </Text>
+          </View>
+          {hasAnyETFData && (
+            <ETFCharacteristicsFallback
+              styles={styles}
+              displayISIN={displayISIN}
+              displayAssetClass={displayAssetClass}
+              effectiveTER={effectiveTER}
+              displayDistribution={displayDistribution}
+              displayReplication={displayReplication}
+              displayDomicile={displayDomicile}
+              displayInception={displayInception}
+            />
+          )}
+          <TouchableOpacity style={styles.retryBtn} onPress={loadMeta}>
+            <Feather name="refresh-cw" size={14} color={theme.accent} />
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
     );
   }

@@ -789,19 +789,24 @@ export async function fetchTickerMeta(symbol: string): Promise<TickerMeta | null
 // ─── Exchange helpers used by fetchTickerMeta ─────────────────────────────────
 
 function exchangeFromSuffix(symbol: string): string | undefined {
-  if (symbol.endsWith(".DE"))  return "XETRA";
-  if (symbol.endsWith(".AS"))  return "EURONEXT_AMS";
-  if (symbol.endsWith(".PA"))  return "EURONEXT_PAR";
-  if (symbol.endsWith(".L"))   return "LSE";
-  if (symbol.endsWith(".MI"))  return "BORSA_IT";
-  if (symbol.endsWith(".SW"))  return "SIX";
-  if (symbol.endsWith(".BR"))  return "EURONEXT_BRU";
-  if (symbol.endsWith(".MC"))  return "BME";
-  if (symbol.endsWith(".HE"))  return "NASDAQ_HEL";
-  if (symbol.endsWith(".ST"))  return "NASDAQ_STO";
-  if (symbol.endsWith(".OL"))  return "OSLO";
-  if (symbol.endsWith(".CO"))  return "NASDAQ_CPH";
-  return undefined;
+  const dot = symbol.lastIndexOf(".");
+  if (dot < 0) return undefined;
+  const suffix = symbol.slice(dot + 1).toUpperCase();
+  const MAP: Record<string, string> = {
+    XETRA: "XETRA", DE: "XETRA", F: "XETRA",
+    LSE: "LSE", L: "LSE",
+    AMS: "EURONEXT_AMS", AS: "EURONEXT_AMS",
+    PAR: "EURONEXT_PAR", PA: "EURONEXT_PAR", EPA: "EURONEXT_PAR",
+    MI: "BORSA_IT", MIL: "BORSA_IT", BIT: "BORSA_IT",
+    SW: "SIX", SWX: "SIX",
+    BRU: "EURONEXT_BRU", BR: "EURONEXT_BRU",
+    MC: "BME", BME: "BME",
+    HE: "NASDAQ_HEL",
+    ST: "NASDAQ_STO", STO: "NASDAQ_STO",
+    OL: "OSLO", OSL: "OSLO",
+    CO: "NASDAQ_CPH", CSE: "NASDAQ_CPH",
+  };
+  return MAP[suffix];
 }
 
 function exchangeNameFromEodhdSymbol(symbol: string): string {
